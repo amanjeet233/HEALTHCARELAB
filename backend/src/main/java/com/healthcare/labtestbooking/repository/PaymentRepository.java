@@ -1,0 +1,46 @@
+package com.healthcare.labtestbooking.repository;
+
+import com.healthcare.labtestbooking.entity.Payment;
+import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    List<Payment> findByBookingId(Long bookingId);
+
+    List<Payment> findByBookingIdOrderByPaymentDateDesc(Long bookingId);
+
+    List<Payment> findByBookingPatientIdOrderByPaymentDateDesc(Long patientId);
+
+    Optional<Payment> findByTransactionId(String transactionId);
+
+        @Query("select function('date', p.paymentDate), sum(p.amount) "
+            + "from Payment p "
+            + "where p.paymentDate between :start and :end "
+            + "and p.isRefund = false "
+            + "and p.status in :statuses "
+            + "group by function('date', p.paymentDate) "
+            + "order by function('date', p.paymentDate)")
+        List<Object[]> sumRevenueByDateRange(@Param("start") LocalDateTime start,
+                         @Param("end") LocalDateTime end,
+                         @Param("statuses") List<PaymentStatus> statuses);
+
+        @Query("select function('year', p.paymentDate), function('month', p.paymentDate), sum(p.amount) "
+            + "from Payment p "
+            + "where p.paymentDate between :start and :end "
+            + "and p.isRefund = false "
+            + "and p.status in :statuses "
+            + "group by function('year', p.paymentDate), function('month', p.paymentDate) "
+            + "order by function('year', p.paymentDate), function('month', p.paymentDate)")
+        List<Object[]> sumRevenueByMonth(@Param("start") LocalDateTime start,
+                         @Param("end") LocalDateTime end,
+                         @Param("statuses") List<PaymentStatus> statuses);
+}

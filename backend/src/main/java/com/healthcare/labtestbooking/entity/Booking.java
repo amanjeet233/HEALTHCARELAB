@@ -1,0 +1,131 @@
+package com.healthcare.labtestbooking.entity;
+
+import com.healthcare.labtestbooking.entity.enums.BookingStatus;
+import com.healthcare.labtestbooking.entity.enums.CollectionType;
+import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
+import com.healthcare.labtestbooking.listener.AuditListener;
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@EntityListeners({AuditingEntityListener.class, AuditListener.class})
+@Table(name = "bookings")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Booking {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String bookingReference;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private User patient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private LabTest test;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "package_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private TestPackage testPackage;
+
+    @Column(nullable = false)
+    private LocalDate bookingDate;
+
+    @Column(length = 20)
+    private String timeSlot;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private BookingStatus status = BookingStatus.BOOKED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "technician_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private User technician;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "medical_officer_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private User medicalOfficer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private CollectionType collectionType = CollectionType.LAB;
+
+    @Column(columnDefinition = "TEXT")
+    private String collectionAddress;
+
+    @Column(precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal homeCollectionCharge = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal totalAmount;
+
+    @Column(precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal discount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal finalAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    // --- Relationships ---
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<ReportResult> reportResults = new ArrayList<>();
+
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private ReportVerification reportVerification;
+
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Recommendation recommendation;
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Payment> payments = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
