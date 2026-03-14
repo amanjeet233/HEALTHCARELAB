@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Report Ready</title>
+</head>
+<body>
+<h2>Your Report is Ready</h2>
+<p>Your report for order <strong th:text="${orderId}">ORDER_ID</strong> is ready.</p>
+<p><strong>Item:</strong> <span th:text="${itemName}">Item Name</span></p>
+<p><strong>Report ID:</strong> <span th:text="${reportId}">REPORT_ID</span></p>
+<p>
+    Download your report:
+    <a th:href="${reportLink}">View Report</a>
+</p>
+<p>Thank you for choosing our lab services.</p>
+</body>
+</html>

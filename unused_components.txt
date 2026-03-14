@@ -1,0 +1,1 @@
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\dashboard\Modals.tsx
