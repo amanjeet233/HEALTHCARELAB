@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     CONSTRAINT fk_booking_officer       FOREIGN KEY (medical_officer_id) REFERENCES users(id),
 
     INDEX idx_bookings_patient (patient_id),
+    INDEX idx_bookings_patient_status (patient_id, status),
     INDEX idx_bookings_test (test_id),
     INDEX idx_bookings_package (package_id),
     INDEX idx_bookings_status (status),
@@ -326,3 +327,4 @@ CREATE TABLE IF NOT EXISTS package_tests (
     INDEX idx_package_tests_package (package_id),
     INDEX idx_package_tests_test (test_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
