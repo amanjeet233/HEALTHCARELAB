@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -173,21 +175,17 @@ public class PaymentService {
         return mapToResponse(refund);
     }
 
-    public List<PaymentResponse> getPaymentHistory(Long userId) {
+    public Page<PaymentResponse> getPaymentHistory(Long userId, Pageable pageable) {
         if (userId == null) {
             userId = getCurrentUser().getId();
         }
-        List<Payment> payments = paymentRepository.findByBookingPatientIdOrderByPaymentDateDesc(userId);
-        return payments.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return paymentRepository.findByBookingPatientIdOrderByPaymentDateDesc(userId, pageable)
+                .map(this::mapToResponse);
     }
 
-    public List<PaymentResponse> getBookingPayments(Long bookingId) {
-        List<Payment> payments = paymentRepository.findByBookingIdOrderByPaymentDateDesc(bookingId);
-        return payments.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<PaymentResponse> getBookingPayments(Long bookingId, Pageable pageable) {
+        return paymentRepository.findByBookingIdOrderByPaymentDateDesc(bookingId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional

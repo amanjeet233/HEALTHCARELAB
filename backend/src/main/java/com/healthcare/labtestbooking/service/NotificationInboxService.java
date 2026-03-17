@@ -6,6 +6,8 @@ import com.healthcare.labtestbooking.repository.NotificationRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,9 +58,9 @@ public class NotificationInboxService {
         return saved;
     }
 
-    public List<Notification> getUserNotifications() {
+    public Page<Notification> getUserNotifications(Pageable pageable) {
         User user = getCurrentUser();
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable);
     }
 
     public List<Notification> getUnreadNotifications() {

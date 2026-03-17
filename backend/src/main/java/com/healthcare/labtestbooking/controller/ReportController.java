@@ -18,6 +18,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -94,9 +97,9 @@ public class ReportController {
 
     @GetMapping("/my")
     @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<ApiResponse<List<ReportResultDTO>>> getMyReports() {
+    public ResponseEntity<ApiResponse<Page<ReportResultDTO>>> getMyReports(@PageableDefault(size = 20) Pageable pageable) {
         log.info("Fetching reports for current patient");
-        List<ReportResultDTO> reports = reportService.getMyReports();
+        Page<ReportResultDTO> reports = reportService.getMyReports(pageable);
         return ResponseEntity.ok(ApiResponse.success("Reports fetched successfully", reports));
     }
 

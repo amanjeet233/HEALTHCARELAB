@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -60,8 +63,8 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - ADMIN role required"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
-        List<UserResponse> users = userService.getAllUsers();
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(@PageableDefault(size = 20) Pageable pageable) {
+        Page<UserResponse> users = userService.getAllUsers(pageable);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 

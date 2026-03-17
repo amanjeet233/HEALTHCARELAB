@@ -1,6 +1,8 @@
 package com.healthcare.labtestbooking.repository;
 
 import com.healthcare.labtestbooking.entity.Notification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +15,8 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    Page<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(Long userId);
 
