@@ -7,6 +7,8 @@ import com.healthcare.labtestbooking.dto.TestPackageDTO;
 import com.healthcare.labtestbooking.entity.enums.TestType;
 import com.healthcare.labtestbooking.service.LabTestService;
 import com.healthcare.labtestbooking.service.TestPackageService;
+import com.healthcare.labtestbooking.service.TestPopularityService;
+import com.healthcare.labtestbooking.entity.TestPopularity;
 import io.swagger.v3.oas.annotations.Operation;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,6 +41,7 @@ public class LabTestController {
 
         private final LabTestService labTestService;
         private final TestPackageService testPackageService;
+        private final TestPopularityService testPopularityService;
         
         @GetMapping
         @Operation(summary = "Get all lab tests", description = "Retrieve all active lab tests with pagination")
@@ -162,6 +165,20 @@ public class LabTestController {
                 log.info("GET /api/lab-tests/types");
                 List<TestType> types = labTestService.getAllTestTypes();
                 return ResponseEntity.ok(ApiResponse.success("Test types fetched successfully", types));
+        }
+
+        @GetMapping("/popularity")
+        @Operation(summary = "Get all test popularity stats")
+        public ResponseEntity<ApiResponse<List<TestPopularity>>> getPopularityStats() {
+                return ResponseEntity.ok(ApiResponse.success("Popularity stats fetched successfully",
+                        testPopularityService.getPopularityStats()));
+        }
+
+        @PostMapping("/popularity/increment/{testId}")
+        @Operation(summary = "Increment popularity for a test")
+        public ResponseEntity<ApiResponse<TestPopularity>> incrementPopularity(@PathVariable Long testId) {
+                return ResponseEntity
+                        .ok(ApiResponse.success("Popularity incremented", testPopularityService.incrementPopularity(testId)));
         }
 
         // Package endpoints - commented out due to missing TestPackageService methods
