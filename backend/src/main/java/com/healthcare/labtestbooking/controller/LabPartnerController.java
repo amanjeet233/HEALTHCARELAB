@@ -68,3 +68,5 @@ public class LabPartnerController {
         return ResponseEntity.ok(ApiResponse.success(bestDeal));
     }
 }
+
+

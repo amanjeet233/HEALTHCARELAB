@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -53,6 +54,15 @@ public class BookingService {
             log.error("Test ID is null in request");
             throw new RuntimeException("Test ID is required");
         }
+
+        // Validate patientId
+        if (request.getPatientId() != null && !request.getPatientId().equals(patient.getId())
+                && patient.getRole() != UserRole.ADMIN) {
+            log.error("Patient ID mismatch: Request ID {}, Authenticated ID {}", request.getPatientId(),
+                    patient.getId());
+            throw new RuntimeException("Cannot create booking for another patient");
+        }
+
         log.info("Looking up test with ID: {}", testId);
 
         LabTest labTest = labTestRepository.findById(testId)
@@ -184,7 +194,7 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    public List<Booking> getTechnicianBookings(Long technicianId){
+    public List<Booking> getTechnicianBookings(Long technicianId) {
         return bookingRepository.findByTechnicianId(technicianId);
     }
 
@@ -219,6 +229,20 @@ public class BookingService {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
         booking.setStatus(BookingStatus.valueOf(status.toUpperCase()));
+        booking = bookingRepository.save(booking);
+        return mapToResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse markCollected(Long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
+
+        if (booking.getStatus() != BookingStatus.BOOKED && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Booking is not in a states that allows collection");
+        }
+
+        booking.setStatus(BookingStatus.SAMPLE_COLLECTED);
         booking = bookingRepository.save(booking);
         return mapToResponse(booking);
     }

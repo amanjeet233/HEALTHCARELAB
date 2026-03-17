@@ -28,12 +28,19 @@ CREATE TABLE IF NOT EXISTS users (
     gender          ENUM('MALE','FEMALE','OTHER'),
     blood_group     VARCHAR(5),
     is_active       BOOLEAN         NOT NULL DEFAULT TRUE,
+    is_verified     BOOLEAN         NOT NULL DEFAULT FALSE,
+    reset_password_token        VARCHAR(500),
+    reset_password_token_expiry TIMESTAMP       NULL,
+    verification_token          VARCHAR(500),
+    verification_token_expiry   TIMESTAMP       NULL,
+    last_login_at   TIMESTAMP       NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_users_role (role),
     INDEX idx_users_email (email),
-    INDEX idx_users_is_active (is_active)
+    INDEX idx_users_is_active (is_active),
+    INDEX idx_users_verification_token (verification_token(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ===================================================================
@@ -319,12 +326,26 @@ CREATE TABLE IF NOT EXISTS package_tests (
     test_id         BIGINT          NOT NULL,
     display_order   INT             DEFAULT 0,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT fk_package_tests_package FOREIGN KEY (package_id) REFERENCES test_packages(id) ON DELETE CASCADE,
     CONSTRAINT fk_package_tests_test    FOREIGN KEY (test_id)    REFERENCES lab_tests(id)    ON DELETE CASCADE,
     UNIQUE KEY unique_package_test (package_id, test_id),
-    
+
     INDEX idx_package_tests_package (package_id),
     INDEX idx_package_tests_test (test_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ===================================================================
+-- 15. LOGIN ATTEMPTS (Brute-force protection)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email           VARCHAR(100)    NOT NULL UNIQUE,
+    failed_attempts INT             NOT NULL DEFAULT 0,
+    lock_until      TIMESTAMP       NULL,
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_login_attempts_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

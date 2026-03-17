@@ -2,63 +2,41 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.entity.TestParameter;
 import com.healthcare.labtestbooking.repository.TestParameterRepository;
-import com.healthcare.labtestbooking.dto.TestParameterRequest;
-import com.healthcare.labtestbooking.dto.TestParameterResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class TestParameterService {
 
-    private final TestParameterRepository repository;
-
-    @Transactional(readOnly = true)
-    public List<TestParameterResponse> getAll() {
-        return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public TestParameterResponse getById(Long id) {
-        TestParameter entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("TestParameter not found with id " + id));
-        return mapToResponse(entity);
-    }
+    private final TestParameterRepository testParameterRepository;
 
     @Transactional
-    public TestParameterResponse create(TestParameterRequest request) {
-        TestParameter entity = new TestParameter();
-        // map request to entity here
-        TestParameter saved = repository.save(entity);
-        return mapToResponse(saved);
+    public TestParameter saveParameter(TestParameter parameter) {
+        log.info("Saving test parameter: {}", parameter.getParameterName());
+        return testParameterRepository.save(parameter);
     }
 
-    @Transactional
-    public TestParameterResponse update(Long id, TestParameterRequest request) {
-        TestParameter entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("TestParameter not found with id " + id));
-        // update entity from request here
-        TestParameter updated = repository.save(entity);
-        return mapToResponse(updated);
+    public List<TestParameter> getParametersByTestId(Long testId) {
+        // Assuming repository has findByTestId or similar. If not, use findAll and
+        // filter for now or add to repo.
+        return testParameterRepository.findAll().stream()
+                .filter(p -> p.getTest() != null && p.getTest().getId().equals(testId))
+                .toList();
     }
 
-    @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
+    public Optional<TestParameter> getParameterById(Long id) {
+        return testParameterRepository.findById(id);
     }
 
-    private TestParameterResponse mapToResponse(TestParameter entity) {
-        TestParameterResponse response = new TestParameterResponse();
-        // Assume Long id field for boilerplate
-        try {
-            response.setId(entity.getId());
-        } catch(Exception e) {
-            // Ignore if no getId() exists
-        }
-        return response;
+    public List<TestParameter> getAllParameters() {
+        return testParameterRepository.findAll();
     }
 }

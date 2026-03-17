@@ -1,48 +1,35 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.TestPopularityRequest;
-import com.healthcare.labtestbooking.dto.TestPopularityResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.TestPopularity;
 import com.healthcare.labtestbooking.service.TestPopularityService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
-@RequestMapping("/api/test-popularitys")
+@RequestMapping("/api/test-popularity")
 @RequiredArgsConstructor
+@Tag(name = "Test Popularity", description = "Lab test popularity statistics")
 public class TestPopularityController {
 
-    private final TestPopularityService service;
+    private final TestPopularityService testPopularityService;
 
     @GetMapping
-    public ResponseEntity<List<TestPopularityResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @Operation(summary = "Get all test popularity stats")
+    public ResponseEntity<ApiResponse<List<TestPopularity>>> getStats() {
+        return ResponseEntity.ok(ApiResponse.success("Popularity stats fetched successfully",
+                testPopularityService.getPopularityStats()));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<TestPopularityResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<TestPopularityResponse> create(@Valid @RequestBody TestPopularityRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<TestPopularityResponse> update(@PathVariable Long id, @Valid @RequestBody TestPopularityRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/increment/{testId}")
+    @Operation(summary = "Increment popularity for a test")
+    public ResponseEntity<ApiResponse<TestPopularity>> increment(@PathVariable Long testId) {
+        return ResponseEntity
+                .ok(ApiResponse.success("Popularity incremented", testPopularityService.incrementPopularity(testId)));
     }
 }

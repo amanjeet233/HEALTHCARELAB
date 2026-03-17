@@ -1,48 +1,36 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.ReportResultRequest;
-import com.healthcare.labtestbooking.dto.ReportResultResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.ReportResult;
 import com.healthcare.labtestbooking.service.ReportResultService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/report-results")
 @RequiredArgsConstructor
+@Tag(name = "Report Results", description = "Management of detailed test results")
 public class ReportResultController {
 
-    private final ReportResultService service;
+    private final ReportResultService reportResultService;
 
-    @GetMapping
-    public ResponseEntity<List<ReportResultResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @GetMapping("/booking/{bookingId}")
+    @Operation(summary = "Get test results for a specific booking")
+    public ResponseEntity<ApiResponse<List<ReportResult>>> getByBookingId(@PathVariable Long bookingId) {
+        return ResponseEntity.ok(ApiResponse.success("Results fetched successfully",
+                reportResultService.getResultsByBookingId(bookingId)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReportResultResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<ReportResultResponse> create(@Valid @RequestBody ReportResultRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ReportResultResponse> update(@PathVariable Long id, @Valid @RequestBody ReportResultRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Get specific result entry by ID")
+    public ResponseEntity<ApiResponse<ReportResult>> getById(@PathVariable Long id) {
+        return reportResultService.getResultById(id)
+                .map(r -> ResponseEntity.ok(ApiResponse.success("Result entry found", r)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

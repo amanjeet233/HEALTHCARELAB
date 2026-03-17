@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.healthcare.labtestbooking.dto.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,28 +22,30 @@ public class DoctorAvailabilityController {
     private final DoctorAvailabilityService service;
 
     @GetMapping
-    public ResponseEntity<List<DoctorAvailabilityResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    public ResponseEntity<ApiResponse<List<DoctorAvailabilityResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DoctorAvailabilityResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
+    public ResponseEntity<ApiResponse<DoctorAvailabilityResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<DoctorAvailabilityResponse> create(@Valid @RequestBody DoctorAvailabilityRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<DoctorAvailabilityResponse>> create(@Valid @RequestBody DoctorAvailabilityRequest request) {
+        return new ResponseEntity<>(ApiResponse.success("Created", service.create(request)), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DoctorAvailabilityResponse> update(@PathVariable Long id, @Valid @RequestBody DoctorAvailabilityRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
+    public ResponseEntity<ApiResponse<DoctorAvailabilityResponse>> update(@PathVariable Long id, @Valid @RequestBody DoctorAvailabilityRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
+
+

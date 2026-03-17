@@ -2,6 +2,12 @@
 # DevContext - AI coding context
 .devctx/
 
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.production
+*.env
+
 # Maven / Gradle build output
 target/
 build/

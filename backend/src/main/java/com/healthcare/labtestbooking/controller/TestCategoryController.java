@@ -1,48 +1,36 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.TestCategoryRequest;
-import com.healthcare.labtestbooking.dto.TestCategoryResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.TestCategory;
 import com.healthcare.labtestbooking.service.TestCategoryService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
-@RequestMapping("/api/test-categorys")
+@RequestMapping("/api/test-categories")
 @RequiredArgsConstructor
+@Tag(name = "Test Categories", description = "Management of lab test categories")
 public class TestCategoryController {
 
-    private final TestCategoryService service;
+    private final TestCategoryService testCategoryService;
 
     @GetMapping
-    public ResponseEntity<List<TestCategoryResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @Operation(summary = "Get all test categories")
+    public ResponseEntity<ApiResponse<List<TestCategory>>> getAllCategories() {
+        return ResponseEntity
+                .ok(ApiResponse.success("Categories fetched successfully", testCategoryService.getAllCategories()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TestCategoryResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<TestCategoryResponse> create(@Valid @RequestBody TestCategoryRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<TestCategoryResponse> update(@PathVariable Long id, @Valid @RequestBody TestCategoryRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Get test category by ID")
+    public ResponseEntity<ApiResponse<TestCategory>> getCategoryById(@PathVariable Long id) {
+        return testCategoryService.getCategoryById(id)
+                .map(c -> ResponseEntity.ok(ApiResponse.success("Category found", c)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

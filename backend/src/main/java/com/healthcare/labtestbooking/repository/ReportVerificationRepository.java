@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface ReportVerificationRepository extends JpaRepository<ReportVerification, Long> {
 
-    Optional<ReportVerification> findByBookingId(Long bookingId);
-
     List<ReportVerification> findByStatusOrderByCreatedAtDesc(VerificationStatus status);
+
+    Optional<ReportVerification> findByBookingId(Long bookingId);
 }

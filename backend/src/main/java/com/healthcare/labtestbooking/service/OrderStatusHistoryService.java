@@ -2,63 +2,32 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.entity.OrderStatusHistory;
 import com.healthcare.labtestbooking.repository.OrderStatusHistoryRepository;
-import com.healthcare.labtestbooking.dto.OrderStatusHistoryRequest;
-import com.healthcare.labtestbooking.dto.OrderStatusHistoryResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class OrderStatusHistoryService {
 
-    private final OrderStatusHistoryRepository repository;
-
-    @Transactional(readOnly = true)
-    public List<OrderStatusHistoryResponse> getAll() {
-        return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public OrderStatusHistoryResponse getById(Long id) {
-        OrderStatusHistory entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OrderStatusHistory not found with id " + id));
-        return mapToResponse(entity);
-    }
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
 
     @Transactional
-    public OrderStatusHistoryResponse create(OrderStatusHistoryRequest request) {
-        OrderStatusHistory entity = new OrderStatusHistory();
-        // map request to entity here
-        OrderStatusHistory saved = repository.save(entity);
-        return mapToResponse(saved);
+    public OrderStatusHistory saveHistory(OrderStatusHistory history) {
+        log.info("Saving order status history for order id: {}", history.getOrder().getId());
+        return orderStatusHistoryRepository.save(history);
     }
 
-    @Transactional
-    public OrderStatusHistoryResponse update(Long id, OrderStatusHistoryRequest request) {
-        OrderStatusHistory entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("OrderStatusHistory not found with id " + id));
-        // update entity from request here
-        OrderStatusHistory updated = repository.save(entity);
-        return mapToResponse(updated);
+    public List<OrderStatusHistory> getHistoryForOrder(Long orderId) {
+        return orderStatusHistoryRepository.findByOrderIdOrderByChangedAtDesc(orderId);
     }
 
-    @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
-    }
-
-    private OrderStatusHistoryResponse mapToResponse(OrderStatusHistory entity) {
-        OrderStatusHistoryResponse response = new OrderStatusHistoryResponse();
-        // Assume Long id field for boilerplate
-        try {
-            response.setId(entity.getId());
-        } catch(Exception e) {
-            // Ignore if no getId() exists
-        }
-        return response;
+    public List<OrderStatusHistory> getAllHistory() {
+        return orderStatusHistoryRepository.findAll();
     }
 }

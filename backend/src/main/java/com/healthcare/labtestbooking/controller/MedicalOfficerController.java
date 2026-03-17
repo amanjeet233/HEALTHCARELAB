@@ -33,11 +33,14 @@ public class MedicalOfficerController {
         return ResponseEntity.ok(ApiResponse.success(count));
     }
 
-    @PostMapping("/verify/{bookingId}")
+    @PostMapping({"/verify/{bookingId}", "/verify/{reportId}"})
     public ResponseEntity<ApiResponse<ReportVerificationResponse>> verifyReport(
-            @PathVariable Long bookingId,
+            @PathVariable(value = "bookingId", required = false) Long bookingId,
+            @PathVariable(value = "reportId", required = false) Long reportId,
             @Valid @RequestBody ReportVerificationRequest request) {
-        ReportVerificationResponse response = medicalOfficerService.verifyReport(bookingId, request);
+        
+        Long idToUse = bookingId != null ? bookingId : reportId;
+        ReportVerificationResponse response = medicalOfficerService.verifyReport(idToUse, request);
         return ResponseEntity.ok(ApiResponse.success("Report verified", response));
     }
 
@@ -68,3 +71,5 @@ public class MedicalOfficerController {
         return ResponseEntity.ok(ApiResponse.success("Referral created", null));
     }
 }
+
+

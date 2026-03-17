@@ -30,6 +30,15 @@ public class LabTestService {
         private final TestCategoryRepository testCategoryRepository;
         private final TestParameterRepository testParameterRepository;
 
+        public List<LabTestDTO> getPopularTests() {
+                log.info("Fetching popular lab tests");
+                // Simplified: returns first 5 active tests as popular
+                return labTestRepository.findByIsActiveTrue().stream()
+                                .limit(5)
+                                .map(this::convertToDTO)
+                                .collect(Collectors.toList());
+        }
+
         public List<LabTestDTO> getAllActiveTests() {
                 log.info("Fetching all active lab tests");
                 return labTestRepository.findByIsActiveTrue().stream()

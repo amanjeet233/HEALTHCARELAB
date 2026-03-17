@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.healthcare.labtestbooking.dto.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,28 +22,30 @@ public class LocationPricingController {
     private final LocationPricingService service;
 
     @GetMapping
-    public ResponseEntity<List<LocationPricingResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    public ResponseEntity<ApiResponse<List<LocationPricingResponse>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.getAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<LocationPricingResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
+    public ResponseEntity<ApiResponse<LocationPricingResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<LocationPricingResponse> create(@Valid @RequestBody LocationPricingRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<LocationPricingResponse>> create(@Valid @RequestBody LocationPricingRequest request) {
+        return new ResponseEntity<>(ApiResponse.success("Created", service.create(request)), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<LocationPricingResponse> update(@PathVariable Long id, @Valid @RequestBody LocationPricingRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
+    public ResponseEntity<ApiResponse<LocationPricingResponse>> update(@PathVariable Long id, @Valid @RequestBody LocationPricingRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Success", service.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
+
+

@@ -9,8 +9,6 @@ import java.util.List;
 
 @Repository
 public interface TestParameterRepository extends JpaRepository<TestParameter, Long> {
-    List<TestParameter> findByTest(LabTest test);
-    List<TestParameter> findByTestOrderByDisplayOrder(LabTest test);
-    void deleteByTestId(Long testId);
-}
 
+    List<TestParameter> findByTestOrderByDisplayOrder(LabTest test);
+}

@@ -10,15 +10,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@EntityListeners({AuditingEntityListener.class, AuditListener.class})
-@Table(
-    name = "test_popularity",
-    indexes = {
+@EntityListeners({ AuditingEntityListener.class, AuditListener.class })
+@Table(name = "test_popularity", indexes = {
         @Index(name = "idx_test_popularity_test", columnList = "test_id"),
         @Index(name = "idx_test_popularity_package", columnList = "package_id"),
         @Index(name = "idx_test_popularity_last_viewed", columnList = "last_viewed")
-    }
-)
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -29,11 +26,13 @@ public class TestPopularity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "test_id")
-    private Long testId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_id")
+    private LabTest test;
 
-    @Column(name = "package_id")
-    private Long packageId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "package_id")
+    private TestPackage testPackage;
 
     @Builder.Default
     @Column(name = "view_count", nullable = false)

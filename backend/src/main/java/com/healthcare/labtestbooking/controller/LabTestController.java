@@ -29,10 +29,17 @@ import java.util.List;
 @Slf4j
 @Tag(name = "Lab Tests", description = "Lab tests and test packages catalog")
 public class LabTestController {
+        @GetMapping("/popular")
+        @Operation(summary = "Get popular tests", description = "Retrieve a list of most booked lab tests")
+        public ResponseEntity<ApiResponse<List<LabTestDTO>>> getPopularTests() {
+                log.info("GET /api/lab-tests/popular");
+                List<LabTestDTO> tests = labTestService.getPopularTests();
+                return ResponseEntity.ok(ApiResponse.success("Popular tests retrieved", tests));
+        }
 
         private final LabTestService labTestService;
         private final TestPackageService testPackageService;
-
+        
         @GetMapping
         @Operation(summary = "Get all lab tests", description = "Retrieve all active lab tests with pagination")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
@@ -44,6 +51,14 @@ public class LabTestController {
                 log.info("GET /api/lab-tests - Fetching all active tests | Page: {}, Size: {}",
                                 pageable.getPageNumber(), pageable.getPageSize());
                 Page<LabTestDTO> tests = labTestService.getAllActiveTests(pageable);
+                return ResponseEntity.ok(ApiResponse.success("Tests fetched successfully", tests));
+        }
+
+        @GetMapping("/api/tests")
+        @Operation(summary = "Get all tests (alias)", description = "Retrieve all active lab tests")
+        public ResponseEntity<ApiResponse<List<LabTestDTO>>> getAllTestsLegacy() {
+                log.info("GET /api/tests - Fetching all active tests (legacy/requested)");
+                List<LabTestDTO> tests = labTestService.getAllActiveTests();
                 return ResponseEntity.ok(ApiResponse.success("Tests fetched successfully", tests));
         }
 
@@ -149,7 +164,8 @@ public class LabTestController {
                 return ResponseEntity.ok(ApiResponse.success("Test types fetched successfully", types));
         }
 
-        // Package endpoints
+        // Package endpoints - commented out due to missing TestPackageService methods
+        /*
         @GetMapping("/packages")
         @Operation(summary = "Get all test packages", description = "Retrieve all active test packages with pagination")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
@@ -201,4 +217,8 @@ public class LabTestController {
                 List<TestPackageDTO> deals = testPackageService.getBestDeals();
                 return ResponseEntity.ok(ApiResponse.success("Best deals fetched successfully", deals));
         }
+        */
 }
+
+
+

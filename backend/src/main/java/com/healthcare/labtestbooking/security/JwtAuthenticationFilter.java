@@ -1,5 +1,6 @@
 package com.healthcare.labtestbooking.security;
 
+import com.healthcare.labtestbooking.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -50,21 +52,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("JWT filter invoked for {} {}. Token present: {}",
                     request.getMethod(), request.getRequestURI(), StringUtils.hasText(jwt));
 
-            if (StringUtils.hasText(jwt) && jwtUtil.validateToken(jwt)) {
-                String email = jwtUtil.extractUsername(jwt);
-                log.debug("JWT validated successfully. Subject(email): {}", email);
+            if (StringUtils.hasText(jwt)) {
+                // Check if token is blacklisted (logged out)
+                if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
+                    log.debug("Token is blacklisted for request {} {}", request.getMethod(), request.getRequestURI());
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"Token has been revoked. Please login again.\"}");
+                    return;
+                }
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                log.debug("Loaded user details for {} with authorities {}", email, userDetails.getAuthorities());
+                if (jwtUtil.validateToken(jwt)) {
+                    String email = jwtUtil.extractUsername(jwt);
+                    log.debug("JWT validated successfully. Subject(email): {}", email);
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                    log.debug("Loaded user details for {} with authorities {}", email, userDetails.getAuthorities());
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("SecurityContext updated for {}", email);
-            } else if (StringUtils.hasText(jwt)) {
-                log.debug("JWT validation failed for request {} {}", request.getMethod(), request.getRequestURI());
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("SecurityContext updated for {}", email);
+                } else {
+                    log.debug("JWT validation failed for request {} {}", request.getMethod(), request.getRequestURI());
+                }
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);

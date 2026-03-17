@@ -31,7 +31,7 @@ public class BookingController {
 
         private final BookingService bookingService;
 
-        @PostMapping
+        @PostMapping({ "", "/create" })
         @Operation(summary = "Create a new booking", description = "Create a new lab test booking with tests and slot information")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Booking created successfully"),
@@ -46,7 +46,7 @@ public class BookingController {
                                 .body(ApiResponse.success("Booking created successfully", response));
         }
 
-        @GetMapping("/my")
+        @GetMapping({ "/my", "/user" })
         @Operation(summary = "Get my bookings", description = "Retrieve all bookings for the authenticated user")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bookings retrieved successfully"),
@@ -63,11 +63,10 @@ public class BookingController {
 
         @GetMapping("/technician")
         @Operation(summary = "Get technician bookings", description = "Retrieve all bookings assigned to the authenticated technician")
-        public List<com.healthcare.labtestbooking.entity.Booking> getTechnicianBookings() {
-                var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                org.springframework.security.core.userdetails.UserDetails userDetails = (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal();
-                com.healthcare.labtestbooking.entity.User technician = bookingService.getUserByEmail(userDetails.getUsername());
-                return bookingService.getTechnicianBookings(technician.getId());
+        public ResponseEntity<ApiResponse<List<BookingResponse>>> getTechnicianBookings() {
+                log.info("Fetching bookings for authenticated technician");
+                List<BookingResponse> bookings = bookingService.getTechnicianBookings();
+                return ResponseEntity.ok(ApiResponse.success("Technician bookings fetched successfully", bookings));
         }
 
         @GetMapping("/{id}")
@@ -116,6 +115,14 @@ public class BookingController {
                 return ResponseEntity.ok(ApiResponse.success("Booking status updated", booking));
         }
 
+        @PutMapping("/{id}/collection")
+        @PreAuthorize("hasRole('TECHNICIAN')")
+        public ResponseEntity<ApiResponse<BookingResponse>> markCollected(@PathVariable Long id) {
+                log.info("Marking booking {} as collected", id);
+                BookingResponse booking = bookingService.markCollected(id);
+                return ResponseEntity.ok(ApiResponse.success("Sample marked as collected", booking));
+        }
+
         @PutMapping("/{id}/technician")
         @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Assign technician", description = "Assign a technician to a booking (ADMIN role required)")
@@ -133,7 +140,7 @@ public class BookingController {
                 return ResponseEntity.ok(ApiResponse.success("Technician assigned", booking));
         }
 
-        @PutMapping("/{id}/cancel")
+        @RequestMapping(value = { "/{id}/cancel", "/cancel/{id}" }, method = { RequestMethod.PUT, RequestMethod.POST })
         @Operation(summary = "Cancel booking", description = "Cancel an existing booking")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Booking cancelled successfully"),
@@ -211,3 +218,5 @@ public class BookingController {
                 return ResponseEntity.ok(ApiResponse.success("Booking rescheduled successfully", booking));
         }
 }
+
+
