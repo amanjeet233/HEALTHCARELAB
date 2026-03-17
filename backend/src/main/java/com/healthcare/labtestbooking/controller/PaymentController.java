@@ -6,7 +6,9 @@ import com.healthcare.labtestbooking.dto.CreatePaymentOrderRequest;
 import com.healthcare.labtestbooking.dto.PaymentLinkResponse;
 import com.healthcare.labtestbooking.dto.PaymentRequest;
 import com.healthcare.labtestbooking.dto.PaymentResponse;
+import com.healthcare.labtestbooking.entity.GatewayPayment;
 import com.healthcare.labtestbooking.service.PaymentService;
+import com.healthcare.labtestbooking.service.GatewayPaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 
 
@@ -29,6 +31,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final GatewayPaymentService gatewayPaymentService;
 
     @PostMapping("/process")
     @Operation(summary = "Process payment", description = "Process a payment for a booking")
@@ -111,6 +114,22 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<String>> generateInvoice(@PathVariable Long paymentId) {
         String invoice = paymentService.generateInvoice(paymentId);
         return ResponseEntity.ok(ApiResponse.success("Invoice generated", invoice));
+    }
+
+    @GetMapping("/gateway/order/{orderId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PATIENT')")
+    @Operation(summary = "Get gateway payments for an order")
+    public ResponseEntity<ApiResponse<List<GatewayPayment>>> getGatewayPaymentsByOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(ApiResponse.success("Payments fetched successfully",
+                gatewayPaymentService.getGatewayPaymentsByOrderId(orderId)));
+    }
+
+    @GetMapping("/gateway/transaction/{transactionId}")
+    @Operation(summary = "Get payment by transaction ID")
+    public ResponseEntity<ApiResponse<GatewayPayment>> getPaymentByTransactionId(@PathVariable String transactionId) {
+        return gatewayPaymentService.getGatewayPaymentByTransactionId(transactionId)
+                .map(p -> ResponseEntity.ok(ApiResponse.success("Payment found", p)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }
 
