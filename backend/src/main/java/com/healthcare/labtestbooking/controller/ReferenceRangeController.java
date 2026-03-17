@@ -1,48 +1,36 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.ReferenceRangeRequest;
-import com.healthcare.labtestbooking.dto.ReferenceRangeResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.ReferenceRange;
 import com.healthcare.labtestbooking.service.ReferenceRangeService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/reference-ranges")
 @RequiredArgsConstructor
+@Tag(name = "Reference Ranges", description = "Management of parameter reference ranges")
 public class ReferenceRangeController {
 
-    private final ReferenceRangeService service;
+    private final ReferenceRangeService referenceRangeService;
 
     @GetMapping
-    public ResponseEntity<List<ReferenceRangeResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @Operation(summary = "Get all reference ranges")
+    public ResponseEntity<ApiResponse<List<ReferenceRange>>> getAllReferenceRanges() {
+        return ResponseEntity.ok(ApiResponse.success("Reference ranges fetched successfully",
+                referenceRangeService.getAllReferenceRanges()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReferenceRangeResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<ReferenceRangeResponse> create(@Valid @RequestBody ReferenceRangeRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ReferenceRangeResponse> update(@PathVariable Long id, @Valid @RequestBody ReferenceRangeRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Get reference range by ID")
+    public ResponseEntity<ApiResponse<ReferenceRange>> getById(@PathVariable Long id) {
+        return referenceRangeService.getReferenceRangeById(id)
+                .map(r -> ResponseEntity.ok(ApiResponse.success("Reference range found", r)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

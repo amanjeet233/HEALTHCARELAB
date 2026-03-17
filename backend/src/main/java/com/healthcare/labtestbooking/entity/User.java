@@ -60,16 +60,29 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isVerified = false;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @Column(name = "reset_password_token", length = 100)
     private String resetPasswordToken;
 
     @Column(name = "reset_password_token_expiry")
     private LocalDateTime resetPasswordTokenExpiry;
+
+    @Column(name = "verification_token", length = 500)
+    private String verificationToken;
+
+    @Column(name = "verification_token_expiry")
+    private LocalDateTime verificationTokenExpiry;
 
     // --- Relationships ---
 
@@ -93,6 +106,20 @@ public class User {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<HealthScore> healthScores = new ArrayList<>();
+
+    @OneToMany(mappedBy = "technician", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Booking> technicianAssignments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "medicalOfficer", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Booking> medicalOfficerVerifications = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

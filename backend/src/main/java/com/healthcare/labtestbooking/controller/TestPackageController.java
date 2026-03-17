@@ -1,48 +1,36 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.TestPackageRequest;
-import com.healthcare.labtestbooking.dto.TestPackageResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.TestPackage;
 import com.healthcare.labtestbooking.service.TestPackageService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/test-packages")
 @RequiredArgsConstructor
+@Tag(name = "Test Packages", description = "Management of lab test packages")
 public class TestPackageController {
 
-    private final TestPackageService service;
+    private final TestPackageService testPackageService;
 
     @GetMapping
-    public ResponseEntity<List<TestPackageResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @Operation(summary = "Get all test packages")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getAllPackages() {
+        return ResponseEntity
+                .ok(ApiResponse.success("Packages fetched successfully", testPackageService.getAllPackages()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TestPackageResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<TestPackageResponse> create(@Valid @RequestBody TestPackageRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<TestPackageResponse> update(@PathVariable Long id, @Valid @RequestBody TestPackageRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Get test package by ID")
+    public ResponseEntity<ApiResponse<TestPackage>> getPackageById(@PathVariable Long id) {
+        return testPackageService.getPackageById(id)
+                .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", p)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

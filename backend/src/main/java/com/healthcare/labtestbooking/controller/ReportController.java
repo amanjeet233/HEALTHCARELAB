@@ -1,4 +1,4 @@
- package com.healthcare.labtestbooking.controller;
+package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.ReportResultDTO;
@@ -8,7 +8,6 @@ import com.healthcare.labtestbooking.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -44,7 +44,8 @@ public class ReportController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<ReportResultDTO>> submitReportResults(@Valid @RequestBody ReportResultRequest request) {
+    public ResponseEntity<ApiResponse<ReportResultDTO>> submitReportResults(
+            @Valid @RequestBody ReportResultRequest request) {
         log.info("Received request to submit report results for booking: {}", request.getBookingId());
         ReportResultDTO result = reportService.enterReportResults(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -77,7 +78,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success("Report uploaded successfully", null));
     }
 
-    @PutMapping("/{id}/verify")
+    @PostMapping("/verify/{id}")
     @PreAuthorize("hasAnyRole('MEDICAL_OFFICER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> verifyReport(@PathVariable Long id) {
         log.info("Verifying report ID: {}", id);
@@ -85,21 +86,28 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success("Report verified successfully", null));
     }
 
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<List<ReportResultDTO>>> getMyReports() {
+        log.info("Fetching reports for current patient");
+        List<ReportResultDTO> reports = reportService.getMyReports();
+        return ResponseEntity.ok(ApiResponse.success("Reports fetched successfully", reports));
+    }
+
     @GetMapping("/{bookingId}")
-    @PreAuthorize("hasAnyRole('PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN')")     
-    @Operation(summary = "Get report by booking", description = "Retrieve lab test report for a specific booking")                                                  
-    public ResponseEntity<ApiResponse<ReportResultDTO>> getReportByBookingId(@PathVariable Long bookingId) {                                                              
+    @PreAuthorize("hasAnyRole('PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN')")
+    @Operation(summary = "Get report by booking", description = "Retrieve lab test report for a specific booking")
+    public ResponseEntity<ApiResponse<ReportResultDTO>> getReportByBookingId(@PathVariable Long bookingId) {
         log.info("Fetching report for booking ID: {}", bookingId);
-        ReportResultDTO report = reportService.getReportByBookingId(bookingId); 
-        return ResponseEntity.ok(ApiResponse.success("Report fetched successfully", report));                                                                       
+        ReportResultDTO report = reportService.getReportByBookingId(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Report fetched successfully", report));
     }
 
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAnyRole('PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN', 'ADMIN')")
     @Operation(summary = "Get report PDF", description = "Download lab test report as PDF with QR code for verification")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "PDF generated and downloaded successfully",
-                    content = @Content(mediaType = "application/pdf")),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "PDF generated and downloaded successfully", content = @Content(mediaType = "application/pdf")),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - insufficient permissions"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Report not found"),
@@ -114,3 +122,5 @@ public class ReportController {
                 .body(pdf);
     }
 }
+
+

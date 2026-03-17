@@ -24,7 +24,7 @@ public class TestService {
     private final UserRepository userRepository;
 
     public List<LabTestResponse> getAllTests() {
-        return labTestRepository.findAll().stream()
+        return labTestRepository.findByIsActiveTrue().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -87,7 +87,7 @@ public class TestService {
 
     public List<LabTestResponse> searchTestsByNameOrCategory(String keyword) {
         List<LabTest> testsByName = labTestRepository.searchTests(keyword);
-        
+
         return testsByName.stream()
                 .distinct()
                 .map(this::mapToResponse)
@@ -99,7 +99,7 @@ public class TestService {
                 .getAuthentication().getPrincipal();
         User currentUser = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         if (currentUser.getRole() != UserRole.ADMIN) {
             throw new RuntimeException("Admin access required");
         }
@@ -117,4 +117,3 @@ public class TestService {
                 .build();
     }
 }
-

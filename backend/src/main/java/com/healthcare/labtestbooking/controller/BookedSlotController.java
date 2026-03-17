@@ -1,48 +1,38 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.BookedSlotRequest;
-import com.healthcare.labtestbooking.dto.BookedSlotResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.BookedSlot;
 import com.healthcare.labtestbooking.service.BookedSlotService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/booked-slots")
 @RequiredArgsConstructor
+@Tag(name = "Booked Slots", description = "Management of booked time slots")
 public class BookedSlotController {
 
-    private final BookedSlotService service;
+    private final BookedSlotService bookedSlotService;
 
-    @GetMapping
-    public ResponseEntity<List<BookedSlotResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<BookedSlotResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<BookedSlotResponse> create(@Valid @RequestBody BookedSlotRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<BookedSlotResponse> update(@PathVariable Long id, @Valid @RequestBody BookedSlotRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
+    @GetMapping("/date/{date}")
+    @Operation(summary = "Get booked slots for a specific date")
+    public ResponseEntity<ApiResponse<List<BookedSlot>>> getBookedSlotsForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success("Booked slots fetched successfully",
+                bookedSlotService.getBookedSlotsForDate(date)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Release a booked slot")
+    public ResponseEntity<ApiResponse<Void>> releaseSlot(@PathVariable Long id) {
+        bookedSlotService.releaseSlot(id);
+        return ResponseEntity.ok(ApiResponse.success("Slot released successfully", null));
     }
 }

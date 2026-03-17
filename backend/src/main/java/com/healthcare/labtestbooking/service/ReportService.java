@@ -43,8 +43,8 @@ public class ReportService {
     @Transactional
     public void uploadReport(Long bookingId, MultipartFile file) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found"));
-        
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
         try {
             Report report = new Report();
             report.setBooking(booking);
@@ -60,9 +60,25 @@ public class ReportService {
     @Transactional
     public void verifyReport(Long id) {
         Report report = reportRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Report not found"));
+                .orElseThrow(() -> new RuntimeException("Report not found"));
         report.setVerifiedBy(getCurrentUser().getEmail());
+        report.setGeneratedDate(LocalDateTime.now());
         reportRepository.save(report);
+    }
+
+    public List<ReportResultDTO> getMyReports() {
+        User patient = getCurrentUser();
+        List<Booking> patientBookings = bookingRepository.findByPatientId(patient.getId());
+
+        List<ReportResultDTO> allReports = new ArrayList<>();
+        for (Booking booking : patientBookings) {
+            try {
+                allReports.add(getReportByBookingId(booking.getId()));
+            } catch (Exception e) {
+                // Skip bookings without reports
+            }
+        }
+        return allReports;
     }
 
     private User getCurrentUser() {
@@ -77,7 +93,7 @@ public class ReportService {
     @Transactional
     public ReportResultDTO enterReportResults(ReportResultRequest request) {
         log.info("Entering report results for booking ID: {}", request.getBookingId());
-        
+
         // Get booking
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + request.getBookingId()));
@@ -91,14 +107,14 @@ public class ReportService {
             booking.setTechnician(technician);
             bookingRepository.save(booking);
         }
-        
+
         List<ReportResult> savedResults = new ArrayList<>();
-        
+
         // Process each result item
         for (ReportResultRequest.ResultItem item : request.getResults()) {
             TestParameter parameter = testParameterRepository.findById(item.getParameterId())
                     .orElseThrow(() -> new RuntimeException("Parameter not found with id: " + item.getParameterId()));
-            
+
             ReportResult result = new ReportResult();
             result.setBooking(booking);
             result.setParameter(parameter);
@@ -106,34 +122,34 @@ public class ReportService {
             result.setUnit(item.getUnit());
             result.setNormalRange(item.getNormalRange());
             result.setNotes(item.getNotes());
-            
+
             // Calculate abnormal status
             AbnormalStatus status = calculateAbnormalStatus(parameter, item.getResultValue());
             result.setAbnormalStatus(status);
-            
+
             // Set isAbnormal and isCritical flags
             result.setIsAbnormal(status != null && status != AbnormalStatus.NORMAL);
             result.setIsCritical(status == AbnormalStatus.CRITICAL_LOW || status == AbnormalStatus.CRITICAL_HIGH);
-            
+
             savedResults.add(reportResultRepository.save(result));
         }
-        
+
         // Convert to DTO and return
         return convertToDTO(savedResults, booking, technician);
     }
 
     public ReportResultDTO getReportByBookingId(Long bookingId) {
         log.info("Fetching report for booking ID: {}", bookingId);
-        
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
-        
+
         List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
-        
+
         if (results.isEmpty()) {
             throw new RuntimeException("No report results found for booking id: " + bookingId);
         }
-        
+
         User technician = results.get(0).getBooking().getTechnician();
         return convertToDTO(results, booking, technician);
     }
@@ -142,10 +158,10 @@ public class ReportService {
         if (resultValueStr == null || resultValueStr.isEmpty()) {
             return AbnormalStatus.NORMAL;
         }
-        
+
         try {
             BigDecimal resultValue = new BigDecimal(resultValueStr);
-            
+
             // Check critical ranges first
             if (parameter.getCriticalLow() != null && resultValue.compareTo(parameter.getCriticalLow()) < 0) {
                 return AbnormalStatus.CRITICAL_LOW;
@@ -153,7 +169,7 @@ public class ReportService {
             if (parameter.getCriticalHigh() != null && resultValue.compareTo(parameter.getCriticalHigh()) > 0) {
                 return AbnormalStatus.CRITICAL_HIGH;
             }
-            
+
             // Check normal ranges
             if (parameter.getNormalRangeMin() != null && resultValue.compareTo(parameter.getNormalRangeMin()) < 0) {
                 return AbnormalStatus.LOW;
@@ -161,7 +177,7 @@ public class ReportService {
             if (parameter.getNormalRangeMax() != null && resultValue.compareTo(parameter.getNormalRangeMax()) > 0) {
                 return AbnormalStatus.HIGH;
             }
-            
+
             return AbnormalStatus.NORMAL;
         } catch (NumberFormatException e) {
             log.warn("Could not parse result value: {}", resultValueStr);
@@ -174,12 +190,12 @@ public class ReportService {
         dto.setBookingId(booking.getId());
         dto.setTechnicianId(technician != null ? technician.getId() : null);
         dto.setSubmittedAt(LocalDateTime.now());
-        
+
         List<ReportResultDTO.ResultItemDTO> itemDTOs = results.stream()
                 .map(this::convertToItemDTO)
                 .collect(Collectors.toList());
         dto.setResults(itemDTOs);
-        
+
         return dto;
     }
 
@@ -190,18 +206,18 @@ public class ReportService {
         itemDTO.setParameterName(result.getParameter().getParameterName());
         itemDTO.setResultValue(result.getResultValue());
         itemDTO.setUnit(result.getUnit());
-        
+
         // Format normal range
         String normalRange = "";
         if (result.getParameter().getNormalRangeMin() != null && result.getParameter().getNormalRangeMax() != null) {
             normalRange = result.getParameter().getNormalRangeMin() + " - " + result.getParameter().getNormalRangeMax();
         }
         itemDTO.setNormalRange(normalRange);
-        
+
         itemDTO.setAbnormalStatus(result.getAbnormalStatus() != null ? result.getAbnormalStatus().name() : null);
         itemDTO.setIsAbnormal(result.getIsAbnormal());
         itemDTO.setIsCritical(result.getIsCritical());
-        
+
         return itemDTO;
     }
 }

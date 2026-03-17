@@ -1,64 +1,38 @@
 package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.entity.TestPopularity;
+import com.healthcare.labtestbooking.repository.LabTestRepository;
 import com.healthcare.labtestbooking.repository.TestPopularityRepository;
-import com.healthcare.labtestbooking.dto.TestPopularityRequest;
-import com.healthcare.labtestbooking.dto.TestPopularityResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class TestPopularityService {
 
-    private final TestPopularityRepository repository;
-
-    @Transactional(readOnly = true)
-    public List<TestPopularityResponse> getAll() {
-        return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public TestPopularityResponse getById(Long id) {
-        TestPopularity entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("TestPopularity not found with id " + id));
-        return mapToResponse(entity);
-    }
+    private final TestPopularityRepository testPopularityRepository;
+    private final LabTestRepository labTestRepository;
 
     @Transactional
-    public TestPopularityResponse create(TestPopularityRequest request) {
-        TestPopularity entity = new TestPopularity();
-        // map request to entity here
-        TestPopularity saved = repository.save(entity);
-        return mapToResponse(saved);
+    public TestPopularity incrementPopularity(Long testId) {
+        log.info("Incrementing popularity for test id: {}", testId);
+        TestPopularity popularity = testPopularityRepository.findByTestId(testId)
+                .orElse(TestPopularity.builder()
+                        .test(labTestRepository.findById(testId).orElse(null))
+                        .bookingCount(0L)
+                        .build());
+        popularity.setBookingCount(popularity.getBookingCount() + 1);
+        return testPopularityRepository.save(popularity);
     }
 
-    @Transactional
-    public TestPopularityResponse update(Long id, TestPopularityRequest request) {
-        TestPopularity entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("TestPopularity not found with id " + id));
-        // update entity from request here
-        TestPopularity updated = repository.save(entity);
-        return mapToResponse(updated);
-    }
-
-    @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
-    }
-
-    private TestPopularityResponse mapToResponse(TestPopularity entity) {
-        TestPopularityResponse response = new TestPopularityResponse();
-        // Assume Long id field for boilerplate
-        try {
-            response.setId(entity.getId());
-        } catch(Exception e) {
-            // Ignore if no getId() exists
-        }
-        return response;
+    public List<TestPopularity> getPopularityStats() {
+        return testPopularityRepository.findAll();
     }
 }

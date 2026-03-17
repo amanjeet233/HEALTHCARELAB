@@ -11,16 +11,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
@@ -61,6 +66,7 @@ class ReportServiceTest {
         technician = new User();
         technician.setId(2L);
         technician.setName("Test Technician");
+        technician.setEmail("tech@test.com");
 
         booking = new Booking();
         booking.setId(1L);
@@ -89,41 +95,53 @@ class ReportServiceTest {
     void enterReportResults_Success() {
         // Given
         ReportResultRequest request = ReportResultRequest.builder()
-            .bookingId(1L)
-            .technicianId(2L)
-            .results(List.of(
-                ReportResultRequest.ResultItem.builder()
-                    .parameterId(1L)
-                    .resultValue("100")
-                    .unit("mg/dL")
-                    .notes("Normal range")
-                    .build()
-            ))
-            .build();
+                .bookingId(1L)
+                .technicianId(2L)
+                .results(List.of(
+                        ReportResultRequest.ResultItem.builder()
+                                .parameterId(1L)
+                                .resultValue("100")
+                                .unit("mg/dL")
+                                .notes("Normal range")
+                                .build()))
+                .build();
 
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
+        when(userRepository.findByEmail("tech@test.com")).thenReturn(Optional.of(technician));
         when(testParameterRepository.findById(1L)).thenReturn(Optional.of(parameter));
         when(reportResultRepository.save(any(ReportResult.class))).thenReturn(reportResult);
 
-        // When
-        ReportResultDTO result = reportService.enterReportResults(request);
+        // Mock SecurityContext
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
 
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getBookingId()).isEqualTo(1L);
-        assertThat(result.getTechnicianId()).isEqualTo(2L);
-        assertThat(result.getResults()).hasSize(1);
+        when(userDetails.getUsername()).thenReturn("tech@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+
+            // When
+            ReportResultDTO result = reportService.enterReportResults(request);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getBookingId()).isEqualTo(1L);
+            assertThat(result.getTechnicianId()).isEqualTo(2L);
+            assertThat(result.getResults()).hasSize(1);
+        }
     }
 
     @Test
     void enterReportResults_BookingNotFound_ThrowsException() {
         // Given
         ReportResultRequest request = ReportResultRequest.builder()
-            .bookingId(999L)
-            .technicianId(2L)
-            .results(List.of())
-            .build();
+                .bookingId(999L)
+                .technicianId(2L)
+                .results(List.of())
+                .build();
 
         when(bookingRepository.findById(999L)).thenReturn(Optional.empty());
 

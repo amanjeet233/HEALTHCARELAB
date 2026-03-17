@@ -4,11 +4,9 @@ import com.healthcare.labtestbooking.entity.SlotConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.DayOfWeek;
-import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SlotConfigRepository extends JpaRepository<SlotConfig, Long> {
-
-    List<SlotConfig> findByPincodeAndDayOfWeekAndIsActiveTrueOrderBySlotStart(String pincode, DayOfWeek dayOfWeek);
+    Optional<SlotConfig> findByDayOfWeek(String dayOfWeek);
 }

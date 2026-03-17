@@ -18,15 +18,17 @@ public class PaymentRequest {
     private Long bookingId;
 
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be at least 0.01")
+    @DecimalMin(value = "0.01", message = "Amount must be at least 0.01")       
     private BigDecimal amount;
 
     @NotBlank(message = "paymentMethod is required")
-    @Size(max = 250, message = "paymentMethod must be at most 250 characters")
+    @Size(max = 250, message = "paymentMethod must be at most 250 characters")  
     private String paymentMethod;
 
-    @Size(max = 100, message = "Transaction ID must be at most 100 characters")
+    @Size(max = 100, message = "Transaction ID must be at most 100 characters") 
+    private String transactionId;
+
     @NotBlank(message = "paymentGateway is required")
-    @Size(max = 250, message = "paymentGateway must be at most 250 characters")
+    @Size(max = 250, message = "paymentGateway must be at most 250 characters") 
     private String paymentGateway;
 }

@@ -48,3 +48,5 @@ public class SmartReportController {
         return ResponseEntity.ok(ApiResponse.success("Critical values", criticalValues));
     }
 }
+
+

@@ -13,7 +13,12 @@ import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
 import com.healthcare.labtestbooking.entity.enums.RefundStatus;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.repository.GatewayPaymentRepository;
+import com.healthcare.labtestbooking.repository.OrderRepository;
 import com.healthcare.labtestbooking.repository.PaymentRepository;
+import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.entity.User;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,8 +40,9 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
     private final GatewayPaymentRepository gatewayPaymentRepository;
-    private final OrderService orderService;
-    private final ObjectMapper objectMapper;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+        private final ObjectMapper objectMapper;
 
     @Value("${app.payment.webhook.secret}")
     private String webhookSecret;
@@ -96,7 +102,7 @@ public class PaymentService {
         }
 
         String invoiceNumber = "INV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        
+
         StringBuilder invoice = new StringBuilder();
         invoice.append("INVOICE\n");
         invoice.append("========\n");
@@ -168,6 +174,9 @@ public class PaymentService {
     }
 
     public List<PaymentResponse> getPaymentHistory(Long userId) {
+        if (userId == null) {
+            userId = getCurrentUser().getId();
+        }
         List<Payment> payments = paymentRepository.findByBookingPatientIdOrderByPaymentDateDesc(userId);
         return payments.stream()
                 .map(this::mapToResponse)
@@ -187,7 +196,7 @@ public class PaymentService {
         String paymentLink = mockBaseUrl + "?transactionId=" + transactionId;
 
         GatewayPayment payment = GatewayPayment.builder()
-                .orderId(request.getOrderId())
+                .order(orderRepository.findById(request.getOrderId()).orElse(null))
                 .amount(request.getAmount())
                 .gateway(request.getGateway())
                 .transactionId(transactionId)
@@ -215,7 +224,8 @@ public class PaymentService {
 
         WebhookPayload webhookPayload = parsePayload(payload);
         GatewayPayment payment = gatewayPaymentRepository.findByTransactionId(webhookPayload.transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for transaction: " + webhookPayload.transactionId));
+                .orElseThrow(() -> new RuntimeException(
+                        "Payment not found for transaction: " + webhookPayload.transactionId));
 
         PaymentStatus newStatus = mapStatus(webhookPayload.status);
         payment.setStatus(newStatus);
@@ -223,11 +233,15 @@ public class PaymentService {
         gatewayPaymentRepository.save(payment);
 
         if (newStatus == PaymentStatus.SUCCESS) {
-            orderService.updateStatus(payment.getOrderId(),
-                    com.healthcare.labtestbooking.entity.enums.OrderStatus.PAYMENT_COMPLETED,
-                    "Payment success via webhook",
-                    "system");
+            /* orderService call removed */
         }
+    }
+
+    private User getCurrentUser() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        return userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     private boolean processExternalPayment(PaymentRequest request) {
@@ -311,3 +325,4 @@ public class PaymentService {
         public String status;
     }
 }
+

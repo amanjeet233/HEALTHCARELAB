@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@EntityListeners({AuditingEntityListener.class, AuditListener.class})
+@EntityListeners({ AuditingEntityListener.class, AuditListener.class })
 @Table(name = "lab_orders")
 @Data
 @Builder
@@ -43,6 +43,9 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "order_reference", nullable = false, unique = true, length = 40)
+    private String orderReference;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

@@ -2,63 +2,39 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.entity.Recommendation;
 import com.healthcare.labtestbooking.repository.RecommendationRepository;
-import com.healthcare.labtestbooking.dto.RecommendationRequest;
-import com.healthcare.labtestbooking.dto.RecommendationResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class RecommendationService {
 
-    private final RecommendationRepository repository;
+    private final RecommendationRepository recommendationRepository;
 
-    @Transactional(readOnly = true)
-    public List<RecommendationResponse> getAll() {
-        return repository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
+    @Transactional
+    public Recommendation saveRecommendation(Recommendation recommendation) {
+        log.info("Saving recommendation for booking id: {}", recommendation.getBooking().getId());
+        return recommendationRepository.save(recommendation);
     }
 
-    @Transactional(readOnly = true)
-    public RecommendationResponse getById(Long id) {
-        Recommendation entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found with id " + id));
-        return mapToResponse(entity);
+    public Optional<Recommendation> getRecommendationByBookingId(Long bookingId) {
+        return recommendationRepository.findByBookingId(bookingId);
+    }
+
+    public List<Recommendation> getAllRecommendations() {
+        return recommendationRepository.findAll();
     }
 
     @Transactional
-    public RecommendationResponse create(RecommendationRequest request) {
-        Recommendation entity = new Recommendation();
-        // map request to entity here
-        Recommendation saved = repository.save(entity);
-        return mapToResponse(saved);
-    }
-
-    @Transactional
-    public RecommendationResponse update(Long id, RecommendationRequest request) {
-        Recommendation entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found with id " + id));
-        // update entity from request here
-        Recommendation updated = repository.save(entity);
-        return mapToResponse(updated);
-    }
-
-    @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
-    }
-
-    private RecommendationResponse mapToResponse(Recommendation entity) {
-        RecommendationResponse response = new RecommendationResponse();
-        // Assume Long id field for boilerplate
-        try {
-            response.setId(entity.getId());
-        } catch(Exception e) {
-            // Ignore if no getId() exists
-        }
-        return response;
+    public void deleteRecommendation(Long id) {
+        log.info("Deleting recommendation with id: {}", id);
+        recommendationRepository.deleteById(id);
     }
 }

@@ -11,15 +11,9 @@ public interface ReportResultRepository extends JpaRepository<ReportResult, Long
 
     List<ReportResult> findByBookingId(Long bookingId);
 
-    List<ReportResult> findByReportId(Long reportId);
-
-    List<ReportResult> findByParameterIdAndBookingPatientId(Long parameterId, Long patientId);
-
-    List<ReportResult> findByBookingIdAndIsAbnormalTrue(Long bookingId);
-
-    List<ReportResult> findByReportIdAndIsCriticalTrue(Long reportId);
-
     List<ReportResult> findByBookingPatientIdOrderByCreatedAtDesc(Long patientId);
 
-    void deleteByBookingId(Long bookingId);
+    List<ReportResult> findByReportId(Long reportId);
+
+    List<ReportResult> findByReportIdAndIsCriticalTrue(Long reportId);
 }

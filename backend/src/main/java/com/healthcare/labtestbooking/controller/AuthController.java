@@ -2,15 +2,19 @@ package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.*;
 import com.healthcare.labtestbooking.service.AuthService;
+import com.healthcare.labtestbooking.service.EmailVerificationService;
+import com.healthcare.labtestbooking.service.TokenBlacklistService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.healthcare.labtestbooking.dto.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
         private final AuthService authService;
+        private final EmailVerificationService emailVerificationService;
+        private final TokenBlacklistService tokenBlacklistService;
 
         @PostMapping("/register")
         @Operation(summary = "Register a new user", description = "Create a new user account with email and password")
@@ -51,17 +57,16 @@ public class AuthController {
         }
 
         @PostMapping("/forgot-password")
-        @Operation(summary = "Forgot password", description = "Send password reset link to user email")
+        @Operation(summary = "Request password reset", description = "Generate a JWT reset token and send it to the user's email")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password reset link sent"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User email not found"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestParam String email) {
-                log.info("Forgot password request for email: {}", email);
-                authService.forgotPassword(email);
-                return ResponseEntity.ok(ApiResponse.success("Password reset link sent to email",
-                                "Check your email for reset instructions"));
+                log.info("Password reset request for email: {}", email);
+                String message = authService.requestPasswordReset(email);
+                return ResponseEntity.ok(ApiResponse.success(message, "Check your email for reset instructions"));
         }
 
         @PostMapping("/reset-password")
@@ -77,4 +82,108 @@ public class AuthController {
                 return ResponseEntity.ok(ApiResponse.success("Password reset successfully",
                                 "You can now login with your new password"));
         }
+
+        @PostMapping("/refresh-token")
+        @Operation(summary = "Refresh access token", description = "Exchange a valid refresh token for a new access token")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+        })
+        public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
+                        @RequestHeader("Refresh-Token") String refreshToken) {
+                log.info("Token refresh request received");
+                AuthResponse response = authService.refreshToken(refreshToken);
+                return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
+        }
+
+        @PostMapping("/verify-email")
+        @Operation(summary = "Verify email address", description = "Verify user email using the token sent to their email")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Email verified successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid or expired token"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<ApiResponse<String>> verifyEmail(@RequestParam String token) {
+                log.info("Email verification request received");
+                emailVerificationService.verifyEmail(token);
+                return ResponseEntity.ok(ApiResponse.success("Email verified successfully",
+                                "You can now login with your account"));
+        }
+
+        @PostMapping("/resend-verification")
+        @Operation(summary = "Resend verification email", description = "Request a new verification email to be sent")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification email sent"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Email already verified or user not found"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<ApiResponse<String>> resendVerificationEmail(@RequestParam String email) {
+                log.info("Resend verification email request for: {}", email);
+                emailVerificationService.sendVerificationEmail(email);
+                return ResponseEntity.ok(ApiResponse.success("Verification email sent",
+                                "Check your inbox for the verification link"));
+        }
+
+        @PostMapping("/change-password")
+        @Operation(summary = "Change password", description = "Change user password with current password verification")
+        @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "Bearer Authentication")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password changed successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid currentPassword or passwords don't match"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized - user not authenticated"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<ApiResponse<String>> changePassword(
+                        @Valid @RequestBody ChangePasswordRequest request,
+                        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+                log.info("Change password request for user");
+                try {
+                        authService.changePassword(request.getCurrentPassword(), request.getNewPassword());
+                        return ResponseEntity.ok(ApiResponse.success("Password changed successfully",
+                                        "Your password has been updated. Please use your new password for future logins."));
+                } catch (RuntimeException e) {
+                        log.warn("Password change failed: {}", e.getMessage());
+                        return ResponseEntity.badRequest().body(ApiResponse.error(
+                                        e.getMessage() != null ? e.getMessage() : "Failed to change password"));
+                }
+        }
+
+        @PostMapping("/logout")
+        @Operation(summary = "Logout user", description = "Invalidate the current access token")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logged out successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No token provided")
+        })
+        public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest request) {
+                String authHeader = request.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        tokenBlacklistService.blacklistToken(token);
+                        log.info("User logged out, token blacklisted");
+                }
+                return ResponseEntity.ok(ApiResponse.success("Logged out successfully",
+                                "Your session has been terminated"));
+        }
+
+        @PostMapping("/logout-all")
+        @Operation(summary = "Logout from all devices", description = "Invalidate all tokens for the current user")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logged out from all devices"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No token provided")
+        })
+        public ResponseEntity<ApiResponse<String>> logoutAll(HttpServletRequest request) {
+                String authHeader = request.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        String email = authService.extractEmailFromToken(token);
+                        if (email != null) {
+                                tokenBlacklistService.blacklistAllUserTokens(email);
+                                log.info("User {} logged out from all devices", email);
+                        }
+                }
+                return ResponseEntity.ok(ApiResponse.success("Logged out from all devices",
+                                "All your sessions have been terminated"));
+        }
 }
+
+

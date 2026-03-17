@@ -1,48 +1,36 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.RecommendationRequest;
-import com.healthcare.labtestbooking.dto.RecommendationResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.Recommendation;
 import com.healthcare.labtestbooking.service.RecommendationService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/recommendations")
 @RequiredArgsConstructor
+@Tag(name = "Recommendations", description = "Health and test recommendations")
 public class RecommendationController {
 
-    private final RecommendationService service;
+    private final RecommendationService recommendationService;
 
     @GetMapping
-    public ResponseEntity<List<RecommendationResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @Operation(summary = "Get all recommendations")
+    public ResponseEntity<ApiResponse<List<Recommendation>>> getAllRecommendations() {
+        return ResponseEntity.ok(ApiResponse.success("Recommendations fetched successfully",
+                recommendationService.getAllRecommendations()));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<RecommendationResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<RecommendationResponse> create(@Valid @RequestBody RecommendationRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<RecommendationResponse> update(@PathVariable Long id, @Valid @RequestBody RecommendationRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/booking/{bookingId}")
+    @Operation(summary = "Get recommendation for a specific booking")
+    public ResponseEntity<ApiResponse<Recommendation>> getByBookingId(@PathVariable Long bookingId) {
+        return recommendationService.getRecommendationByBookingId(bookingId)
+                .map(r -> ResponseEntity.ok(ApiResponse.success("Recommendation found", r)))
+                .orElse(ResponseEntity.ok(ApiResponse.success("No recommendation for this booking", null)));
     }
 }

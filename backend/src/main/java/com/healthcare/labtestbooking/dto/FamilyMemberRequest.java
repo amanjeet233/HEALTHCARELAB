@@ -1,7 +1,7 @@
 package com.healthcare.labtestbooking.dto;
 
-import jakarta.validation.constraints.*;
 import com.healthcare.labtestbooking.entity.enums.Gender;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,12 +13,16 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FamilyMemberRequest {
-    @NotBlank(message = "relation is required")
-    @Size(max = 250, message = "relation must be at most 250 characters")
+    @NotBlank(message = "Name is required")
+    private String name;
+    
+    @NotBlank(message = "Relation is required")
     private String relation;
+    
     private LocalDate dateOfBirth;
+    
+    @NotNull(message = "Gender is required")
     private Gender gender;
-    @NotBlank(message = "bloodGroup is required")
-    @Size(max = 250, message = "bloodGroup must be at most 250 characters")
+    
     private String bloodGroup;
 }

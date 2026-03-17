@@ -66,7 +66,7 @@ public class PaymentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid webhook signature or payload"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Void> handleWebhook(
+    public ResponseEntity<ApiResponse<Void>> handleWebhook(
             @Valid @RequestBody String payload,
             @RequestHeader(name = "X-Signature", required = false) String signature) {
         paymentService.handleWebhook(payload, signature);
@@ -86,7 +86,7 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success(payments));
     }
 
-    @GetMapping("/history/{userId}")
+    @GetMapping({"/history/{userId}", "/history"})
     @Operation(summary = "Get payment history", description = "Retrieve payment history for a user")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment history retrieved successfully"),
@@ -94,7 +94,8 @@ public class PaymentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentHistory(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentHistory(
+            @PathVariable(required = false) Long userId) {
         List<PaymentResponse> payments = paymentService.getPaymentHistory(userId);
         return ResponseEntity.ok(ApiResponse.success(payments));
     }
@@ -112,3 +113,5 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success("Invoice generated", invoice));
     }
 }
+
+

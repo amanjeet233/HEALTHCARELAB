@@ -1,48 +1,28 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.OrderStatusHistoryRequest;
-import com.healthcare.labtestbooking.dto.OrderStatusHistoryResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.OrderStatusHistory;
 import com.healthcare.labtestbooking.service.OrderStatusHistoryService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
-@RequestMapping("/api/order-status-historys")
+@RequestMapping("/api/order-status-history")
 @RequiredArgsConstructor
+@Tag(name = "Order Status History", description = "Management of order state transitions")
 public class OrderStatusHistoryController {
 
-    private final OrderStatusHistoryService service;
+    private final OrderStatusHistoryService orderStatusHistoryService;
 
-    @GetMapping
-    public ResponseEntity<List<OrderStatusHistoryResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<OrderStatusHistoryResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<OrderStatusHistoryResponse> create(@Valid @RequestBody OrderStatusHistoryRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<OrderStatusHistoryResponse> update(@PathVariable Long id, @Valid @RequestBody OrderStatusHistoryRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/order/{orderId}")
+    @Operation(summary = "Get status history for an order")
+    public ResponseEntity<ApiResponse<List<OrderStatusHistory>>> getHistoryForOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(ApiResponse.success("History fetched successfully",
+                orderStatusHistoryService.getHistoryForOrder(orderId)));
     }
 }

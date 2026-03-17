@@ -32,7 +32,7 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
-    @GetMapping("/medical-officer/stats")
+    @GetMapping({"/medical-officer/stats", "/doctor/stats"})
     @PreAuthorize("hasRole('MEDICAL_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMedicalOfficerStats() {
         Map<String, Object> stats = dashboardService.getMedicalOfficerDashboardStats();
@@ -46,3 +46,5 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 }
+
+

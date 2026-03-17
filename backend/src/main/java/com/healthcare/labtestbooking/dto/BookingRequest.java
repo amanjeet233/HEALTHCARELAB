@@ -28,20 +28,19 @@ public class BookingRequest {
     @Future(message = "Booking date must be in the future")
     private LocalDate bookingDate;
 
-    @NotBlank(message = "timeSlot is required")
-    @Size(max = 250, message = "timeSlot must be at most 250 characters")
+    @NotBlank(message = "Time slot is required")
+    @Size(max = 50, message = "Time slot must be at most 50 characters")
     private String timeSlot;
 
     @Pattern(regexp = "^(HOME|LAB)$", message = "Collection type must be HOME or LAB")
-    @NotBlank(message = "collectionAddress is required")
-    @Size(max = 250, message = "collectionAddress must be at most 250 characters")
+    private String collectionType;
+
+    @Size(max = 250, message = "Collection address must be at most 250 characters")
     private String collectionAddress;
-    
+
     @DecimalMin(value = "0.0", message = "Discount cannot be negative")
     private BigDecimal discount;
-    
+
     @Size(max = 500, message = "Notes must be at most 500 characters")
-    @NotBlank(message = "notes is required")
-    @Size(max = 250, message = "notes must be at most 250 characters")
     private String notes;
 }

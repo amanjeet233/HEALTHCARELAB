@@ -1,48 +1,38 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.healthcare.labtestbooking.dto.SlotConfigRequest;
-import com.healthcare.labtestbooking.dto.SlotConfigResponse;
+import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.SlotConfig;
 import com.healthcare.labtestbooking.service.SlotConfigService;
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/slot-configs")
 @RequiredArgsConstructor
+@Tag(name = "Slot Configurations", description = "Management of daily appointment slot configurations")
 public class SlotConfigController {
 
-    private final SlotConfigService service;
+    private final SlotConfigService slotConfigService;
 
     @GetMapping
-    public ResponseEntity<List<SlotConfigResponse>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get all slot configurations")
+    public ResponseEntity<ApiResponse<List<SlotConfig>>> getAllConfigs() {
+        return ResponseEntity
+                .ok(ApiResponse.success("Configs fetched successfully", slotConfigService.getAllConfigs()));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<SlotConfigResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<SlotConfigResponse> create(@Valid @RequestBody SlotConfigRequest request) {
-        return new ResponseEntity<>(service.create(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<SlotConfigResponse> update(@PathVariable Long id, @Valid @RequestBody SlotConfigRequest request) {
-        return ResponseEntity.ok(service.update(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/day/{dayOfWeek}")
+    @Operation(summary = "Get configuration for a specific day")
+    public ResponseEntity<ApiResponse<SlotConfig>> getByDay(@PathVariable String dayOfWeek) {
+        return slotConfigService.getConfigByDay(dayOfWeek)
+                .map(c -> ResponseEntity.ok(ApiResponse.success("Config found", c)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

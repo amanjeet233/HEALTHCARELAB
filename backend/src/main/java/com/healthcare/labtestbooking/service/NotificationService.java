@@ -64,6 +64,34 @@ public class NotificationService {
         log.warn("SMS provider not configured; message to {} not sent", phoneNumber);
     }
 
+    /**
+     * Sends a password-reset email.
+     * Real delivery is disabled because JavaMailSender is not configured;
+     * the link is logged so developers can test the flow without an SMTP server.
+     */
+    public void sendPasswordResetEmail(String toEmail, String resetLink) {
+        log.info("[EMAIL MOCK] Password-reset email to: {}", toEmail);
+        log.info("[EMAIL MOCK] Reset link: {}", resetLink);
+        // When a real mail provider is wired in, replace the log statements above with:
+        // sendEmail(toEmail, "Reset your password",
+        //     "<p>Click the link to reset your password (expires in 1 hour):</p><a href=\"" + resetLink + "\">" + resetLink + "</a>",
+        //     null);
+    }
+
+    /**
+     * Sends an email verification link.
+     * Real delivery is disabled because JavaMailSender is not configured;
+     * the link is logged so developers can test the flow without an SMTP server.
+     */
+    public void sendVerificationEmail(String toEmail, String verificationLink) {
+        log.info("[EMAIL MOCK] Verification email to: {}", toEmail);
+        log.info("[EMAIL MOCK] Verification link: {}", verificationLink);
+        // When a real mail provider is wired in, replace the log statements above with:
+        // sendEmail(toEmail, "Verify your email address",
+        //     "<p>Welcome! Click the link to verify your email (expires in 24 hours):</p><a href=\"" + verificationLink + "\">" + verificationLink + "</a>",
+        //     null);
+    }
+
     public void sendOrderConfirmed(Order order) {
         // Email notifications disabled
         log.debug("Notification disabled for confirmed order: {}", order.getId());
