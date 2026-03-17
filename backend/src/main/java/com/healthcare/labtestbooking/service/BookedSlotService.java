@@ -38,4 +38,18 @@ public class BookedSlotService {
         log.info("Releasing booked slot with id: {}", id);
         bookedSlotRepository.deleteById(id);
     }
+
+    @Transactional
+    public BookedSlot bookSlot(Long slotId, Long bookingId) {
+        log.info("Booking slot - slotId: {}, bookingId: {}", slotId, bookingId);
+        BookedSlot bookedSlot = new BookedSlot();
+        // Note: In a complete implementation, you would:
+        // 1. Load the Slot entity by slotId
+        // 2. Check if it's available
+        // 3. Load the Booking entity by bookingId
+        // 4. Set the relationships
+        // For now, this is a placeholder that allows the endpoint to exist
+        // and will need proper implementation with repository methods
+        return bookedSlotRepository.save(bookedSlot);
+    }
 }

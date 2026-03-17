@@ -24,10 +24,6 @@ public class SlotConfigRequest {
     @Pattern(regexp = "^([0-1][0-9]|2[0-3]):[0-5][0-9]$", message = "End time must be in HH:mm format")
     private String endTime;
 
-    @NotNull(message = "Slot duration is required")
-    @Positive(message = "Slot duration must be positive (in minutes)")
-    private Integer slotDurationMinutes;
-
     @NotNull(message = "Max concurrent slots is required")
     @Positive(message = "Max concurrent slots must be positive")
     private Integer maxConcurrentSlots;
