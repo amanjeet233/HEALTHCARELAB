@@ -1,10 +1,22 @@
 package com.healthcare.labtestbooking.dto;
 
 import jakarta.validation.constraints.*;
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class BookedSlotRequest {
-    // Add validation annotations and fields here
+
+    @NotNull(message = "Slot ID is required")
+    @Positive(message = "Slot ID must be positive")
+    private Long slotId;
+
+    @NotNull(message = "Booking ID is required")
+    @Positive(message = "Booking ID must be positive")
+    private Long bookingId;
 }
