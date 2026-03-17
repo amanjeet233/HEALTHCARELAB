@@ -5,6 +5,7 @@ import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.LabTestDTO;
 import com.healthcare.labtestbooking.dto.TestPackageDTO;
 import com.healthcare.labtestbooking.entity.enums.TestType;
+import com.healthcare.labtestbooking.entity.TestPackage;
 import com.healthcare.labtestbooking.service.LabTestService;
 import com.healthcare.labtestbooking.service.TestPackageService;
 import com.healthcare.labtestbooking.service.TestPopularityService;
@@ -181,19 +182,15 @@ public class LabTestController {
                         .ok(ApiResponse.success("Popularity incremented", testPopularityService.incrementPopularity(testId)));
         }
 
-        // Package endpoints - commented out due to missing TestPackageService methods
-        /*
         @GetMapping("/packages")
-        @Operation(summary = "Get all test packages", description = "Retrieve all active test packages with pagination")
+        @Operation(summary = "Get all test packages", description = "Retrieve all active test packages")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Packages fetched successfully"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<ApiResponse<Page<TestPackageDTO>>> getAllPackages(
-                        @PageableDefault(size = 20, sort = "packageName") Pageable pageable) {
-                log.info("GET /api/lab-tests/packages - Fetching all packages | Page: {}, Size: {}",
-                                pageable.getPageNumber(), pageable.getPageSize());
-                Page<TestPackageDTO> packages = testPackageService.getAllActivePackages(pageable);
+        public ResponseEntity<ApiResponse<List<TestPackage>>> getAllPackages() {
+                log.info("GET /api/lab-tests/packages - Fetching all packages");
+                List<TestPackage> packages = testPackageService.getAllPackages();
                 return ResponseEntity.ok(ApiResponse.success("Packages fetched successfully", packages));
         }
 
@@ -204,37 +201,12 @@ public class LabTestController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Package not found"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<ApiResponse<TestPackageDTO>> getPackageById(@PathVariable Long id) {
+        public ResponseEntity<ApiResponse<TestPackage>> getPackageById(@PathVariable Long id) {
                 log.info("GET /api/lab-tests/packages/{}", id);
-                TestPackageDTO testPackage = testPackageService.getPackageById(id);
-                return ResponseEntity.ok(ApiResponse.success("Package fetched successfully", testPackage));
+                return testPackageService.getPackageById(id)
+                        .map(pkg -> ResponseEntity.ok(ApiResponse.success("Package fetched successfully", pkg)))
+                        .orElse(ResponseEntity.notFound().build());
         }
-
-        @GetMapping("/packages/code/{packageCode}")
-        @Operation(summary = "Get package by code", description = "Retrieve a test package by its unique code")
-        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Package fetched successfully"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Package not found"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
-        })
-        public ResponseEntity<ApiResponse<TestPackageDTO>> getPackageByCode(@PathVariable String packageCode) {
-                log.info("GET /api/lab-tests/packages/code/{}", packageCode);
-                TestPackageDTO testPackage = testPackageService.getPackageByCode(packageCode);
-                return ResponseEntity.ok(ApiResponse.success("Package fetched successfully", testPackage));
-        }
-
-        @GetMapping("/packages/best-deals")
-        @Operation(summary = "Get best deals", description = "Retrieve test packages with the best deals and discounts")
-        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Best deals fetched successfully"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
-        })
-        public ResponseEntity<ApiResponse<List<TestPackageDTO>>> getBestDeals() {
-                log.info("GET /api/lab-tests/packages/best-deals");
-                List<TestPackageDTO> deals = testPackageService.getBestDeals();
-                return ResponseEntity.ok(ApiResponse.success("Best deals fetched successfully", deals));
-        }
-        */
 }
 
 
