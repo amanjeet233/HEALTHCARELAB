@@ -2,7 +2,9 @@ package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.entity.Order;
+import com.healthcare.labtestbooking.entity.OrderStatusHistory;
 import com.healthcare.labtestbooking.service.OrderService;
+import com.healthcare.labtestbooking.service.OrderStatusHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderStatusHistoryService orderStatusHistoryService;
 
     @GetMapping
     @Operation(summary = "Get all orders")
@@ -38,5 +41,12 @@ public class OrderController {
     public ResponseEntity<ApiResponse<Void>> deleteOrder(@PathVariable Long id) {
         orderService.deleteOrder(id);
         return ResponseEntity.ok(ApiResponse.success("Order deleted successfully", null));
+    }
+
+    @GetMapping("/status-history/order/{orderId}")
+    @Operation(summary = "Get status history for an order")
+    public ResponseEntity<ApiResponse<List<OrderStatusHistory>>> getStatusHistory(@PathVariable Long orderId) {
+        return ResponseEntity.ok(ApiResponse.success("History fetched successfully",
+                orderStatusHistoryService.getHistoryForOrder(orderId)));
     }
 }
