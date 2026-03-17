@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
 
 import com.healthcare.labtestbooking.repository.ReportRepository;
 import com.healthcare.labtestbooking.entity.Report;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
@@ -66,7 +69,7 @@ public class ReportService {
         reportRepository.save(report);
     }
 
-    public List<ReportResultDTO> getMyReports() {
+    public Page<ReportResultDTO> getMyReports(Pageable pageable) {
         User patient = getCurrentUser();
         List<Booking> patientBookings = bookingRepository.findByPatientId(patient.getId());
 
@@ -78,7 +81,13 @@ public class ReportService {
                 // Skip bookings without reports
             }
         }
-        return allReports;
+
+        // Apply pagination manually since we're aggregating from multiple bookings
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allReports.size());
+
+        List<ReportResultDTO> pagedContent = allReports.subList(start, end);
+        return new PageImpl<>(pagedContent, pageable, allReports.size());
     }
 
     private User getCurrentUser() {

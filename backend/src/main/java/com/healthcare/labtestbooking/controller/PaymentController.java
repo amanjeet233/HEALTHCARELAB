@@ -16,6 +16,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -84,8 +87,10 @@ public class PaymentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getBookingPayments(@PathVariable Long bookingId) {
-        List<PaymentResponse> payments = paymentService.getBookingPayments(bookingId);
+    public ResponseEntity<ApiResponse<Page<PaymentResponse>>> getBookingPayments(
+            @PathVariable Long bookingId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<PaymentResponse> payments = paymentService.getBookingPayments(bookingId, pageable);
         return ResponseEntity.ok(ApiResponse.success(payments));
     }
 
@@ -97,9 +102,10 @@ public class PaymentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentHistory(
-            @PathVariable(required = false) Long userId) {
-        List<PaymentResponse> payments = paymentService.getPaymentHistory(userId);
+    public ResponseEntity<ApiResponse<Page<PaymentResponse>>> getPaymentHistory(
+            @PathVariable(required = false) Long userId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<PaymentResponse> payments = paymentService.getPaymentHistory(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(payments));
     }
 

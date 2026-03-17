@@ -8,6 +8,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,8 +29,8 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "Get all notifications", description = "Retrieve all notifications for the authenticated user")
-    public ResponseEntity<ApiResponse<List<Notification>>> getUserNotifications() {
-        List<Notification> notifications = notificationInboxService.getUserNotifications();
+    public ResponseEntity<ApiResponse<Page<Notification>>> getUserNotifications(@PageableDefault(size = 20) Pageable pageable) {
+        Page<Notification> notifications = notificationInboxService.getUserNotifications(pageable);
         return ResponseEntity.ok(ApiResponse.success(notifications));
     }
 

@@ -5,6 +5,8 @@ import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.UserRole;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,15 +50,14 @@ public class UserService {
         return mapToResponse(user);
     }
 
-    public List<UserResponse> getAllUsers() {
+    public Page<UserResponse> getAllUsers(Pageable pageable) {
         User currentUser = getCurrentUser();
         if (currentUser.getRole() != UserRole.ADMIN) {
             throw new RuntimeException("Only admin can view all users");
         }
 
-        return userRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return userRepository.findAll(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional
