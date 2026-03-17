@@ -3,8 +3,12 @@ package com.healthcare.labtestbooking.controller;
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.ReportResultDTO;
 import com.healthcare.labtestbooking.dto.ReportResultRequest;
+import com.healthcare.labtestbooking.entity.ReportResult;
+import com.healthcare.labtestbooking.entity.ReportVerification;
 import com.healthcare.labtestbooking.service.ReportGeneratorService;
 import com.healthcare.labtestbooking.service.ReportService;
+import com.healthcare.labtestbooking.service.ReportResultService;
+import com.healthcare.labtestbooking.service.ReportVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,6 +36,8 @@ public class ReportController {
 
     private final ReportService reportService;
     private final ReportGeneratorService reportGeneratorService;
+    private final ReportResultService reportResultService;
+    private final ReportVerificationService reportVerificationService;
 
     @PostMapping("/results")
     @PreAuthorize("hasRole('TECHNICIAN')")
@@ -120,6 +126,37 @@ public class ReportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=report-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    @GetMapping("/results/booking/{bookingId}")
+    @Operation(summary = "Get test results for a specific booking")
+    public ResponseEntity<ApiResponse<List<ReportResult>>> getResultsByBooking(@PathVariable Long bookingId) {
+        return ResponseEntity.ok(ApiResponse.success("Results fetched successfully",
+                reportResultService.getResultsByBookingId(bookingId)));
+    }
+
+    @GetMapping("/results/{id}")
+    @Operation(summary = "Get specific result entry by ID")
+    public ResponseEntity<ApiResponse<ReportResult>> getResultById(@PathVariable Long id) {
+        return reportResultService.getResultById(id)
+                .map(r -> ResponseEntity.ok(ApiResponse.success("Result entry found", r)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/verifications")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER')")
+    @Operation(summary = "Get all report verifications")
+    public ResponseEntity<ApiResponse<List<ReportVerification>>> getAllVerifications() {
+        return ResponseEntity.ok(ApiResponse.success("Verifications fetched successfully",
+                reportVerificationService.getAllVerifications()));
+    }
+
+    @GetMapping("/verifications/booking/{bookingId}")
+    @Operation(summary = "Get verification status for a specific booking")
+    public ResponseEntity<ApiResponse<ReportVerification>> getVerificationByBooking(@PathVariable Long bookingId) {
+        return reportVerificationService.getVerificationByBookingId(bookingId)
+                .map(v -> ResponseEntity.ok(ApiResponse.success("Verification info found", v)))
+                .orElse(ResponseEntity.ok(ApiResponse.success("Not yet verified", null)));
     }
 }
 
