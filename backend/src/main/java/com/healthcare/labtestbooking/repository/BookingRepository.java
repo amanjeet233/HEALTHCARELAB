@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.entity.Booking;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,24 +17,34 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
+    @EntityGraph(attributePaths = {"patient", "test", "technician"})
     Optional<Booking> findByBookingReference(String bookingReference);
 
+    @EntityGraph(attributePaths = {"patient", "test", "technician"})
     List<Booking> findByPatientId(Long patientId);
 
+    @EntityGraph(attributePaths = {"patient", "test", "technician"})
     Page<Booking> findByPatientId(Long patientId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"test"})
     List<Booking> findByTestId(Long testId);
 
+    @EntityGraph(attributePaths = {"patient", "test", "technician"})
     List<Booking> findByStatus(BookingStatus status);
 
+    @EntityGraph(attributePaths = {"patient", "test", "technician"})
     List<Booking> findByPatientIdAndStatus(Long patientId, BookingStatus status);
 
+    @EntityGraph(attributePaths = {"test"})
     List<Booking> findByBookingDate(LocalDate bookingDate);
 
+    @EntityGraph(attributePaths = {"test"})
     List<Booking> findByBookingDateBetween(LocalDate startDate, LocalDate endDate);
 
+    @EntityGraph(attributePaths = {"technician"})
     List<Booking> findByTechnicianId(Long technicianId);
 
+    @EntityGraph(attributePaths = {"technician"})
     Page<Booking> findByTechnicianId(Long technicianId, Pageable pageable);
 
     List<Booking> findByMedicalOfficerId(Long medicalOfficerId);
