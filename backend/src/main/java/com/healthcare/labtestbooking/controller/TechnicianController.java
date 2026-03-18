@@ -1,129 +1,98 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import com.healthcare.labtestbooking.dto.ApiResponse;
-import com.healthcare.labtestbooking.entity.Technician;
 import com.healthcare.labtestbooking.service.TechnicianAssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
-
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
-@RequestMapping({ "/api/technicians", "/api/technician" })
+@RequestMapping("/api/technicians")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Technicians", description = "Technician assignment and availability management")
+@Tag(name = "Technician Management", description = "Technician assignment and location tracking")
 @SecurityRequirement(name = "bearerAuth")
 public class TechnicianController {
+
     private final TechnicianAssignmentService technicianAssignmentService;
-    private final com.healthcare.labtestbooking.service.BookingService bookingService;
-
-    @GetMapping("/bookings/technician")
-    @PreAuthorize("hasRole('TECHNICIAN')")
-    @Operation(summary = "Get technician bookings", description = "Retrieve all bookings assigned to the authenticated technician")
-    public ResponseEntity<ApiResponse<List<com.healthcare.labtestbooking.dto.BookingResponse>>> getTechnicianBookings() {
-        log.info("GET /api/technician/bookings/technician");
-        List<com.healthcare.labtestbooking.dto.BookingResponse> bookings = bookingService.getTechnicianBookings();
-        return ResponseEntity.ok(ApiResponse.success("Technician bookings fetched successfully", bookings));
-    }
-
-    @GetMapping("/assignments")
-    @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<ApiResponse<List<com.healthcare.labtestbooking.dto.BookingResponse>>> getAssignments() {
-        log.info("GET /api/technician/assignments");
-        List<com.healthcare.labtestbooking.dto.BookingResponse> bookings = bookingService.getTechnicianBookings();
-        return ResponseEntity.ok(ApiResponse.success("Success", bookings));
-    }
-
-    @PostMapping("/collect-sample/{bookingId}")
-    @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<ApiResponse<com.healthcare.labtestbooking.dto.BookingResponse>> collectSample(
-            @PathVariable Long bookingId) {
-        log.info("POST /api/technician/collect-sample/{}", bookingId);
-        com.healthcare.labtestbooking.dto.BookingResponse response = bookingService.markCollected(bookingId);
-        return ResponseEntity.ok(ApiResponse.success("Sample collected successfully", response));
-    }
 
     @GetMapping("/available")
-    @Operation(summary = "Get available technicians", description = "Find technicians available for a specific location, date, and time slot")
+    @Operation(summary = "Get available technicians", description = "Get available technicians for a specific date and pincode")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Available technicians retrieved successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid pincode, date, or slot"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Technicians retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid date or pincode"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<Technician>>> getAvailableTechnicians(
-            @RequestParam String pincode,
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAvailableTechnicians(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String slot) {
-        log.info("GET /api/technicians/available?pincode={}&date={}&slot={}", pincode, date, slot);
-        List<Technician> technicians = technicianAssignmentService.findAvailableTechnicians(pincode, date, slot);
-        return ResponseEntity.ok(ApiResponse.success("Available technicians", technicians));
+            @RequestParam String pincode) {
+        log.info("GET /api/technicians/available - date: {}, pincode: {}", date, pincode);
+        List<Map<String, Object>> technicians = technicianAssignmentService.getAvailableTechnicians(date, pincode);
+        return ResponseEntity.ok(ApiResponse.success("Found " + technicians.size() + " available technicians", technicians));
     }
 
     @PostMapping("/assign/{bookingId}")
-    @Operation(summary = "Assign technician", description = "Assign an available technician to a booking")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER')")
+    @Operation(summary = "Auto-assign technician", description = "Automatically assign the nearest available technician to a booking")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Technician assigned successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found or no available technicians"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid booking ID"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Booking already has a technician"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<Technician>> assignTechnician(@PathVariable Long bookingId) {
-        Technician technician = technicianAssignmentService.assignTechnician(bookingId);
-        return ResponseEntity.ok(ApiResponse.success("Technician assigned", technician));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> autoAssignTechnician(@PathVariable Long bookingId) {
+        log.info("POST /api/technicians/assign/{}", bookingId);
+        Map<String, Object> result = technicianAssignmentService.autoAssignTechnician(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Technician assigned successfully", result));
     }
 
     @PostMapping("/reassign/{bookingId}")
-    @Operation(summary = "Reassign technician", description = "Reassign a different technician to an existing booking")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER')")
+    @Operation(summary = "Reassign technician", description = "Reassign a different technician to a booking")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Technician reassigned successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found or no available technicians"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking or technician not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<Technician>> reassignTechnician(@PathVariable Long bookingId) {
-        Technician technician = technicianAssignmentService.reassignTechnician(bookingId);
-        return ResponseEntity.ok(ApiResponse.success("Technician reassigned", technician));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reassignTechnician(
+            @PathVariable Long bookingId,
+            @Valid @RequestBody ReassignRequest request) {
+        log.info("POST /api/technicians/reassign/{} - newTechnicianId: {}", bookingId, request.getNewTechnicianId());
+        Map<String, Object> result = technicianAssignmentService.reassignTechnician(bookingId, request.getNewTechnicianId());
+        return ResponseEntity.ok(ApiResponse.success("Technician reassigned successfully", result));
     }
 
-    @GetMapping("/location/{technicianId}")
-    @Operation(summary = "Get technician location", description = "Retrieve the current location of a technician")
+    @GetMapping("/location/{techId}")
+    @Operation(summary = "Get technician location", description = "Get the current GPS location of a technician")
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Technician location retrieved successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Location retrieved successfully"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Technician not found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getTechnicianLocation(@PathVariable Long technicianId) {
-        return technicianAssignmentService.getTechnicianLocation(technicianId)
-                .map(tech -> {
-                    Map<String, Object> payload = new HashMap<>();
-                    payload.put("technicianId", tech.getId());
-                    payload.put("lat", tech.getCurrentLat());
-                    payload.put("lng", tech.getCurrentLng());
-                    payload.put("lastUpdated", tech.getLastLocationUpdate());
-                    return ResponseEntity.ok(ApiResponse.success("Technician location", payload));
-                })
-                .orElseGet(() -> ResponseEntity.ok(ApiResponse.success("Technician not found", null)));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTechnicianLocation(@PathVariable Long techId) {
+        log.info("GET /api/technicians/location/{}", techId);
+        Map<String, Object> location = technicianAssignmentService.getTechnicianLocation(techId);
+        return ResponseEntity.ok(ApiResponse.success("Location retrieved", location));
+    }
+
+    @Data
+    public static class ReassignRequest {
+        @NotNull(message = "New technician ID is required")
+        private Long newTechnicianId;
     }
 }
-
-

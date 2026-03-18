@@ -1,52 +1,65 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import com.healthcare.labtestbooking.dto.ApiResponse;
-import com.healthcare.labtestbooking.dto.SmartReportDTO;
-import com.healthcare.labtestbooking.dto.TrendDataDTO;
 import com.healthcare.labtestbooking.service.SmartReportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Smart Reports", description = "AI-powered report analysis and insights")
+@SecurityRequirement(name = "bearerAuth")
 public class SmartReportController {
 
     private final SmartReportService smartReportService;
 
     @GetMapping("/{id}/smart")
-    public ResponseEntity<ApiResponse<SmartReportDTO>> getSmartReport(@PathVariable Long id) {
-        SmartReportDTO report = smartReportService.getSmartReport(id);
-        return ResponseEntity.ok(ApiResponse.success("Smart report", report));
+    @Operation(summary = "Get smart analysis", description = "Get AI-powered analysis with health score and recommendations")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Analysis generated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking or report not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSmartAnalysis(@PathVariable Long id) {
+        log.info("GET /api/reports/{}/smart - Generating smart analysis", id);
+        Map<String, Object> analysis = smartReportService.getSmartAnalysis(id);
+        return ResponseEntity.ok(ApiResponse.success("Smart analysis generated", analysis));
     }
 
     @GetMapping("/{id}/trends/{testId}")
-    public ResponseEntity<ApiResponse<TrendDataDTO>> getTrendData(
-        @PathVariable Long id,
-        @PathVariable Long testId,
-        @RequestParam(defaultValue = "10") int limit
-    ) {
-        SmartReportDTO report = smartReportService.getSmartReport(id);
-        TrendDataDTO trends = smartReportService.generateTrends(report.getPatientId(), testId, limit);
-        return ResponseEntity.ok(ApiResponse.success("Trend data", trends));
+    @Operation(summary = "Get parameter trends", description = "Get historical trends for test parameters across multiple reports")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Trends retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getParameterTrends(
+            @PathVariable Long id,
+            @PathVariable Long testId) {
+        log.info("GET /api/reports/{}/trends/{} - Getting parameter trends", id, testId);
+        Map<String, Object> trends = smartReportService.getParameterTrend(id, testId);
+        return ResponseEntity.ok(ApiResponse.success("Parameter trends retrieved", trends));
     }
 
     @GetMapping("/{id}/critical")
-    public ResponseEntity<ApiResponse<List<SmartReportDTO.CriticalValueDTO>>> getCriticalValues(@PathVariable Long id) {
-        List<SmartReportDTO.CriticalValueDTO> criticalValues = smartReportService.flagCriticalValues(id);
-        return ResponseEntity.ok(ApiResponse.success("Critical values", criticalValues));
+    @Operation(summary = "Get critical values", description = "Get all critical and abnormal values requiring attention")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Critical values retrieved"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking or report not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCriticalValues(@PathVariable Long id) {
+        log.info("GET /api/reports/{}/critical - Getting critical values", id);
+        Map<String, Object> criticalValues = smartReportService.getCriticalValues(id);
+        return ResponseEntity.ok(ApiResponse.success("Critical values retrieved", criticalValues));
     }
 }
-
-
