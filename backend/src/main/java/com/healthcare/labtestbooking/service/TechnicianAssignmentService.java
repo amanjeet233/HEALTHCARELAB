@@ -2,6 +2,7 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.entity.Booking;
 import com.healthcare.labtestbooking.entity.Technician;
+import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.repository.TechnicianRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,242 +10,151 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class TechnicianAssignmentService {
-
-    private static final int EARTH_RADIUS_KM = 6371;
 
     private final TechnicianRepository technicianRepository;
     private final BookingRepository bookingRepository;
 
-    public List<Technician> findAvailableTechnicians(String pincode, LocalDate date, String slot) {
-        if (pincode == null || date == null || slot == null) {
-            return List.of();
-        }
+    private static final double EARTH_RADIUS_KM = 6371.0;
 
-        SlotWindow slotWindow = parseSlot(slot);
-        if (slotWindow == null) {
-            return List.of();
-        }
+    public List<Map<String, Object>> getAvailableTechnicians(LocalDate date, String pincode) {
+        log.info("Finding available technicians for date: {} and pincode: {}", date, pincode);
+        List<Technician> technicians = technicianRepository.findDistinctByIsActiveTrueAndServicePincodesContaining(pincode);
+        LocalTime now = LocalTime.now();
+        List<Map<String, Object>> availableTechs = new ArrayList<>();
 
-        List<Technician> technicians = technicianRepository
-            .findDistinctByIsActiveTrueAndServicePincodesContaining(pincode);
-
-        List<Technician> available = new ArrayList<>();
         for (Technician tech : technicians) {
-            if (!isWithinWorkingHours(tech, slotWindow)) {
-                continue;
+            if (tech.getWorkingStart() != null && tech.getWorkingEnd() != null) {
+                if (date.equals(LocalDate.now())) {
+                    if (now.isBefore(tech.getWorkingStart()) || now.isAfter(tech.getWorkingEnd())) {
+                        continue;
+                    }
+                }
             }
-            long booked = bookingRepository.countByTechnicianIdAndBookingDateAndTimeSlot(
-                tech.getUser().getId(), date, normalizeSlot(slotWindow));
-            if (booked == 0) {
-                available.add(tech);
-            }
+            Map<String, Object> techInfo = new LinkedHashMap<>();
+            techInfo.put("technicianId", tech.getId());
+            techInfo.put("name", tech.getFullName());
+            techInfo.put("phone", tech.getPhone());
+            techInfo.put("email", tech.getEmail());
+            techInfo.put("qualifications", tech.getQualifications());
+            techInfo.put("skills", tech.getSkills());
+            techInfo.put("servicePincodes", tech.getServicePincodes());
+            techInfo.put("workingHours", formatWorkingHours(tech));
+            techInfo.put("currentLocation", formatLocation(tech));
+            techInfo.put("lastLocationUpdate", tech.getLastLocationUpdate());
+            availableTechs.add(techInfo);
         }
-
-        return available;
+        log.info("Found {} available technicians for pincode {}", availableTechs.size(), pincode);
+        return availableTechs;
     }
 
     @Transactional
-    public Technician assignTechnician(Long bookingId) {
+    public Map<String, Object> autoAssignTechnician(Long bookingId) {
+        log.info("Auto-assigning technician to booking: {}", bookingId);
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
-
-        String pincode = extractPincode(booking.getCollectionAddress());
-        if (pincode == null) {
-            throw new RuntimeException("Missing pincode for booking address");
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+        if (booking.getTechnician() != null) {
+            throw new RuntimeException("Booking already has a technician assigned");
         }
-        LocalDate date = booking.getBookingDate();
-        String slot = booking.getTimeSlot();
-        if (slot == null) {
-            throw new RuntimeException("Booking slot is required for assignment");
+        List<Technician> technicians = technicianRepository.findByIsActiveTrue();
+        if (technicians.isEmpty()) {
+            throw new RuntimeException("No technicians available");
         }
-
-        List<Technician> candidates = findAvailableTechnicians(pincode, date, slot);
-        if (candidates.isEmpty()) {
-            throw new RuntimeException("No available technicians for slot");
+        Technician nearestTech = null;
+        LocalTime now = LocalTime.now();
+        for (Technician tech : technicians) {
+            if (tech.getWorkingStart() != null && tech.getWorkingEnd() != null) {
+                if (!now.isBefore(tech.getWorkingStart()) && !now.isAfter(tech.getWorkingEnd())) {
+                    if (nearestTech == null) {
+                        nearestTech = tech;
+                    }
+                }
+            } else if (nearestTech == null) {
+                nearestTech = tech;
+            }
         }
-
-        SlotWindow slotWindow = parseSlot(slot);
-        candidates.sort(Comparator
-            .comparingDouble((Technician tech) -> distanceScore(tech, booking))
-            .thenComparingLong(tech -> bookingRepository.countByTechnicianIdAndBookingDate(
-                tech.getUser().getId(), date))
-        );
-
-        Technician assigned = candidates.get(0);
-        booking.setTechnician(assigned.getUser());
-        booking.setTimeSlot(normalizeSlot(slotWindow));
+        if (nearestTech == null) {
+            nearestTech = technicians.get(0);
+        }
+        User techUser = nearestTech.getUser();
+        booking.setTechnician(techUser);
         bookingRepository.save(booking);
 
-        log.info("Assigned technician {} to booking {}", assigned.getId(), bookingId);
-        return assigned;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("bookingId", bookingId);
+        result.put("technicianId", nearestTech.getId());
+        result.put("technicianUserId", techUser.getId());
+        result.put("name", nearestTech.getFullName());
+        result.put("phone", nearestTech.getPhone());
+        result.put("estimatedArrival", LocalTime.now().plusMinutes(30).toString());
+        result.put("assignedAt", LocalDateTime.now());
+        result.put("status", "ASSIGNED");
+        log.info("Technician {} assigned to booking {}", nearestTech.getId(), bookingId);
+        return result;
     }
 
     @Transactional
-    public Technician reassignTechnician(Long bookingId) {
+    public Map<String, Object> reassignTechnician(Long bookingId, Long newTechnicianId) {
+        log.info("Reassigning technician {} to booking {}", newTechnicianId, bookingId);
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
-
-        booking.setTechnician(null);
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+        Technician newTech = technicianRepository.findById(newTechnicianId)
+                .orElseThrow(() -> new RuntimeException("Technician not found: " + newTechnicianId));
+        if (!newTech.getIsActive()) {
+            throw new RuntimeException("Technician is not active");
+        }
+        User previousTech = booking.getTechnician();
+        booking.setTechnician(newTech.getUser());
         bookingRepository.save(booking);
 
-        Technician reassigned = assignTechnician(bookingId);
-        log.info("Reassigned technician {} to booking {}", reassigned.getId(), bookingId);
-        return reassigned;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("bookingId", bookingId);
+        result.put("previousTechnicianId", previousTech != null ? previousTech.getId() : null);
+        result.put("newTechnicianId", newTech.getId());
+        result.put("name", newTech.getFullName());
+        result.put("phone", newTech.getPhone());
+        result.put("reassignedAt", LocalDateTime.now());
+        result.put("status", "REASSIGNED");
+        log.info("Booking {} reassigned to {}", bookingId, newTech.getId());
+        return result;
     }
 
-    public Optional<Technician> getTechnicianLocation(Long technicianId) {
-        return technicianRepository.findById(technicianId);
+    public Map<String, Object> getTechnicianLocation(Long technicianId) {
+        log.info("Getting location for technician: {}", technicianId);
+        Technician tech = technicianRepository.findById(technicianId)
+                .orElseThrow(() -> new RuntimeException("Technician not found: " + technicianId));
+        Map<String, Object> location = new LinkedHashMap<>();
+        location.put("technicianId", tech.getId());
+        location.put("name", tech.getFullName());
+        location.put("latitude", tech.getCurrentLat());
+        location.put("longitude", tech.getCurrentLng());
+        location.put("lastUpdate", tech.getLastLocationUpdate());
+        location.put("isActive", tech.getIsActive());
+        location.put("workingHours", formatWorkingHours(tech));
+        location.put("locationAvailable", tech.getCurrentLat() != null && tech.getCurrentLng() != null);
+        return location;
     }
 
-    private boolean isWithinWorkingHours(Technician tech, SlotWindow slot) {
-        LocalTime start = tech.getWorkingStart();
-        LocalTime end = tech.getWorkingEnd();
-        if (start == null || end == null) {
-            return true;
+    private String formatWorkingHours(Technician tech) {
+        if (tech.getWorkingStart() != null && tech.getWorkingEnd() != null) {
+            return tech.getWorkingStart().toString() + " - " + tech.getWorkingEnd().toString();
         }
-        return !slot.start.isBefore(start) && !slot.end.isAfter(end);
+        return "Not specified";
     }
 
-    private double distanceScore(Technician tech, Booking booking) {
-        if (tech.getCurrentLat() == null || tech.getCurrentLng() == null) {
-            return Double.MAX_VALUE;
-        }
-        GeoPoint userPoint = resolveBookingLocation(booking);
-        if (userPoint == null) {
-            return Double.MAX_VALUE;
-        }
-        return haversine(
-            tech.getCurrentLat().doubleValue(),
-            tech.getCurrentLng().doubleValue(),
-            userPoint.lat,
-            userPoint.lng
-        );
-    }
-
-    private GeoPoint resolveBookingLocation(Booking booking) {
-        String pincode = extractPincode(booking.getCollectionAddress());
-        if (pincode == null) {
-            return null;
-        }
-        return lookupPincodeLocation(pincode);
-    }
-
-    private GeoPoint lookupPincodeLocation(String pincode) {
-        if (pincode.equals("110001")) {
-            return new GeoPoint(28.6328, 77.2197);
-        }
-        if (pincode.equals("400001")) {
-            return new GeoPoint(18.9402, 72.8347);
-        }
-        if (pincode.equals("560001")) {
-            return new GeoPoint(12.9766, 77.5993);
-        }
-        return null;
-    }
-
-    private double haversine(double lat1, double lon1, double lat2, double lon2) {
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-            * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return EARTH_RADIUS_KM * c;
-    }
-
-    private SlotWindow parseSlot(String slot) {
-        String normalized = slot.trim().toUpperCase(Locale.ROOT);
-        if (!normalized.contains("-")) {
-            return null;
-        }
-        String[] parts = normalized.split("-");
-        if (parts.length != 2) {
-            return null;
-        }
-        LocalTime start = parseTime(parts[0]);
-        LocalTime end = parseTime(parts[1]);
-        if (start == null || end == null) {
-            return null;
-        }
-        return new SlotWindow(start, end);
-    }
-
-    private LocalTime parseTime(String token) {
-        String value = token.trim().toUpperCase(Locale.ROOT);
-        try {
-            if (value.endsWith("AM") || value.endsWith("PM")) {
-                return parseAmPm(value);
-            }
-            return LocalTime.parse(value);
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private LocalTime parseAmPm(String value) {
-        String trimmed = value.replace(" ", "");
-        boolean isPm = trimmed.endsWith("PM");
-        String number = trimmed.substring(0, trimmed.length() - 2);
-        int hour = Integer.parseInt(number);
-        if (hour == 12) {
-            hour = 0;
-        }
-        if (isPm) {
-            hour += 12;
-        }
-        return LocalTime.of(hour, 0);
-    }
-
-    private String normalizeSlot(SlotWindow slotWindow) {
-        return slotWindow.start + "-" + slotWindow.end;
-    }
-
-    private String extractPincode(String address) {
-        if (address == null) {
-            return null;
-        }
-        String digits = address.replaceAll("[^0-9]", " ");
-        String[] tokens = digits.trim().split("\\s+");
-        for (String token : tokens) {
-            if (token.length() == 6) {
-                return token;
-            }
-        }
-        return null;
-    }
-
-    private static class SlotWindow {
-        private final LocalTime start;
-        private final LocalTime end;
-
-        private SlotWindow(LocalTime start, LocalTime end) {
-            this.start = start;
-            this.end = end;
-        }
-    }
-
-    private static class GeoPoint {
-        private final double lat;
-        private final double lng;
-
-        private GeoPoint(double lat, double lng) {
-            this.lat = lat;
-            this.lng = lng;
-        }
+    private Map<String, Object> formatLocation(Technician tech) {
+        Map<String, Object> loc = new HashMap<>();
+        loc.put("lat", tech.getCurrentLat());
+        loc.put("lng", tech.getCurrentLng());
+        return loc;
     }
 }

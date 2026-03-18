@@ -1,19 +1,9 @@
 package com.healthcare.labtestbooking.service;
 
-import com.healthcare.labtestbooking.dto.SmartReportDTO;
-import com.healthcare.labtestbooking.dto.TrendDataDTO;
 import com.healthcare.labtestbooking.entity.Booking;
-import com.healthcare.labtestbooking.entity.LabTest;
-import com.healthcare.labtestbooking.entity.ReferenceRange;
-import com.healthcare.labtestbooking.entity.Report;
 import com.healthcare.labtestbooking.entity.ReportResult;
-import com.healthcare.labtestbooking.entity.TestParameter;
-import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.AbnormalStatus;
-import com.healthcare.labtestbooking.entity.enums.ReportStatus;
 import com.healthcare.labtestbooking.repository.BookingRepository;
-import com.healthcare.labtestbooking.repository.ReferenceRangeRepository;
-import com.healthcare.labtestbooking.repository.ReportRepository;
 import com.healthcare.labtestbooking.repository.ReportResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,366 +11,230 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.Period;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class SmartReportService {
 
-    private final BookingRepository bookingRepository;
-    private final ReportRepository reportRepository;
     private final ReportResultRepository reportResultRepository;
-    private final ReferenceRangeRepository referenceRangeRepository;
+    private final BookingRepository bookingRepository;
 
-    @Transactional
-    public SmartReportDTO processReport(Long bookingId) {
+    public Map<String, Object> getSmartAnalysis(Long bookingId) {
+        log.info("Generating smart analysis for booking ID: {}", bookingId);
+        
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
-
-        Report report = reportRepository.findByBookingId(bookingId)
-            .orElseGet(() -> Report.builder()
-                .booking(booking)
-                .order(null)
-                .patient(booking.getPatient())
-                .status(ReportStatus.DRAFT)
-                .generatedDate(LocalDateTime.now())
-                .build());
-
-        Report savedReport = report.getId() == null ? reportRepository.save(report) : report;
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+        
         List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
+        
+        if (results.isEmpty()) {
+            throw new RuntimeException("No report results found for booking: " + bookingId);
+        }
 
+        Map<String, Object> analysis = new LinkedHashMap<>();
+        analysis.put("bookingId", bookingId);
+        analysis.put("testName", booking.getTest() != null ? booking.getTest().getTestName() : "Unknown");
+        analysis.put("totalParameters", results.size());
+
+        long normalCount = results.stream().filter(r -> r.getAbnormalStatus() == AbnormalStatus.NORMAL).count();
+        long abnormalCount = results.stream().filter(r -> r.getIsAbnormal() != null && r.getIsAbnormal()).count();
+        long criticalCount = results.stream().filter(r -> r.getIsCritical() != null && r.getIsCritical()).count();
+
+        analysis.put("normalCount", normalCount);
+        analysis.put("abnormalCount", abnormalCount);
+        analysis.put("criticalCount", criticalCount);
+
+        int healthScore = calculateHealthScore(results);
+        analysis.put("healthScore", healthScore);
+        analysis.put("healthStatus", getHealthStatus(healthScore));
+
+        List<Map<String, Object>> findings = new ArrayList<>();
         for (ReportResult result : results) {
-            enrichResult(result, booking.getPatient());
-            result.setReport(savedReport);
-            if (result.getTest() == null && result.getParameter() != null) {
-                result.setTest(result.getParameter().getTest());
+            if (result.getIsAbnormal() != null && result.getIsAbnormal()) {
+                Map<String, Object> finding = new LinkedHashMap<>();
+                finding.put("parameter", result.getParameter().getParameterName());
+                finding.put("value", result.getResultValue());
+                finding.put("unit", result.getUnit());
+                finding.put("status", result.getAbnormalStatus().name());
+                finding.put("isCritical", result.getIsCritical());
+                finding.put("recommendation", getRecommendation(result));
+                findings.add(finding);
             }
         }
-        reportResultRepository.saveAll(results);
+        analysis.put("abnormalFindings", findings);
+        analysis.put("summary", generateSummary(normalCount, abnormalCount, criticalCount, results.size()));
+        analysis.put("analyzedAt", LocalDateTime.now());
 
-        return buildSmartReport(savedReport, results, booking.getPatient());
+        return analysis;
     }
 
-    public AbnormalStatus calculateStatus(String resultValue, ReferenceRange referenceRange, TestParameter parameter) {
-        BigDecimal value = parseValue(resultValue);
-        if (value == null) {
-            return AbnormalStatus.NORMAL;
+    public Map<String, Object> getParameterTrend(Long bookingId, Long testId) {
+        log.info("Getting parameter trends for booking {} and test {}", bookingId, testId);
+
+        Booking currentBooking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+
+        Long patientId = currentBooking.getPatient().getId();
+        List<Booking> patientBookings = bookingRepository.findByPatientId(patientId);
+
+        List<Map<String, Object>> trendData = new ArrayList<>();
+        for (Booking booking : patientBookings) {
+            if (booking.getTest() != null && booking.getTest().getId().equals(testId)) {
+                List<ReportResult> results = reportResultRepository.findByBookingId(booking.getId());
+                if (!results.isEmpty()) {
+                    Map<String, Object> dataPoint = new LinkedHashMap<>();
+                    dataPoint.put("bookingId", booking.getId());
+                    dataPoint.put("date", booking.getCreatedAt());
+                    Map<String, Object> parameters = new LinkedHashMap<>();
+                    for (ReportResult result : results) {
+                        Map<String, Object> paramData = new LinkedHashMap<>();
+                        paramData.put("value", result.getResultValue());
+                        paramData.put("unit", result.getUnit());
+                        paramData.put("status", result.getAbnormalStatus() != null ? result.getAbnormalStatus().name() : "NORMAL");
+                        parameters.put(result.getParameter().getParameterName(), paramData);
+                    }
+                    dataPoint.put("parameters", parameters);
+                    trendData.add(dataPoint);
+                }
+            }
         }
 
-        if (parameter != null) {
-            if (parameter.getCriticalLow() != null && value.compareTo(parameter.getCriticalLow()) < 0) {
-                return AbnormalStatus.CRITICAL_LOW;
-            }
-            if (parameter.getCriticalHigh() != null && value.compareTo(parameter.getCriticalHigh()) > 0) {
-                return AbnormalStatus.CRITICAL_HIGH;
-            }
+        trendData.sort((a, b) -> {
+            LocalDateTime dateA = (LocalDateTime) a.get("date");
+            LocalDateTime dateB = (LocalDateTime) b.get("date");
+            if (dateA == null || dateB == null) return 0;
+            return dateA.compareTo(dateB);
+        });
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("patientId", patientId);
+        response.put("testId", testId);
+        response.put("testName", currentBooking.getTest() != null ? currentBooking.getTest().getTestName() : "Unknown");
+        response.put("totalDataPoints", trendData.size());
+        response.put("trendData", trendData);
+        if (trendData.size() >= 2) {
+            response.put("trendAnalysis", analyzeTrends(trendData));
         }
 
-        if (referenceRange != null) {
-            if (referenceRange.getNormalRangeMin() != null && value.compareTo(referenceRange.getNormalRangeMin()) < 0) {
-                return AbnormalStatus.LOW;
-            }
-            if (referenceRange.getNormalRangeMax() != null && value.compareTo(referenceRange.getNormalRangeMax()) > 0) {
-                return AbnormalStatus.HIGH;
-            }
-        }
-
-        return AbnormalStatus.NORMAL;
+        return response;
     }
 
-    @Transactional(readOnly = true)
-    public TrendDataDTO generateTrends(Long patientId, Long testId, int limit) {
-        List<ReportResult> all = reportResultRepository.findByBookingPatientIdOrderByCreatedAtDesc(patientId);
-        List<ReportResult> filtered = all.stream()
-            .filter(result -> result.getTest() != null && Objects.equals(result.getTest().getId(), testId))
-            .limit(limit)
-            .collect(Collectors.toList());
+    public Map<String, Object> getCriticalValues(Long bookingId) {
+        log.info("Getting critical values for booking ID: {}", bookingId);
 
-        List<String> labels = new ArrayList<>();
-        List<BigDecimal> values = new ArrayList<>();
-        for (ReportResult result : filtered) {
-            if (result.getCreatedAt() != null) {
-                labels.add(result.getCreatedAt().toLocalDate().toString());
-            }
-            BigDecimal value = parseValue(result.getResultValue());
-            if (value != null) {
-                values.add(value);
-            }
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+
+        List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
+        if (results.isEmpty()) {
+            throw new RuntimeException("No report results found for booking: " + bookingId);
         }
 
-        String direction = calculateDirection(values);
+        List<Map<String, Object>> criticalValues = results.stream()
+                .filter(r -> r.getIsCritical() != null && r.getIsCritical())
+                .map(this::mapResultToDetail).collect(Collectors.toList());
 
-        return TrendDataDTO.builder()
-            .testId(testId)
-            .labels(reverse(labels))
-            .values(reverse(values))
-            .direction(direction)
-            .build();
+        List<Map<String, Object>> abnormalValues = results.stream()
+                .filter(r -> r.getIsAbnormal() != null && r.getIsAbnormal() && (r.getIsCritical() == null || !r.getIsCritical()))
+                .map(this::mapResultToDetail).collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("bookingId", bookingId);
+        response.put("testName", booking.getTest() != null ? booking.getTest().getTestName() : "Unknown");
+        response.put("criticalCount", criticalValues.size());
+        response.put("abnormalCount", abnormalValues.size());
+        response.put("criticalValues", criticalValues);
+        response.put("abnormalValues", abnormalValues);
+        response.put("requiresImmediateAttention", !criticalValues.isEmpty());
+        if (!criticalValues.isEmpty()) {
+            response.put("urgentMessage", "CRITICAL VALUES DETECTED - Immediate medical consultation recommended");
+        }
+        return response;
     }
 
-    @Transactional(readOnly = true)
-    public List<SmartReportDTO.InsightDTO> generateInsights(Long reportId) {
-        List<ReportResult> results = reportResultRepository.findByReportId(reportId);
-        List<SmartReportDTO.InsightDTO> insights = new ArrayList<>();
+    private Map<String, Object> mapResultToDetail(ReportResult result) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("id", result.getId());
+        detail.put("parameter", result.getParameter().getParameterName());
+        detail.put("value", result.getResultValue());
+        detail.put("unit", result.getUnit());
+        detail.put("normalRange", result.getNormalRange());
+        detail.put("status", result.getAbnormalStatus() != null ? result.getAbnormalStatus().name() : "UNKNOWN");
+        detail.put("isCritical", result.getIsCritical());
+        detail.put("notes", result.getNotes());
+        return detail;
+    }
 
+    private int calculateHealthScore(List<ReportResult> results) {
+        if (results.isEmpty()) return 100;
+        int totalScore = 0;
         for (ReportResult result : results) {
-            if (result.getAbnormalStatus() == null || result.getTest() == null) {
-                continue;
-            }
-            String testName = result.getTest().getTestName();
-            String parameterName = result.getParameter() != null ? result.getParameter().getParameterName() : "Result";
-            if (result.getAbnormalStatus() == AbnormalStatus.HIGH) {
-                insights.add(SmartReportDTO.InsightDTO.builder()
-                    .message(parameterName + " is higher than the normal range for " + testName + ".")
-                    .severity("WARNING")
-                    .category("ABNORMAL")
-                    .build());
-            } else if (result.getAbnormalStatus() == AbnormalStatus.LOW) {
-                insights.add(SmartReportDTO.InsightDTO.builder()
-                    .message(parameterName + " is below the normal range for " + testName + ".")
-                    .severity("WARNING")
-                    .category("ABNORMAL")
-                    .build());
-            } else if (result.getAbnormalStatus() == AbnormalStatus.CRITICAL_HIGH
-                || result.getAbnormalStatus() == AbnormalStatus.CRITICAL_LOW) {
-                insights.add(SmartReportDTO.InsightDTO.builder()
-                    .message("Critical value detected for " + parameterName + ". Immediate attention recommended.")
-                    .severity("CRITICAL")
-                    .category("CRITICAL")
-                    .build());
-            }
+            if (result.getIsCritical() != null && result.getIsCritical()) totalScore += 0;
+            else if (result.getIsAbnormal() != null && result.getIsAbnormal()) totalScore += 50;
+            else totalScore += 100;
         }
-
-        return insights;
+        return totalScore / results.size();
     }
 
-    @Transactional(readOnly = true)
-    public List<SmartReportDTO.CriticalValueDTO> flagCriticalValues(Long reportId) {
-        List<ReportResult> criticalResults = reportResultRepository.findByReportIdAndIsCriticalTrue(reportId);
-        return criticalResults.stream()
-            .map(result -> SmartReportDTO.CriticalValueDTO.builder()
-                .reportResultId(result.getId())
-                .testId(result.getTest() != null ? result.getTest().getId() : null)
-                .parameterId(result.getParameter() != null ? result.getParameter().getId() : null)
-                .parameterName(result.getParameter() != null ? result.getParameter().getParameterName() : null)
-                .resultValue(result.getResultValue())
-                .abnormalStatus(result.getAbnormalStatus())
-                .message("Critical value requires immediate review")
-                .build())
-            .collect(Collectors.toList());
+    private String getHealthStatus(int score) {
+        if (score >= 90) return "EXCELLENT";
+        if (score >= 75) return "GOOD";
+        if (score >= 50) return "FAIR";
+        if (score >= 25) return "CONCERNING";
+        return "CRITICAL";
     }
 
-    @Transactional(readOnly = true)
-    public SmartReportDTO getSmartReport(Long reportId) {
-        Report report = reportRepository.findById(reportId)
-            .orElseThrow(() -> new RuntimeException("Report not found: " + reportId));
-        List<ReportResult> results = reportResultRepository.findByReportId(reportId);
-        return buildSmartReport(report, results, report.getPatient());
+    private String getRecommendation(ReportResult result) {
+        if (result.getAbnormalStatus() == null) return "No specific recommendation";
+        switch (result.getAbnormalStatus()) {
+            case CRITICAL_HIGH: return "URGENT: Extremely high value - seek immediate medical attention";
+            case CRITICAL_LOW: return "URGENT: Extremely low value - seek immediate medical attention";
+            case HIGH: return "Elevated value - consult with your healthcare provider";
+            case LOW: return "Below normal - discuss with your healthcare provider";
+            default: return "Value within normal range";
+        }
     }
 
-    private SmartReportDTO buildSmartReport(Report report, List<ReportResult> results, User patient) {
-        List<SmartReportDTO.ResultItemDTO> items = results.stream()
-            .map(this::toResultItem)
-            .collect(Collectors.toList());
-
-        List<SmartReportDTO.InsightDTO> insights = generateInsights(report.getId());
-        List<SmartReportDTO.RiskScoreDTO> riskScores = generateRiskScores(results);
-        List<SmartReportDTO.CriticalValueDTO> criticalValues = flagCriticalValues(report.getId());
-
-        return SmartReportDTO.builder()
-            .reportId(report.getId())
-            .bookingId(report.getBooking() != null ? report.getBooking().getId() : null)
-            .orderId(report.getOrder() != null ? report.getOrder().getId() : null)
-            .patientId(patient != null ? patient.getId() : null)
-            .status(report.getStatus())
-            .generatedDate(report.getGeneratedDate())
-            .results(items)
-            .insights(insights)
-            .riskScores(riskScores)
-            .criticalValues(criticalValues)
-            .build();
+    private String generateSummary(long normal, long abnormal, long critical, int total) {
+        if (critical > 0) return String.format("ATTENTION REQUIRED: %d critical value(s) detected. Please consult a healthcare provider immediately.", critical);
+        if (abnormal > 0) return String.format("Some values outside normal range: %d of %d parameters abnormal. Schedule a follow-up consultation.", abnormal, total);
+        return String.format("All %d parameters within normal range. Continue maintaining a healthy lifestyle.", total);
     }
 
-    private SmartReportDTO.ResultItemDTO toResultItem(ReportResult result) {
-        return SmartReportDTO.ResultItemDTO.builder()
-            .reportResultId(result.getId())
-            .testId(result.getTest() != null ? result.getTest().getId() : null)
-            .parameterId(result.getParameter() != null ? result.getParameter().getId() : null)
-            .testName(result.getTest() != null ? result.getTest().getTestName() : null)
-            .parameterName(result.getParameter() != null ? result.getParameter().getParameterName() : null)
-            .resultValue(result.getResultValue())
-            .unit(result.getUnit())
-            .normalRangeMin(result.getNormalRangeMin())
-            .normalRangeMax(result.getNormalRangeMax())
-            .abnormalStatus(result.getAbnormalStatus())
-            .isAbnormal(result.getIsAbnormal())
-            .isCritical(result.getIsCritical())
-            .comments(result.getComments())
-            .build();
-    }
-
-    private List<SmartReportDTO.RiskScoreDTO> generateRiskScores(List<ReportResult> results) {
-        int cardio = 0;
-        int diabetes = 0;
-        int liver = 0;
-
-        for (ReportResult result : results) {
-            String name = result.getTest() != null ? result.getTest().getTestName() : "";
-            String param = result.getParameter() != null ? result.getParameter().getParameterName() : "";
-            String text = (name + " " + param).toLowerCase(Locale.ROOT);
-
-            if (text.contains("cholesterol") || text.contains("lipid")) {
-                cardio += riskPoints(result.getAbnormalStatus());
-            }
-            if (text.contains("glucose") || text.contains("hba1c") || text.contains("sugar")) {
-                diabetes += riskPoints(result.getAbnormalStatus());
-            }
-            if (text.contains("liver") || text.contains("alt") || text.contains("ast")) {
-                liver += riskPoints(result.getAbnormalStatus());
+    @SuppressWarnings("unchecked")
+    private Map<String, String> analyzeTrends(List<Map<String, Object>> trendData) {
+        Map<String, String> trends = new LinkedHashMap<>();
+        if (trendData.size() < 2) return trends;
+        Map<String, Object> first = trendData.get(0);
+        Map<String, Object> last = trendData.get(trendData.size() - 1);
+        Map<String, Object> firstParams = (Map<String, Object>) first.get("parameters");
+        Map<String, Object> lastParams = (Map<String, Object>) last.get("parameters");
+        if (firstParams == null || lastParams == null) return trends;
+        for (String paramName : lastParams.keySet()) {
+            if (firstParams.containsKey(paramName)) {
+                try {
+                    Map<String, Object> firstData = (Map<String, Object>) firstParams.get(paramName);
+                    Map<String, Object> lastData = (Map<String, Object>) lastParams.get(paramName);
+                    String firstValue = (String) firstData.get("value");
+                    String lastValue = (String) lastData.get("value");
+                    if (firstValue != null && lastValue != null) {
+                        BigDecimal fv = new BigDecimal(firstValue);
+                        BigDecimal lv = new BigDecimal(lastValue);
+                        int cmp = lv.compareTo(fv);
+                        if (cmp > 0) trends.put(paramName, "INCREASING");
+                        else if (cmp < 0) trends.put(paramName, "DECREASING");
+                        else trends.put(paramName, "STABLE");
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not analyze trend for parameter: {}", paramName);
+                }
             }
         }
-
-        return List.of(
-            buildRisk("CARDIOVASCULAR", cardio),
-            buildRisk("DIABETES", diabetes),
-            buildRisk("LIVER", liver)
-        );
-    }
-    private SmartReportDTO.RiskScoreDTO buildRisk(String type, int points) {
-        int score = Math.min(100, points * 20);
-        String level = score >= 70 ? "HIGH" : score >= 40 ? "MODERATE" : "LOW";
-        return SmartReportDTO.RiskScoreDTO.builder()
-            .type(type)
-            .score(score)
-            .level(level)
-            .build();
-    }
-
-    private int riskPoints(AbnormalStatus status) {
-        if (status == null) {
-            return 0;
-        }
-        switch (status) {
-            case CRITICAL_HIGH:
-            case CRITICAL_LOW:
-                return 5;
-            case HIGH:
-            case LOW:
-                return 3;
-            default:
-                return 0;
-        }
-    }
-
-    private void enrichResult(ReportResult result, User patient) {
-        ReferenceRange referenceRange = findReferenceRange(result.getParameter(), patient);
-        if (referenceRange != null) {
-            result.setNormalRangeMin(referenceRange.getNormalRangeMin());
-            result.setNormalRangeMax(referenceRange.getNormalRangeMax());
-            if (result.getUnit() == null) {
-                result.setUnit(referenceRange.getUnit());
-            }
-        }
-        if (result.getUnit() == null && result.getParameter() != null) {
-            result.setUnit(result.getParameter().getUnit());
-        }
-
-        AbnormalStatus status = calculateStatus(result.getResultValue(), referenceRange, result.getParameter());
-        result.setAbnormalStatus(status);
-        result.setIsAbnormal(status != null && status != AbnormalStatus.NORMAL);
-        result.setIsCritical(status == AbnormalStatus.CRITICAL_LOW || status == AbnormalStatus.CRITICAL_HIGH);
-    }
-
-    private ReferenceRange findReferenceRange(TestParameter parameter, User patient) {
-        if (parameter == null) {
-            return null;
-        }
-        List<ReferenceRange> ranges = referenceRangeRepository.findByParameterId(parameter.getId());
-        if (ranges.isEmpty()) {
-            return null;
-        }
-
-        String gender = patient != null && patient.getGender() != null
-            ? patient.getGender().name() : "ALL";
-        BigDecimal age = patient != null ? calculateAge(patient.getDateOfBirth()) : null;
-
-        return ranges.stream()
-            .filter(range -> matchesGender(range, gender))
-            .filter(range -> matchesAge(range, age))
-            .sorted(Comparator.comparing((ReferenceRange r) -> r.getAgeMin() != null ? r.getAgeMin() : BigDecimal.ZERO))
-            .findFirst()
-            .orElse(ranges.get(0));
-    }
-
-    private boolean matchesGender(ReferenceRange range, String gender) {
-        if (range.getGender() == null) {
-            return true;
-        }
-        String rangeGender = range.getGender().toUpperCase(Locale.ROOT);
-        return rangeGender.equals("ALL") || rangeGender.equals(gender);
-    }
-
-    private boolean matchesAge(ReferenceRange range, BigDecimal age) {
-        if (age == null) {
-            return true;
-        }
-        if (range.getAgeMin() != null && age.compareTo(range.getAgeMin()) < 0) {
-            return false;
-        }
-        if (range.getAgeMax() != null && age.compareTo(range.getAgeMax()) > 0) {
-            return false;
-        }
-        return true;
-    }
-
-    private BigDecimal calculateAge(LocalDate dob) {
-        if (dob == null) {
-            return null;
-        }
-        int years = Period.between(dob, LocalDate.now()).getYears();
-        return BigDecimal.valueOf(years);
-    }
-
-    private BigDecimal parseValue(String resultValue) {
-        if (resultValue == null || resultValue.isBlank()) {
-            return null;
-        }
-        try {
-            return new BigDecimal(resultValue.trim());
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
-    private String calculateDirection(List<BigDecimal> values) {
-        if (values.size() < 2) {
-            return "STABLE";
-        }
-        BigDecimal latest = values.get(0);
-        BigDecimal oldest = values.get(values.size() - 1);
-        if (latest.compareTo(oldest) > 0) {
-            return "INCREASED";
-        }
-        if (latest.compareTo(oldest) < 0) {
-            return "DECREASED";
-        }
-        return "STABLE";
-    }
-
-    private <T> List<T> reverse(List<T> list) {
-        List<T> copy = new ArrayList<>(list);
-        java.util.Collections.reverse(copy);
-        return copy;
+        return trends;
     }
 }
