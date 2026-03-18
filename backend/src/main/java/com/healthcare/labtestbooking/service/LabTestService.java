@@ -11,6 +11,7 @@ import com.healthcare.labtestbooking.repository.TestCategoryRepository;
 import com.healthcare.labtestbooking.repository.TestParameterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +40,7 @@ public class LabTestService {
                                 .collect(Collectors.toList());
         }
 
+        @Cacheable(value = "tests", key = "'all'")
         public List<LabTestDTO> getAllActiveTests() {
                 log.info("Fetching all active lab tests");
                 return labTestRepository.findByIsActiveTrue().stream()
@@ -61,6 +63,7 @@ public class LabTestService {
                 return convertToDTO(test);
         }
 
+        @Cacheable(value = "testsByCategory", key = "#categoryId")
         public List<LabTestDTO> getTestsByCategory(Long categoryId) {
                 log.info("Fetching tests by category ID: {}", categoryId);
                 TestCategory category = testCategoryRepository.findById(categoryId)
