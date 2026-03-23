@@ -4,38 +4,61 @@ import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.PackageTestRequest;
 import com.healthcare.labtestbooking.dto.PackageTestResponse;
 import com.healthcare.labtestbooking.entity.TestPackage;
+import com.healthcare.labtestbooking.entity.User;
+import com.healthcare.labtestbooking.entity.enums.*;
 import com.healthcare.labtestbooking.service.TestPackageService;
 import com.healthcare.labtestbooking.service.PackageTestService;
-import com.healthcare.labtestbooking.service.TestPackageService;
-import com.healthcare.labtestbooking.service.PackageTestService;
+import com.healthcare.labtestbooking.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/test-packages")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Test Packages", description = "Management of lab test packages")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"},
+    allowedHeaders = "*",
+    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
+    allowCredentials = "true")
+@Tag(name = "Test Packages", description = "Comprehensive test package management with dynamic pricing")
 public class TestPackageController {
 
     private final TestPackageService testPackageService;
     private final PackageTestService packageTestService;
+    private final UserRepository userRepository;
+
+    // ==================== Basic CRUD ====================
 
     @GetMapping
-    @Operation(summary = "Get all test packages")
+    @Operation(summary = "Get all active test packages")
     public ResponseEntity<ApiResponse<List<TestPackage>>> getAllPackages() {
-        return ResponseEntity
-                .ok(ApiResponse.success("Packages fetched successfully", testPackageService.getAllPackages()));
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched successfully",
+                testPackageService.getActivePackages()));
+    }
+
+    @GetMapping("/paged")
+    @Operation(summary = "Get all packages with pagination")
+    public ResponseEntity<ApiResponse<Page<TestPackage>>> getAllPackagesPaged(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched",
+                testPackageService.getActivePackages(pageable)));
     }
 
     @GetMapping("/{id}")
@@ -45,6 +68,210 @@ public class TestPackageController {
                 .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", p)))
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping("/code/{code}")
+    @Operation(summary = "Get test package by code")
+    public ResponseEntity<ApiResponse<TestPackage>> getPackageByCode(@PathVariable String code) {
+        return testPackageService.getPackageByCode(code)
+                .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", p)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ==================== Filtering Endpoints ====================
+
+    @GetMapping("/type/{type}")
+    @Operation(summary = "Get packages by type", description = "Filter packages by AGE_BASED, GENDER_BASED, PROFESSION_BASED, DISEASE_SPECIFIC, WELLNESS, etc.")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByType(
+            @PathVariable PackageType type) {
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched",
+                testPackageService.getPackagesByType(type)));
+    }
+
+    @GetMapping("/tier/{tier}")
+    @Operation(summary = "Get packages by tier", description = "Filter packages by BASIC, SILVER, GOLD, PLATINUM, DIAMOND")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByTier(
+            @PathVariable PackageTier tier) {
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched",
+                testPackageService.getPackagesByTier(tier)));
+    }
+
+    @GetMapping("/age/{age}")
+    @Operation(summary = "Get packages suitable for age", description = "Returns top packages recommended for the given age")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByAge(
+            @PathVariable int age,
+            @RequestParam(defaultValue = "5") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Age-appropriate packages",
+                testPackageService.getTopPackagesByAge(age, limit)));
+    }
+
+    @GetMapping("/gender/{gender}")
+    @Operation(summary = "Get packages by gender")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByGender(
+            @PathVariable Gender gender) {
+        return ResponseEntity.ok(ApiResponse.success("Gender-specific packages",
+                testPackageService.getPackagesByGender(gender)));
+    }
+
+    @GetMapping("/profession")
+    @Operation(summary = "Get packages by profession", description = "Search packages suitable for a profession")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByProfession(
+            @RequestParam String profession) {
+        return ResponseEntity.ok(ApiResponse.success("Profession-based packages",
+                testPackageService.getPackagesByProfession(profession)));
+    }
+
+    @GetMapping("/health-condition")
+    @Operation(summary = "Get packages by health condition", description = "Find packages for managing specific health conditions")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByHealthCondition(
+            @RequestParam String condition) {
+        return ResponseEntity.ok(ApiResponse.success("Condition-specific packages",
+                testPackageService.getPackagesByHealthCondition(condition)));
+    }
+
+    @GetMapping("/popular")
+    @Operation(summary = "Get popular packages")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPopularPackages() {
+        return ResponseEntity.ok(ApiResponse.success("Popular packages",
+                testPackageService.getPopularPackages()));
+    }
+
+    @GetMapping("/recommended")
+    @Operation(summary = "Get recommended packages")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getRecommendedPackages() {
+        return ResponseEntity.ok(ApiResponse.success("Recommended packages",
+                testPackageService.getRecommendedPackages()));
+    }
+
+    @GetMapping("/price-range")
+    @Operation(summary = "Get packages within price range")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPackagesByPriceRange(
+            @RequestParam BigDecimal minPrice,
+            @RequestParam BigDecimal maxPrice) {
+        return ResponseEntity.ok(ApiResponse.success("Packages in price range",
+                testPackageService.getPackagesByPriceRange(minPrice, maxPrice)));
+    }
+
+    @GetMapping("/top-savings")
+    @Operation(summary = "Get packages with highest savings")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getTopSavingPackages(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Top saving packages",
+                testPackageService.getTopSavingPackages(limit)));
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search packages by keyword")
+    public ResponseEntity<ApiResponse<Page<TestPackage>>> searchPackages(
+            @RequestParam String keyword,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Search results",
+                testPackageService.searchPackages(keyword, pageable)));
+    }
+
+    @GetMapping("/filter")
+    @Operation(summary = "Advanced package filtering", description = "Filter packages with multiple criteria")
+    public ResponseEntity<ApiResponse<Page<TestPackage>>> filterPackages(
+            @RequestParam(required = false) PackageType type,
+            @RequestParam(required = false) PackageTier tier,
+            @RequestParam(required = false) AgeGroup ageGroup,
+            @RequestParam(required = false) Gender gender,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Filtered packages",
+                testPackageService.filterPackages(type, tier, ageGroup, gender, minPrice, maxPrice, pageable)));
+    }
+
+    // ==================== Smart Recommendations ====================
+
+    @GetMapping("/recommended-for-me")
+    @Operation(summary = "Get personalized package recommendations", description = "AI-powered recommendations based on user profile")
+    public ResponseEntity<ApiResponse<List<TestPackage>>> getPersonalizedRecommendations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(ApiResponse.success("Personalized recommendations",
+                testPackageService.getRecommendedPackages(user)));
+    }
+
+    @PostMapping("/best-value")
+    @Operation(summary = "Find best value package for selected tests", description = "Finds the package that provides best value for your selected tests")
+    public ResponseEntity<ApiResponse<TestPackage>> getBestValuePackage(
+            @RequestBody List<Long> testIds) {
+        TestPackage bestPackage = testPackageService.getBestValuePackage(testIds);
+        if (bestPackage != null) {
+            return ResponseEntity.ok(ApiResponse.success("Best value package found", bestPackage));
+        }
+        return ResponseEntity.ok(ApiResponse.success("No matching package found", null));
+    }
+
+    // ==================== Dynamic Pricing ====================
+
+    @PostMapping("/calculate-price")
+    @Operation(summary = "Calculate dynamic price for tests", description = "Calculates discounted price based on number of tests selected")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> calculateDynamicPrice(
+            @RequestBody List<Long> testIds) {
+        return ResponseEntity.ok(ApiResponse.success("Price calculated",
+                testPackageService.getPackageSavings(testIds)));
+    }
+
+    @PostMapping("/compare-with-packages")
+    @Operation(summary = "Compare individual tests with available packages", description = "Shows how much you can save by choosing a package instead of individual tests")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> compareTestsWithPackages(
+            @RequestBody List<Long> testIds) {
+        return ResponseEntity.ok(ApiResponse.success("Comparison complete",
+                testPackageService.compareTestsWithPackages(testIds)));
+    }
+
+    @PostMapping("/bundle-price")
+    @Operation(summary = "Calculate bundle price for multiple packages", description = "Get additional discount when purchasing multiple packages")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> calculateBundlePrice(
+            @RequestBody List<Long> packageIds) {
+        return ResponseEntity.ok(ApiResponse.success("Bundle price calculated",
+                testPackageService.calculateBundlePrice(packageIds)));
+    }
+
+    // ==================== Statistics ====================
+
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get package statistics", description = "Admin-only: Get statistics about packages")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPackageStatistics() {
+        return ResponseEntity.ok(ApiResponse.success("Statistics fetched",
+                testPackageService.getPackageStatistics()));
+    }
+
+    // ==================== Admin Operations ====================
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create a new test package")
+    public ResponseEntity<ApiResponse<TestPackage>> createPackage(
+            @Valid @RequestBody TestPackage testPackage) {
+        return new ResponseEntity<>(ApiResponse.success("Package created",
+                testPackageService.savePackage(testPackage)), HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a test package")
+    public ResponseEntity<ApiResponse<TestPackage>> updatePackage(
+            @PathVariable Long id,
+            @Valid @RequestBody TestPackage testPackage) {
+        testPackage.setId(id);
+        return ResponseEntity.ok(ApiResponse.success("Package updated",
+                testPackageService.savePackage(testPackage)));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Delete a test package")
+    public ResponseEntity<ApiResponse<Void>> deletePackage(@PathVariable Long id) {
+        testPackageService.deletePackage(id);
+        return ResponseEntity.ok(ApiResponse.success("Package deleted", null));
+    }
+
+    // ==================== Package-Test Relationships ====================
 
     @GetMapping("/package-tests")
     @Operation(summary = "Get all package-test relationships")
@@ -59,18 +286,26 @@ public class TestPackageController {
     }
 
     @PostMapping("/package-tests")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create package-test relationship")
-    public ResponseEntity<ApiResponse<PackageTestResponse>> createPackageTest(@Valid @RequestBody PackageTestRequest request) {
-        return new ResponseEntity<>(ApiResponse.success("Created", packageTestService.create(request)), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<PackageTestResponse>> createPackageTest(
+            @Valid @RequestBody PackageTestRequest request) {
+        return new ResponseEntity<>(ApiResponse.success("Created",
+                packageTestService.create(request)), HttpStatus.CREATED);
     }
 
     @PutMapping("/package-tests/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update package-test relationship")
-    public ResponseEntity<ApiResponse<PackageTestResponse>> updatePackageTest(@PathVariable Long id, @Valid @RequestBody PackageTestRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Success", packageTestService.update(id, request)));
+    public ResponseEntity<ApiResponse<PackageTestResponse>> updatePackageTest(
+            @PathVariable Long id,
+            @Valid @RequestBody PackageTestRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Success",
+                packageTestService.update(id, request)));
     }
 
     @DeleteMapping("/package-tests/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete package-test relationship")
     public ResponseEntity<ApiResponse<Void>> deletePackageTest(@PathVariable Long id) {
         packageTestService.delete(id);

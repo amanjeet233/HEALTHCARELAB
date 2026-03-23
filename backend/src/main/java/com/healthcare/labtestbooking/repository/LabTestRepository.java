@@ -38,5 +38,14 @@ public interface LabTestRepository extends JpaRepository<LabTest, Long> {
     
     @Query("SELECT DISTINCT t.testType FROM LabTest t")
     List<TestType> findAllTestTypes();
+
+    // Doctor Test Management queries
+    boolean existsByTestCode(String testCode);
+
+    @Query("SELECT t FROM LabTest t WHERE t.category.id = :categoryId AND t.isActive = true")
+    List<LabTest> findByCategoryIdAndIsActiveTrue(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT t FROM LabTest t WHERE LOWER(t.testName) LIKE LOWER(CONCAT('%', :testName, '%')) AND t.isActive = true")
+    List<LabTest> findByTestNameContainingIgnoreCaseAndIsActiveTrue(@Param("testName") String testName);
 }
 

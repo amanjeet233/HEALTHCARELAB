@@ -124,8 +124,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/lab-tests/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/labs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tests/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/test-packages/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/packages/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/slots/available").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/slots/check").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // External callbacks
                         .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
@@ -133,6 +136,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/reports/booking/**")
                         .hasAnyRole("PATIENT", "TECHNICIAN", "MEDICAL_OFFICER")
                         .requestMatchers("/api/reports/results").hasRole("TECHNICIAN")
+                        .requestMatchers("/api/cart/**")
+                        .hasAnyRole("PATIENT", "ADMIN")
                         .requestMatchers("/api/bookings/**")
                         .hasAnyRole("PATIENT", "TECHNICIAN", "MEDICAL_OFFICER", "ADMIN")
                         .requestMatchers("/api/users/**")
