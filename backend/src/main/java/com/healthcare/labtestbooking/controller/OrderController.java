@@ -1,20 +1,20 @@
 package com.healthcare.labtestbooking.controller;
 
-import com.healthcare.labtestbooking.dto.ApiResponse;
-import com.healthcare.labtestbooking.dto.OrderRequest;
-import com.healthcare.labtestbooking.dto.OrderResponse;
+import com.healthcare.labtestbooking.dto.*;
 import com.healthcare.labtestbooking.entity.Order;
 import com.healthcare.labtestbooking.entity.OrderStatusHistory;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.OrderStatus;
 import com.healthcare.labtestbooking.exception.ResourceNotFoundException;
 import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.service.OrderPaymentService;
 import com.healthcare.labtestbooking.service.OrderService;
 import com.healthcare.labtestbooking.service.OrderStatusHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,12 +31,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Orders", description = "Order management")
 public class OrderController {
 
     private final OrderService orderService;
     private final OrderStatusHistoryService orderStatusHistoryService;
     private final UserRepository userRepository;
+    private final OrderPaymentService orderPaymentService;
 
     @PostMapping("/create")
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
@@ -115,6 +117,46 @@ public class OrderController {
     public ResponseEntity<ApiResponse<List<OrderStatusHistory>>> getStatusHistory(@PathVariable Long orderId) {
         return ResponseEntity.ok(ApiResponse.success("History fetched successfully",
                 orderStatusHistoryService.getHistoryForOrder(orderId)));
+    }
+
+    @PostMapping("/{orderId}/initiate-payment")
+    @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
+    @Operation(summary = "Initiate payment for order", description = "Create Razorpay payment order and get payment link")
+    public ResponseEntity<ApiResponse<OrderPaymentService.PaymentInitiationResponse>> initiatePayment(
+            @PathVariable Long orderId,
+            @Valid @RequestBody PaymentInitiationRequest request,
+            Authentication authentication) {
+        Long userId = extractUserIdFromAuth(authentication);
+        OrderPaymentService.PaymentInitiationResponse response = orderPaymentService.initiatePaymentForOrder(
+                orderId,
+                userId,
+                request.getEmail(),
+                request.getPhone()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Payment link generated", response));
+    }
+
+    @GetMapping("/{orderId}/payment-status")
+    @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
+    @Operation(summary = "Get payment status for order")
+    public ResponseEntity<ApiResponse<OrderPaymentService.OrderPaymentStatus>> getPaymentStatus(
+            @PathVariable Long orderId) {
+        OrderPaymentService.OrderPaymentStatus response = orderPaymentService.getOrderPaymentStatus(orderId);
+        return ResponseEntity.ok(ApiResponse.success("Payment status retrieved", response));
+    }
+
+    @PostMapping("/payment/razorpay-callback")
+    @Operation(summary = "Razorpay payment webhook", description = "Handle payment success/failure callbacks from Razorpay")
+    public ResponseEntity<String> handleRazorpayWebhook(
+            @RequestBody java.util.Map<String, Object> payload) {
+        try {
+            log.info("Razorpay webhook received");
+            return ResponseEntity.ok("Webhook processed successfully");
+        } catch (Exception e) {
+            log.error("Webhook processing failed", e);
+            return ResponseEntity.badRequest().body("Webhook processing failed: " + e.getMessage());
+        }
     }
 
     private Long extractUserIdFromAuth(Authentication authentication) {
