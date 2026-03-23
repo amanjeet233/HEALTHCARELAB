@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -70,4 +71,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("select b.test.testName, count(b) from Booking b where b.test is not null group by b.test.testName order by count(b) desc")
     List<Object[]> findTopBookedTests(Pageable pageable);
+
+    // Analytics queries for Doctor Test Management
+    long countByTestIdAndCreatedAtBetween(Long testId, LocalDateTime start, LocalDateTime end);
+
+    long countByCreatedAtAfter(LocalDateTime after);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.test.id = :testId AND b.createdAt >= :start")
+    long countByTestIdAndCreatedAtAfter(@Param("testId") Long testId, @Param("start") LocalDateTime start);
 }

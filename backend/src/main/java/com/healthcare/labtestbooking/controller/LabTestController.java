@@ -1,6 +1,5 @@
 package com.healthcare.labtestbooking.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.LabTestDTO;
 import com.healthcare.labtestbooking.dto.TestPackageDTO;
@@ -26,11 +25,14 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @RequestMapping("/api/lab-tests")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Lab Tests", description = "Lab tests and test packages catalog")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"},
+    allowedHeaders = "*",
+    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
+    allowCredentials = "true")
+@Tag(name = "Lab Tests", description = "Lab tests and test packages catalog - Public browsing")
 public class LabTestController {
         @GetMapping("/popular")
         @Operation(summary = "Get popular tests", description = "Retrieve a list of most booked lab tests")
