@@ -220,13 +220,13 @@ public class AuthService {
                         throw new InvalidCredentialsException("Account disabled");
                 }
 
-                // 5. Email verification check
-                if (user.getIsVerified() == null || !user.getIsVerified()) {
-                        log.warn("Login attempt on unverified account: {}", normalizedEmail);
-                        throw new InvalidCredentialsException(
-                                "Please verify your email before logging in. " +
-                                "Check your inbox for the verification link or request a new one.");
-                }
+                // 5. Email verification check (BYPASSED FOR TESTING - REMOVE COMMENTS TO RE-ENABLE)
+                // if (user.getIsVerified() == null || !user.getIsVerified()) {
+                //         log.warn("Login attempt on unverified account: {}", normalizedEmail);
+                //         throw new InvalidCredentialsException(
+                //                 "Please verify your email before logging in. " +
+                //                 "Check your inbox for the verification link or request a new one.");
+                // }
 
                 // 6. BCrypt password comparison
                 if (!passwordEncoder.matches(password, user.getPassword())) {
