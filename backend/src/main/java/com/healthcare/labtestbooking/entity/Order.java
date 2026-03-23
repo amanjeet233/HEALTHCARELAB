@@ -2,6 +2,7 @@ package com.healthcare.labtestbooking.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.healthcare.labtestbooking.entity.enums.OrderStatus;
+import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
 import com.healthcare.labtestbooking.listener.AuditListener;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -27,6 +28,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,6 +83,17 @@ public class Order {
 
     @Column(name = "last_status_changed_at")
     private LocalDateTime lastStatusChangedAt;
+
+    @Column(name = "total_amount", precision = 10, scale = 2)
+    private BigDecimal totalAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", length = 40)
+    @Builder.Default
+    private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+
+    @Column(name = "razorpay_order_id", length = 100, unique = true)
+    private String razorpayOrderId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

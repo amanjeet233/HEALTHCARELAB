@@ -42,6 +42,9 @@ public class GatewayPayment {
     @Column(name = "transaction_id", unique = true)
     private String transactionId;
 
+    @Column(name = "razorpay_payment_id", length = 100)
+    private String razorpayPaymentId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private PaymentStatus status;
