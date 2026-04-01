@@ -47,5 +47,7 @@ public interface LabTestRepository extends JpaRepository<LabTest, Long> {
 
     @Query("SELECT t FROM LabTest t WHERE LOWER(t.testName) LIKE LOWER(CONCAT('%', :testName, '%')) AND t.isActive = true")
     List<LabTest> findByTestNameContainingIgnoreCaseAndIsActiveTrue(@Param("testName") String testName);
+
+    Page<LabTest> findByIsTrendingTrue(Pageable pageable);
 }
 

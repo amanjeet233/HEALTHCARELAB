@@ -40,7 +40,6 @@ public class LabTestService {
                                 .collect(Collectors.toList());
         }
 
-        @Cacheable(value = "tests", key = "'all'")
         public List<LabTestDTO> getAllActiveTests() {
                 log.info("Fetching all active lab tests");
                 return labTestRepository.findByIsActiveTrue().stream()
@@ -48,7 +47,6 @@ public class LabTestService {
                                 .collect(Collectors.toList());
         }
 
-        @Cacheable(value = "testById", key = "#id")
         public LabTestDTO getTestById(Long id) {
                 log.info("Fetching test by ID: {}", id);
                 LabTest test = labTestRepository.findById(id)
@@ -63,7 +61,6 @@ public class LabTestService {
                 return convertToDTO(test);
         }
 
-        @Cacheable(value = "testsByCategory", key = "#categoryId")
         public List<LabTestDTO> getTestsByCategory(Long categoryId) {
                 log.info("Fetching tests by category ID: {}", categoryId);
                 TestCategory category = testCategoryRepository.findById(categoryId)
@@ -136,6 +133,20 @@ public class LabTestService {
                 log.info("Fetching tests in price range: {} - {} with pagination | Page: {}, Size: {}",
                                 min, max, pageable.getPageNumber(), pageable.getPageSize());
                 return labTestRepository.findByPriceRange(min, max, pageable)
+                                .map(this::convertToDTO);
+        }
+
+        public List<LabTestDTO> getTrendingTests() {
+                log.info("Fetching trending lab tests");
+                return labTestRepository.findByIsTrendingTrue(Pageable.ofSize(10)).getContent().stream()
+                                .map(this::convertToDTO)
+                                .collect(Collectors.toList());
+        }
+
+        public Page<LabTestDTO> getTrendingTests(Pageable pageable) {
+                log.info("Fetching trending tests with pagination | Page: {}, Size: {}",
+                                pageable.getPageNumber(), pageable.getPageSize());
+                return labTestRepository.findByIsTrendingTrue(pageable)
                                 .map(this::convertToDTO);
         }
 
