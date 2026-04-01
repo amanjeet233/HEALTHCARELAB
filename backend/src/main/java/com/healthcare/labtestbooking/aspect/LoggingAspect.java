@@ -61,7 +61,7 @@ public class LoggingAspect {
         } catch (Exception e) {
             executionException = e;
             long timeTaken = System.currentTimeMillis() - startTime;
-            log.error("❌ Request execution failed | Time: {}ms | Error: {}", timeTaken, e.getMessage());
+            log.error("[ERROR] Request execution failed | Time: {}ms | Error: {}", timeTaken, e.getMessage());
             throw e;
         }
 
@@ -94,26 +94,26 @@ public class LoggingAspect {
 
             // Log request initiation
             log.info("");
-            log.info("╔══════════════════════════════════════════════════════════════");
-            log.info("║ ➡️  INCOMING REQUEST");
-            log.info("╠══════════════════════════════════════════════════════════════");
-            log.info("║ Method: {} | URL: {}", method, urlBuilder.toString());
-            log.info("║ Controller Method: {}.{}", 
-                    joinPoint.getTarget().getClass().getSimpleName(), 
+            log.info("================================================");
+            log.info("[REQUEST] -> INCOMING REQUEST");
+            log.info("================================================");
+            log.info("Method: {} | URL: {}", method, urlBuilder.toString());
+            log.info("Controller: {}.{}",
+                    joinPoint.getTarget().getClass().getSimpleName(),
                     joinPoint.getSignature().getName());
 
             if (!headers.isEmpty()) {
-                log.info("║ Headers:");
-                headers.forEach((key, value) -> log.info("║   {}: {}", key, value));
+                log.info("Headers:");
+                headers.forEach((key, value) -> log.info("  {}: {}", key, value));
             }
 
             // Log content type if present
             String contentType = request.getContentType();
             if (contentType != null) {
-                log.info("║ Content-Type: {}", contentType);
+                log.info("Content-Type: {}", contentType);
             }
 
-            log.info("╚══════════════════════════════════════════════════════════════");
+            log.info("================================================");
 
         } catch (Exception e) {
             log.debug("Error logging incoming request", e);
@@ -146,9 +146,6 @@ public class LoggingAspect {
         return headers;
     }
 
-    /**
-     * Logs outgoing response details including status code, time taken, and identifies slow requests
-     */
     private void logOutgoingResponse(Object result, long timeTaken, HttpServletResponse response) {
         try {
             boolean isSlowRequest = timeTaken > SLOW_REQUEST_THRESHOLD;
@@ -156,35 +153,35 @@ public class LoggingAspect {
 
             // Log response with visual indicators
             log.info("");
-            log.info("╔══════════════════════════════════════════════════════════════");
+            log.info("================================================");
 
             if (isSlowRequest) {
-                log.warn("║ ⏱️  SLOW REQUEST WARNING");
-                log.warn("╠══════════════════════════════════════════════════════════════");
-                log.warn("║ Response Time: {}ms (⚠️  Threshold: {}ms)", timeTaken, SLOW_REQUEST_THRESHOLD);
+                log.warn("[SLOW] RESPONSE TIME WARNING");
+                log.warn("================================================");
+                log.warn("Response Time: {}ms (WARNING - Threshold: {}ms)", timeTaken, SLOW_REQUEST_THRESHOLD);
             } else {
-                log.info("║ ⬅️  OUTGOING RESPONSE");
-                log.info("╠══════════════════════════════════════════════════════════════");
-                log.info("║ Response Time: {}ms", timeTaken);
+                log.info("[RESPONSE] <- OUTGOING RESPONSE");
+                log.info("================================================");
+                log.info("Response Time: {}ms", timeTaken);
             }
 
             if (statusCode > 0) {
-                String statusIndicator = statusCode >= 400 ? "❌" : "✅";
-                log.info("║ Status Code: {} {}", statusIndicator, statusCode);
+                String statusIndicator = statusCode >= 400 ? "FAILED" : "SUCCESS";
+                log.info("Status Code: [{}] {}", statusIndicator, statusCode);
             }
 
             // Truncate response if too long
             if (result != null) {
                 String resultStr = result.toString();
                 if (resultStr.length() > 300) {
-                    log.debug("║ Response Body: {} ... (truncated, see debug for full)", 
+                    log.debug("Response Body: {} ... (truncated, see debug for full)",
                             resultStr.substring(0, 300));
                 } else {
-                    log.debug("║ Response Body: {}", resultStr);
+                    log.debug("Response Body: {}", resultStr);
                 }
             }
 
-            log.info("╚══════════════════════════════════════════════════════════════");
+            log.info("================================================");
             log.info("");
 
         } catch (Exception e) {

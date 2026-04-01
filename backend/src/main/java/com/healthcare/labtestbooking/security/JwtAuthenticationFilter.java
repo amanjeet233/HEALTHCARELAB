@@ -1,6 +1,7 @@
 package com.healthcare.labtestbooking.security;
 
 import com.healthcare.labtestbooking.service.TokenBlacklistService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,11 +77,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     log.debug("SecurityContext updated for {}", email);
                 } else {
-                    log.debug("JWT validation failed for request {} {}", request.getMethod(), request.getRequestURI());
+                    log.debug("JWT validation failed for request {} {} - Token may be expired or invalid",
+                            request.getMethod(), request.getRequestURI());
                 }
             }
+        } catch (ExpiredJwtException ex) {
+            log.debug("JWT token has expired for request {} {}", request.getMethod(), request.getRequestURI());
         } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
+            log.debug("Could not set user authentication in security context: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

@@ -87,11 +87,17 @@ public class AuthController {
         @Operation(summary = "Refresh access token", description = "Exchange a valid refresh token for a new access token")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Refresh token is required"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
         })
         public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
-                        @RequestHeader("Refresh-Token") String refreshToken) {
+                        @RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
                 log.info("Token refresh request received");
+                if (refreshToken == null || refreshToken.isBlank()) {
+                        log.warn("Refresh token endpoint called without Refresh-Token header");
+                        return ResponseEntity.badRequest()
+                                .body(ApiResponse.error("Refresh token is required in Refresh-Token header"));
+                }
                 AuthResponse response = authService.refreshToken(refreshToken);
                 return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
         }
