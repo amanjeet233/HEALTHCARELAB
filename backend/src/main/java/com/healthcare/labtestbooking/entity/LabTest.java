@@ -84,7 +84,10 @@ public class LabTest {
     
     @Column(name = "is_active")
     private Boolean isActive;
-    
+
+    @Column(name = "is_trending")
+    private Boolean isTrending;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

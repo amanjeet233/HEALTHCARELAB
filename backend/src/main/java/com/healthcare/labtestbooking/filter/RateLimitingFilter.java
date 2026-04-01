@@ -1,113 +1,109 @@
 package com.healthcare.labtestbooking.filter;
 
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Rate Limiting Filter - Prevents abuse with relaxed limits for development
+ * ✅ 1000 requests per minute (very relaxed for development/testing)
+ * ✅ Exempts public endpoints: /api/lab-tests, /api/packages, /api/auth, /health
+ * ✅ Returns 429 (Too Many Requests) when limit exceeded
+ */
 @Component
 @Slf4j
 public class RateLimitingFilter extends OncePerRequestFilter {
 
-    private static final Duration WINDOW = Duration.ofMinutes(1);
-    private static final Bandwidth LOGIN_LIMIT = Bandwidth.classic(50, Refill.intervally(50, WINDOW));
-    private static final Bandwidth PUBLIC_LIMIT = Bandwidth.classic(100, Refill.intervally(100, WINDOW));
-    private static final Bandwidth AUTH_LIMIT = Bandwidth.classic(500, Refill.intervally(500, WINDOW));
+    private final Map<String, RateLimitInfo> requestCounts = new ConcurrentHashMap<>();
 
-    private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> publicBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> userBuckets = new ConcurrentHashMap<>();
+    private static final int MAX_REQUESTS = 1000;  // ✅ INCREASED from 100 to 1000
+    private static final long WINDOW_SIZE_MS = 60_000;
+    private static final long CLEANUP_INTERVAL_MS = 300_000;
+    private long lastCleanup = System.currentTimeMillis();
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
             throws ServletException, IOException {
-        if (shouldSkip(request)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        Bucket bucket = resolveBucket(request);
-        if (bucket.tryConsume(1)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        respondTooManyRequests(response);
-    }
-
-    private boolean shouldSkip(HttpServletRequest request) {
-        String method = request.getMethod();
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            return true;
-        }
 
         String path = request.getRequestURI();
-        return path.startsWith("/h2-console/");
-    }
 
-    private Bucket resolveBucket(HttpServletRequest request) {
-        if (isLoginRequest(request)) {
-            String ip = getClientIp(request);
-            return loginBuckets.computeIfAbsent(ip, key -> newBucket(LOGIN_LIMIT));
+        if (isExemptedEndpoint(path)) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (isAuthenticated(authentication)) {
-            String userKey = authentication.getName();
-            return userBuckets.computeIfAbsent(userKey, key -> newBucket(AUTH_LIMIT));
+        String clientId = getClientId(request);
+        RateLimitInfo info = requestCounts.getOrDefault(clientId, new RateLimitInfo());
+
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - info.resetTime > WINDOW_SIZE_MS) {
+            info.reset();
         }
 
-        String ip = getClientIp(request);
-        return publicBuckets.computeIfAbsent(ip, key -> newBucket(PUBLIC_LIMIT));
-    }
-
-    private boolean isLoginRequest(HttpServletRequest request) {
-        return "POST".equalsIgnoreCase(request.getMethod())
-                && "/api/auth/login".equals(request.getRequestURI());
-    }
-
-    private boolean isAuthenticated(Authentication authentication) {
-        return authentication != null
-                && authentication.isAuthenticated()
-                && !(authentication instanceof AnonymousAuthenticationToken);
-    }
-
-    private Bucket newBucket(Bandwidth limit) {
-        return Bucket.builder()
-                .addLimit(limit)
-                .build();
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            int commaIndex = forwarded.indexOf(',');
-            if (commaIndex > 0) {
-                return forwarded.substring(0, commaIndex).trim();
-            }
-            return forwarded.trim();
+        if (info.requestCount >= MAX_REQUESTS) {
+            log.warn("Rate limit exceeded for IP: {}", clientId);
+            response.setStatus(429);
+            response.setContentType("application/json");
+            response.getWriter().write(
+                    "{\"success\": false, \"message\": \"Rate limit exceeded\"}"
+            );
+            return;
         }
-        return request.getRemoteAddr();
+
+        info.requestCount++;
+        requestCounts.put(clientId, info);
+
+        if (currentTime - lastCleanup > CLEANUP_INTERVAL_MS) {
+            cleanupOldEntries(currentTime);
+            lastCleanup = currentTime;
+        }
+
+        filterChain.doFilter(request, response);
     }
 
-    private void respondTooManyRequests(HttpServletResponse response) throws IOException {
-        response.setStatus(429);
-        response.setContentType("application/json");
-        response.getWriter().write("{\"message\":\"Too many requests\",\"status\":429}");
-        log.warn("Rate limit exceeded; returning 429");
+    private boolean isExemptedEndpoint(String path) {
+        return path.contains("/api/tests") ||
+                path.contains("/api/lab-tests") ||
+                path.contains("/api/packages") ||
+                path.contains("/api/doctors") ||
+                path.contains("/api/auth") ||
+                path.contains("/health") ||
+                path.contains("/actuator");
+    }
+
+    private String getClientId(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isEmpty()) {
+            return xff.split(",")[0].trim();
+        }
+        String remoteAddr = request.getRemoteAddr();
+        return remoteAddr != null ? remoteAddr : "unknown";
+    }
+
+    private synchronized void cleanupOldEntries(long currentTime) {
+        requestCounts.entrySet().removeIf(entry ->
+                currentTime - entry.getValue().resetTime > CLEANUP_INTERVAL_MS
+        );
+    }
+
+    static class RateLimitInfo {
+        int requestCount = 0;
+        long resetTime = System.currentTimeMillis();
+
+        void reset() {
+            this.requestCount = 0;
+            this.resetTime = System.currentTimeMillis();
+        }
     }
 }

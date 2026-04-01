@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -139,6 +138,18 @@ public class LabTestController {
                                 pageable.getPageNumber(), pageable.getPageSize());
                 Page<LabTestDTO> tests = labTestService.searchTests(keyword, pageable);
                 return ResponseEntity.ok(ApiResponse.success("Search results", tests));
+        }
+
+        @GetMapping("/trending")
+        @Operation(summary = "Get trending tests", description = "Retrieve top 10 trending lab tests")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Trending tests retrieved successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<ApiResponse<List<LabTestDTO>>> getTrendingTests() {
+                log.info("GET /api/lab-tests/trending - Fetching top trending tests");
+                List<LabTestDTO> trendingTests = labTestService.getTrendingTests();
+                return ResponseEntity.ok(ApiResponse.success("Trending tests retrieved successfully", trendingTests));
         }
 
         @GetMapping("/price-range")
