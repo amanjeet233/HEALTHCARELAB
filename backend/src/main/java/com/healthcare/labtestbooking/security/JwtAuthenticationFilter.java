@@ -35,6 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/api/auth/")
                 || path.startsWith("/api/public/")
                 || path.startsWith("/api/health")
+                || path.startsWith("/api/labs/")           // Lab catalog is public
+                || path.startsWith("/api/lab-tests/")      // Lab tests catalog is public
+                || path.startsWith("/api/doctors/")        // Doctors list is public (browsing)
+                || path.startsWith("/api/locations/")      // Locations are public (browsing)
                 || path.startsWith("/actuator/")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
@@ -50,8 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
-            log.debug("JWT filter invoked for {} {}. Token present: {}",
-                    request.getMethod(), request.getRequestURI(), StringUtils.hasText(jwt));
+            // Only log if we're processing a protected endpoint with token
+            if (StringUtils.hasText(jwt)) {
+                log.debug("JWT filter processing token for {} {}",
+                    request.getMethod(), request.getRequestURI());
+            }
 
             if (StringUtils.hasText(jwt)) {
                 // Check if token is blacklisted (logged out)
