@@ -1,6 +1,8 @@
 package com.healthcare.labtestbooking.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.healthcare.labtestbooking.entity.enums.TestType;
 import com.healthcare.labtestbooking.listener.AuditListener;
 import jakarta.persistence.*;
@@ -12,10 +14,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @EntityListeners({AuditingEntityListener.class, AuditListener.class})
-@Table(name = "lab_tests")
+@Table(name = "tests", indexes = {
+    @Index(name = "idx_test_category", columnList = "category"),
+    @Index(name = "idx_test_is_top_booked", columnList = "is_top_booked"),
+    @Index(name = "idx_test_discounted_price", columnList = "discounted_price"),
+    @Index(name = "idx_test_slug", columnList = "slug")
+})
+@Access(AccessType.FIELD)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,64 +35,123 @@ public class LabTest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "test_code", nullable = false, unique = true)
+    @Column(name = "slug", nullable = false, unique = true)
     private String testCode;
     
-    @Column(name = "test_name", nullable = false)
+    @Column(name = "name", nullable = false)
     private String testName;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
+    @Column(name = "short_description")
+    private String shortDescription;
+    
+    @Column(name = "category")
+    private String categoryName;
+
+    @Column(name = "sub_category")
+    private String subCategory;
+
+    
+    @Transient
     private TestCategory category;
     
+    @Transient
     @Enumerated(EnumType.STRING)
-    @Column(name = "test_type")
     private TestType testType;
     
+    @Transient
     private String methodology;
+    
+    @Transient
     private String unit;
     
-    @Column(name = "normal_range_min", precision = 12, scale = 4)
+    @Transient
     private BigDecimal normalRangeMin;
     
-    @Column(name = "normal_range_max", precision = 12, scale = 4)
+    @Transient
     private BigDecimal normalRangeMax;
     
-    @Column(name = "critical_low", precision = 12, scale = 4)
+    @Transient
     private BigDecimal criticalLow;
     
-    @Column(name = "critical_high", precision = 12, scale = 4)
+    @Transient
     private BigDecimal criticalHigh;
     
-    @Column(name = "normal_range_text", columnDefinition = "TEXT")
+    @Transient
     private String normalRangeText;
     
-    @Column(name = "pediatric_range", columnDefinition = "TEXT")
+    @Transient
     private String pediatricRange;
     
-    @Column(name = "male_range", columnDefinition = "TEXT")
+    @Transient
     private String maleRange;
     
-    @Column(name = "female_range", columnDefinition = "TEXT")
+    @Transient
     private String femaleRange;
     
     @Column(name = "fasting_required")
     private Boolean fastingRequired;
     
-    @Column(name = "fasting_hours")
+    @Transient
     private Integer fastingHours;
     
     @Column(name = "report_time_hours")
     private Integer reportTimeHours;
     
-    @Column(precision = 10, scale = 2)
+    @Column(name = "recommended_for")
+    private String recommendedFor;
+
+    @Column(name = "is_top_booked")
+    private Boolean isTopBooked;
+
+    @Column(name = "is_top_deal")
+    private Boolean isTopDeal;
+
+    @Column(name = "sub_tests", columnDefinition = "JSON")
+    private String subTestsJson;
+    
+    @Transient
+    @Builder.Default
+    private List<String> subTests = new ArrayList<>();
+    
+    @Column(name = "tags", columnDefinition = "JSON")
+    private String tagsJson;
+    
+    @Transient
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
+    
+    @Column(name = "price")
     private BigDecimal price;
+    
+    @Column(name = "original_price")
+    private BigDecimal originalPrice;
+    
+    @Column(name = "discounted_price")
+    private BigDecimal discountedPrice;
+
+    @Column(name = "discount_percent")
+    private Integer discountPercent;
+
+    @Column(name = "parameters_count")
+    private Integer parametersCount;
+    
+    @Column(name = "sample_type")
+    private String sampleType;
+    
+    @Column(name = "turnaround_time")
+    private String turnaroundTime;
     
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Column(name = "icon_url")
+    private String iconUrl;
+
+    @Column(name = "is_package")
+    private Boolean isPackage;
 
     @Column(name = "is_trending")
     private Boolean isTrending;
@@ -125,4 +193,51 @@ public class LabTest {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<TestPackage> packages = new ArrayList<>();
+    
+    // ========== JSON Serialization Methods ==========
+    
+    @PrePersist
+    @PreUpdate
+    private void serializeJsonFields() {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            if (subTests != null && !subTests.isEmpty()) {
+                this.subTestsJson = mapper.writeValueAsString(subTests);
+            } else {
+                this.subTestsJson = "[]";
+            }
+            
+            if (tags != null && !tags.isEmpty()) {
+                this.tagsJson = mapper.writeValueAsString(tags);
+            } else {
+                this.tagsJson = "[]";
+            }
+        } catch (JsonProcessingException e) {
+            System.err.println("Error serializing JSON fields for test: " + testName + " - " + e.getMessage());
+        }
+    }
+    
+    @PostLoad
+    private void deserializeJsonFields() {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            if (subTestsJson != null && !subTestsJson.isEmpty() && !subTestsJson.equals("[]")) {
+                this.subTests = mapper.readValue(subTestsJson, 
+                    mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            } else {
+                this.subTests = new ArrayList<>();
+            }
+            
+            if (tagsJson != null && !tagsJson.isEmpty() && !tagsJson.equals("[]")) {
+                this.tags = mapper.readValue(tagsJson, 
+                    mapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            } else {
+                this.tags = new ArrayList<>();
+            }
+        } catch (JsonProcessingException e) {
+            System.err.println("Error deserializing JSON fields for test: " + testName + " - " + e.getMessage());
+            this.subTests = new ArrayList<>();
+            this.tags = new ArrayList<>();
+        }
+    }
 }

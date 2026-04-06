@@ -18,9 +18,17 @@ public class RedisHealthIndicator implements HealthIndicator {
     public Health health() {
         try {
             // Test Redis connection with PING command
-            String result = redisTemplate.getConnectionFactory()
-                    .getConnection()
-                    .ping();
+            var factory = redisTemplate.getConnectionFactory();
+            if (factory == null) {
+                return Health.down().withDetail("reason", "Connection factory is null").build();
+            }
+            
+            var connection = factory.getConnection();
+            if (connection == null) {
+                return Health.down().withDetail("reason", "Connection is null").build();
+            }
+            
+            String result = connection.ping();
 
             if ("PONG".equals(result)) {
                 return Health.up()

@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.entity.BookedSlot;
 import com.healthcare.labtestbooking.repository.BookedSlotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,7 @@ public class BookedSlotService {
     @Transactional
     public void releaseSlot(Long id) {
         log.info("Releasing booked slot with id: {}", id);
-        bookedSlotRepository.deleteById(id);
+        bookedSlotRepository.deleteById(Objects.requireNonNull(id, "Slot ID must not be null"));
     }
 
     @Transactional

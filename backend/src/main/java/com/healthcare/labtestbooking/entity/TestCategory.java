@@ -45,6 +45,6 @@ public class TestCategory {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
+    @Transient
     private List<LabTest> labTests;
 }

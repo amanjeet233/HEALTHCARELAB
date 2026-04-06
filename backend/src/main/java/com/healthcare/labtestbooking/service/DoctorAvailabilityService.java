@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,7 +25,7 @@ public class DoctorAvailabilityService {
 
     @Transactional(readOnly = true)
     public DoctorAvailabilityResponse getById(Long id) {
-        DoctorAvailability entity = repository.findById(id)
+        DoctorAvailability entity = repository.findById(Objects.requireNonNull(id, "DoctorAvailability ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("DoctorAvailability not found with id " + id));
         return mapToResponse(entity);
     }
@@ -39,7 +40,7 @@ public class DoctorAvailabilityService {
 
     @Transactional
     public DoctorAvailabilityResponse update(Long id, DoctorAvailabilityRequest request) {
-        DoctorAvailability entity = repository.findById(id)
+        DoctorAvailability entity = repository.findById(Objects.requireNonNull(id, "DoctorAvailability ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("DoctorAvailability not found with id " + id));
         // update entity from request here
         DoctorAvailability updated = repository.save(entity);
@@ -48,7 +49,7 @@ public class DoctorAvailabilityService {
 
     @Transactional
     public void delete(Long id) {
-        repository.deleteById(id);
+        repository.deleteById(Objects.requireNonNull(id, "DoctorAvailability ID must not be null"));
     }
 
     private DoctorAvailabilityResponse mapToResponse(DoctorAvailability entity) {

@@ -17,8 +17,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import jakarta.persistence.criteria.Predicate;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,17 +70,18 @@ public class LabTestService {
 
         public List<LabTestDTO> getTestsByCategory(Long categoryId) {
                 log.info("Fetching tests by category ID: {}", categoryId);
-                TestCategory category = testCategoryRepository.findById(categoryId)
-                                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
-
-                return labTestRepository.findByCategory(category).stream()
+                // Note: New schema uses category names as strings, not IDs
+                // Return all active tests for now (can filter by name in controller if needed)
+                return labTestRepository.findByIsActiveTrue().stream()
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
         }
 
         public List<LabTestDTO> getTestsByType(TestType testType) {
                 log.info("Fetching tests by type: {}", testType);
-                return labTestRepository.findByTestType(testType).stream()
+                // Note: testType is no longer a persistent field
+                // Return all active tests for now
+                return labTestRepository.findByIsActiveTrue().stream()
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
         }
@@ -93,7 +101,7 @@ public class LabTestService {
         }
 
         @Cacheable("typesList")
-        public List<TestType> getAllTestTypes() {
+        public List<String> getAllTestTypes() {
                 return labTestRepository.findAllTestTypes();
         }
 
@@ -109,16 +117,18 @@ public class LabTestService {
         public Page<LabTestDTO> getTestsByCategory(Long categoryId, Pageable pageable) {
                 log.info("Fetching tests by category ID: {} with pagination | Page: {}, Size: {}",
                                 categoryId, pageable.getPageNumber(), pageable.getPageSize());
-                TestCategory category = testCategoryRepository.findById(categoryId)
-                                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
-                return labTestRepository.findByCategory(category, pageable)
+                // Note: New schema uses category names as strings, not IDs
+                // Return all active tests paginated
+                return labTestRepository.findByIsActiveTrue(pageable)
                                 .map(this::convertToDTO);
         }
 
         public Page<LabTestDTO> getTestsByType(TestType testType, Pageable pageable) {
                 log.info("Fetching tests by type: {} with pagination | Page: {}, Size: {}",
                                 testType, pageable.getPageNumber(), pageable.getPageSize());
-                return labTestRepository.findByTestType(testType, pageable)
+                // Note: testType is no longer a persistent field
+                // Return all active tests paginated
+                return labTestRepository.findByIsActiveTrue(pageable)
                                 .map(this::convertToDTO);
         }
 
@@ -156,14 +166,33 @@ public class LabTestService {
                                 .map(this::convertParameterToDTO)
                                 .collect(Collectors.toList());
 
+                BigDecimal currentPrice = test.getPrice();
+                if (currentPrice == null || currentPrice.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                    if (test.getDiscountedPrice() != null && test.getDiscountedPrice().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        currentPrice = test.getDiscountedPrice();
+                    } else if (test.getOriginalPrice() != null) {
+                        currentPrice = test.getOriginalPrice();
+                    } else {
+                        // If all are zero/null, default to a sensible fallback for the UI
+                        currentPrice = java.math.BigDecimal.ZERO;
+                    }
+                }
+
+                BigDecimal originalP = test.getOriginalPrice();
+                if (originalP == null || originalP.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                    originalP = currentPrice;
+                }
+
                 return LabTestDTO.builder()
                                 .id(test.getId())
                                 .testCode(test.getTestCode())
                                 .testName(test.getTestName())
                                 .categoryId(test.getCategory() != null ? test.getCategory().getId() : null)
-                                .categoryName(test.getCategory() != null ? test.getCategory().getCategoryName() : null)
+                                .categoryName(test.getCategoryName())
                                 .testType(test.getTestType() != null ? test.getTestType().name() : null)
                                 .methodology(test.getMethodology())
+                                .description(test.getDescription())
+                                .shortDescription(test.getShortDescription())
                                 .unit(test.getUnit())
                                 .normalRangeMin(test.getNormalRangeMin())
                                 .normalRangeMax(test.getNormalRangeMax())
@@ -171,7 +200,13 @@ public class LabTestService {
                                 .fastingRequired(test.getFastingRequired())
                                 .fastingHours(test.getFastingHours())
                                 .reportTimeHours(test.getReportTimeHours())
-                                .price(test.getPrice())
+                                .turnaroundTime(test.getTurnaroundTime())
+                                .price(currentPrice)
+                                .originalPrice(originalP)
+                                .sampleType(test.getSampleType())
+                                .isActive(test.getIsActive())
+                                .subTests(test.getSubTests())
+                                .tags(test.getTags())
                                 .parameters(parameters)
                                 .build();
         }
@@ -186,4 +221,337 @@ public class LabTestService {
                                 .normalRangeText(parameter.getNormalRangeText())
                                 .build();
         }
+
+        // ============= NEW FILTER METHODS FOR INDIVIDUAL TESTS =============
+
+        /**
+         * Advanced filtering with multiple criteria
+         * Supports category, price range, fasting requirement, search keywords
+         */
+        @Transactional(readOnly = true)
+        public Page<LabTestDTO> filterTests(List<String> categories, BigDecimal minPrice, BigDecimal maxPrice, 
+                                           Boolean fasting, String search, Pageable pageable) {
+                log.info("Filtering tests: categories={}, priceRange={}..{}, fasting={}, search={}", 
+                        categories, minPrice, maxPrice, fasting, search);
+
+                // 1. If search is present, check if it matches a known category for precision
+                if (search != null && !search.trim().isEmpty()) {
+                        String s = search.trim();
+                        log.info("Processing search: {}", s);
+                        
+                        // If searching for something like "Diabetes", treat as category filter
+                        List<String> allCats = labTestRepository.findAllCategories();
+                        boolean isCategoryMatch = allCats.stream()
+                            .anyMatch(c -> c.equalsIgnoreCase(s) || s.toLowerCase().contains(c.toLowerCase()));
+                        
+                        if (isCategoryMatch) {
+                            log.info("Search keyword '{}' matches a category. Redirecting to category filter.", s);
+                            return labTestRepository.findByCategoryOrTag(s, pageable)
+                                    .map(this::convertToDTO);
+                        }
+                        
+                        return labTestRepository.searchTests(s, pageable)
+                                .map(this::convertToDTO);
+                }
+
+                // 2. Multi-Category filter
+                if (categories != null && !categories.isEmpty()) {
+                        // Filter out "All Lab Tests" and empty/null
+                        List<String> cleanCats = categories.stream()
+                            .filter(c -> c != null && !c.isBlank() && !c.equalsIgnoreCase("All Lab Tests"))
+                            .map(c -> c.replace("-", " ").replace("_", " ").trim())
+                            .collect(Collectors.toList());
+                        
+                        if (!cleanCats.isEmpty()) {
+                            log.info("Using {} category filters: {}", cleanCats.size(), cleanCats);
+                            // Correctly use the IN query for multiple categories
+                            return labTestRepository.findByCategoryNameIn(cleanCats, pageable)
+                                    .map(this::convertToDTO);
+                        }
+                }
+
+                // 3. Price Range
+                if (minPrice != null && maxPrice != null) {
+                        return labTestRepository.findByPriceRange(minPrice, maxPrice, pageable)
+                                .map(this::convertToDTO);
+                }
+
+                // Default: all active tests
+                return labTestRepository.findByIsActiveTrue(pageable)
+                        .map(this::convertToDTO);
+        }
+
+        public Page<LabTestDTO> getAdvancedTests(
+                String search, 
+                List<String> categories, 
+                String itemType,
+                Boolean isTopBooked,
+                Boolean isTopDeal,
+                BigDecimal minPrice,
+                BigDecimal maxPrice,
+                String sortBy,
+                Pageable pageable
+        ) {
+            log.info("Advanced search: categories={}, search={}, itemType={}", categories, search, itemType);
+            
+            // Build specification for flexible filtering
+            Specification<LabTest> spec = (root, query, cb) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                
+                predicates.add(cb.equal(root.get("isActive"), true));
+                
+                if (search != null && !search.trim().isEmpty()) {
+                    String pattern = "%" + search.toLowerCase() + "%";
+                    predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("testName")), pattern),
+                        cb.like(cb.lower(root.get("description")), pattern)
+                    ));
+                }
+                
+                if (categories != null && !categories.isEmpty()) {
+                    predicates.add(root.get("categoryName").in(categories));
+                }
+                
+                if (itemType != null) {
+                    if ("PACKAGE".equalsIgnoreCase(itemType)) {
+                        predicates.add(cb.equal(root.get("isPackage"), true));
+                    } else if ("TEST".equalsIgnoreCase(itemType)) {
+                        predicates.add(cb.equal(root.get("isPackage"), false));
+                    }
+                }
+                
+                if (isTopBooked != null) {
+                    predicates.add(cb.equal(root.get("isTopBooked"), isTopBooked));
+                }
+                
+                if (isTopDeal != null) {
+                    predicates.add(cb.equal(root.get("isTopDeal"), isTopDeal));
+                }
+                
+                if (minPrice != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("discountedPrice"), minPrice));
+                }
+                
+                if (maxPrice != null) {
+                    predicates.add(cb.lessThanOrEqualTo(root.get("discountedPrice"), maxPrice));
+                }
+                
+                return cb.and(predicates.toArray(new Predicate[0]));
+            };
+            
+            // Apply sorting if sortBy provided
+            // price_low, price_high, discount, popular
+            Pageable sortedPageable = pageable;
+            if (sortBy != null) {
+                Sort sort = Sort.unsorted();
+                switch (sortBy.toLowerCase()) {
+                    case "price_low":
+                        sort = Sort.by(Sort.Order.asc("discountedPrice"));
+                        break;
+                    case "price_high":
+                        sort = Sort.by(Sort.Order.desc("discountedPrice"));
+                        break;
+                    case "discount":
+                        sort = Sort.by(Sort.Order.desc("discountPercent"));
+                        break;
+                    case "popular":
+                        sort = Sort.by(Sort.Order.desc("id")); // Placeholder for popularity metric
+                        break;
+                }
+                sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+            }
+            
+            return labTestRepository.findAll(spec, sortedPageable).map(this::convertToDTO);
+        }
+
+        public List<LabTestDTO> searchLive(String query) {
+            PageRequest pageable = PageRequest.of(0, 8);
+            return labTestRepository.searchTests(query, pageable)
+                    .getContent()
+                    .stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        }
+
+        public LabTestDTO getBySlug(String slug) {
+            return labTestRepository.findByTestCode(slug)
+                    .map(this::convertToDTO)
+                    .orElseThrow(() -> new RuntimeException("Test not found with slug: " + slug));
+        }
+
+        public List<LabTestDTO> getSimilarTests(String category, String excludeSlug, int limit) {
+             PageRequest pageable = PageRequest.of(0, limit);
+             return labTestRepository.findByCategoryNameIn(List.of(category), pageable)
+                     .getContent()
+                     .stream()
+                     .filter(t -> !t.getTestCode().equals(excludeSlug))
+                     .map(this::convertToDTO)
+                     .collect(Collectors.toList());
+        }
+
+        /**
+         * Get tests by category name (BLOOD, URINE, IMAGING, PATHOLOGY, etc.)
+         */
+        @Transactional(readOnly = true)
+        public Page<LabTestDTO> getTestsByCategory(String categoryName, Pageable pageable) {
+                log.info("Fetching tests by category: {} | Page: {}, Size: {}",
+                        categoryName, pageable.getPageNumber(), pageable.getPageSize());
+                // Use LIKE search so "blood-studies" matches "Blood Studies"
+                return labTestRepository.findByCategoryNameLike(categoryName, pageable)
+                        .map(this::convertToDTO);
+        }
+
+        /**
+         * Get count of tests in each category
+         */
+        public java.util.Map<String, Long> getCategoryCount() {
+                log.info("Fetching category counts");
+                java.util.Map<String, Long> counts = new java.util.HashMap<>();
+                List<String> categories = labTestRepository.findAllCategories();
+                for (String category : categories) {
+                        long count = labTestRepository.countByCategory(category);
+                        counts.put(category != null ? category : "General", count);
+                }
+                counts.put("ALL", labTestRepository.count());
+                return counts;
+        }
+
+        /**
+         * Get tests by tag (fever, diabetes, kidney, etc.)
+         */
+        @Transactional(readOnly = true)
+        public Page<LabTestDTO> getTestsByTag(String tag, Pageable pageable) {
+                log.info("Fetching tests by tag: {} | Page: {}, Size: {}",
+                        tag, pageable.getPageNumber(), pageable.getPageSize());
+                
+                List<LabTest> allTests = labTestRepository.findByIsActiveTrue();
+                List<LabTestDTO> filteredTests = allTests.stream()
+                        .filter(test -> test.getTags() != null && test.getTags().stream()
+                                .anyMatch(t -> t.equalsIgnoreCase(tag)))
+                        .map(this::convertToDTO)
+                        .collect(Collectors.toList());
+                
+                // Manual pagination
+                int start = (int) pageable.getOffset();
+                int end = Math.min(start + pageable.getPageSize(), filteredTests.size());
+                List<LabTestDTO> pageContent = filteredTests.subList(start, end);
+                
+                return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, filteredTests.size());
+        }
+
+        /**
+         * Get all tests from a specific list of test codes
+         */
+        @Transactional(readOnly = true)
+        public List<LabTestDTO> getTestsByCodeList(List<String> testCodes) {
+                log.info("Fetching {} tests by codes", testCodes.size());
+                return testCodes.stream()
+                        .map(labTestRepository::findByTestCode)
+                        .filter(java.util.Optional::isPresent)
+                        .map(java.util.Optional::get)
+                        .map(this::convertToDTO)
+                        .collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
+        public Map<String, Object> getAdvancedSearchTests(
+                String search, 
+                List<String> categories, 
+                String subCategory, 
+                Boolean isTopDeal, 
+                Boolean isTopBooked, 
+                BigDecimal minPrice, 
+                BigDecimal maxPrice, 
+                String sortBy, 
+                int page, 
+                int limit
+        ) {
+                Specification<LabTest> spec = (root, query, cb) -> {
+                        List<Predicate> predicates = new ArrayList<>();
+                        
+                        // Deduplicate results
+                        query.distinct(true);
+
+                        predicates.add(cb.isTrue(root.get("isActive")));
+                        
+                        if (search != null && !search.trim().isEmpty()) {
+                                String likePattern = "%" + search.toLowerCase() + "%";
+                                predicates.add(cb.or(
+                                        cb.like(cb.lower(root.get("testName")), likePattern),
+                                        cb.like(cb.lower(root.get("description")), likePattern)
+                                ));
+                        }
+                        
+                        if (categories != null && !categories.isEmpty()) {
+                                List<Predicate> catPredicates = new ArrayList<>();
+                                for (String cat : categories) {
+                                        // Use LIKE search for partial matches (e.g. "Kidney" matching "Kidney Function Test")
+                                        String pattern = "%" + cat.trim().toLowerCase() + "%";
+                                        catPredicates.add(cb.like(cb.lower(root.get("categoryName")), pattern));
+                                }
+                                predicates.add(cb.or(catPredicates.toArray(new Predicate[0])));
+                        }
+                        
+                        if (subCategory != null && !subCategory.trim().isEmpty()) {
+                                predicates.add(cb.equal(root.get("subCategory"), subCategory));
+                        }
+                        
+                        if (isTopDeal != null) {
+                                predicates.add(cb.equal(root.get("isTopDeal"), isTopDeal));
+                        }
+
+                        if (isTopBooked != null) {
+                                predicates.add(cb.equal(root.get("isTopBooked"), isTopBooked));
+                        }
+
+                        if (minPrice != null) {
+                                predicates.add(cb.greaterThanOrEqualTo(root.get("price"), minPrice));
+                        }
+
+                        if (maxPrice != null) {
+                                predicates.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+                        }
+                        
+                        return cb.and(predicates.toArray(new Predicate[0]));
+                };
+
+                Sort sort = Sort.unsorted();
+                if (sortBy != null) {
+                        switch (sortBy) {
+                                case "price_low":
+                                        sort = Sort.by(Sort.Direction.ASC, "price");
+                                        break;
+                                case "price_high":
+                                        sort = Sort.by(Sort.Direction.DESC, "price");
+                                        break;
+                                case "discount":
+                                        sort = Sort.by(Sort.Direction.DESC, "discountPercent");
+                                        break;
+                                case "popular":
+                                        sort = Sort.by(Sort.Direction.DESC, "isTopBooked");
+                                        break;
+                                case "newest":
+                                        sort = Sort.by(Sort.Direction.DESC, "createdAt");
+                                        break;
+                        }
+                }
+                
+                int actualPage = page > 0 ? page - 1 : 0;
+                Pageable pageable = PageRequest.of(actualPage, limit, sort);
+                
+                Page<LabTest> resultPage = labTestRepository.findAll(spec, pageable);
+                
+                List<LabTestDTO> testDTOs = resultPage.getContent().stream()
+                        .map(this::convertToDTO)
+                        .collect(Collectors.toList());
+                        
+                Map<String, Object> response = new HashMap<>();
+                response.put("total_count", resultPage.getTotalElements());
+                response.put("current_page", actualPage + 1);
+                response.put("total_pages", resultPage.getTotalPages());
+                response.put("tests", testDTOs);
+                
+                return response;
+        }
 }
+

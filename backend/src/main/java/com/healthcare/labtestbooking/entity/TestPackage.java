@@ -126,6 +126,24 @@ public class TestPackage {
     @Builder.Default
     private List<String> includedTestNames = new ArrayList<>();
 
+    @Column(name = "doctor_consultations")
+    private Integer doctorConsultations;
+
+    @Column(name = "imaging_included")
+    private Boolean imagingIncluded;
+
+    @Column(name = "genetic_testing")
+    private Boolean geneticTesting;
+
+    @Column(name = "best_for", columnDefinition = "TEXT")
+    private String bestFor;
+
+    @ElementCollection
+    @CollectionTable(name = "package_features", joinColumns = @JoinColumn(name = "package_id"))
+    @Column(name = "feature", columnDefinition = "TEXT")
+    @Builder.Default
+    private List<String> features = new ArrayList<>();
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

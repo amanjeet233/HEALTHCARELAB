@@ -7,7 +7,7 @@
 ---
 
 **Project:** Healthcare Lab
-**Generated:** 2026-03-14 22:33:01
+**Generated:** 2026-04-06 16:21:53
 **Category:** Healthcare App
 
 ---
@@ -153,21 +153,21 @@
 
 ## Style Guidelines
 
-**Style:** Neumorphism
+**Style:** Accessible & Ethical
 
-**Keywords:** Soft UI, embossed, debossed, convex, concave, light source, subtle depth, rounded (12-16px), monochromatic
+**Keywords:** High contrast, large text (16px+), keyboard navigation, screen reader friendly, WCAG compliant, focus state, semantic
 
-**Best For:** Health/wellness apps, meditation platforms, fitness trackers, minimal interaction UIs
+**Best For:** Government, healthcare, education, inclusive products, large audience, legal compliance, public
 
-**Key Effects:** Soft box-shadow (multiple: -5px -5px 15px, 5px 5px 15px), smooth press (150ms), inner subtle shadow
+**Key Effects:** Clear focus rings (3-4px), ARIA labels, skip links, responsive design, reduced motion, 44x44px touch targets
 
 ### Page Pattern
 
-**Pattern Name:** Marketplace / Directory
+**Pattern Name:** Minimal Single Column
 
-- **Conversion Strategy:**  map hover pins
-- **CTA Placement:** Hero Search Bar + Navbar 'List your item'
-- **Section Order:** 1. Hero (Search focused), 2. Categories, 3. Featured Listings, 4. Trust/Safety, 5. CTA (Become a host/seller)
+- **Conversion Strategy:** Single CTA focus. Large typography. Lots of whitespace. No nav clutter. Mobile-first.
+- **CTA Placement:** Center, large CTA button
+- **Section Order:** 1. Hero headline, 2. Short description, 3. Benefit bullets (3 max), 4. CTA, 5. Footer
 
 ---
 
