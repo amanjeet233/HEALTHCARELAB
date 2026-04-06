@@ -1,0 +1,69 @@
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\3d\Microscope3D.tsx
+  9:15  error  '_state' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\auth\AuthModal.tsx
+    9:29  error  'RegisterRequest' is defined but never used  @typescript-eslint/no-unused-vars
+   62:47  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   76:47  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  100:43  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  174:79  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  296:89  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\common\ParticleBackground.tsx
+  12:28  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\common\ParticleBackground.tsx:12:28
+  10 |         const temp = new Float32Array(count * 3);
+  11 |         for (let i = 0; i < count; i++) {
+> 12 |             temp[i * 3] = (Math.random() - 0.5) * 10;
+     |                            ^^^^^^^^^^^^^ Cannot call impure function
+  13 |             temp[i * 3 + 1] = (Math.random() - 0.5) * 10;
+  14 |             temp[i * 3 + 2] = (Math.random() - 0.5) * 10;
+  15 |         }  react-hooks/purity
+  13:32  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\common\ParticleBackground.tsx:13:32
+  11 |         for (let i = 0; i < count; i++) {
+  12 |             temp[i * 3] = (Math.random() - 0.5) * 10;
+> 13 |             temp[i * 3 + 1] = (Math.random() - 0.5) * 10;
+     |                                ^^^^^^^^^^^^^ Cannot call impure function
+  14 |             temp[i * 3 + 2] = (Math.random() - 0.5) * 10;
+  15 |         }
+  16 |         return temp;                           react-hooks/purity
+  14:32  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\common\ParticleBackground.tsx:14:32
+  12 |             temp[i * 3] = (Math.random() - 0.5) * 10;
+  13 |             temp[i * 3 + 1] = (Math.random() - 0.5) * 10;
+> 14 |             temp[i * 3 + 2] = (Math.random() - 0.5) * 10;
+     |                                ^^^^^^^^^^^^^ Cannot call impure function
+  15 |         }
+  16 |         return temp;
+  17 |     }, [count]);                                                    react-hooks/purity
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\components\dashboard\UserDashboard.tsx
+   18:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\context\ModalContext.tsx
+   9:17  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  11:42  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  21:50  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  24:48  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  56:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\src\pages\BookingPage.tsx
+  63:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\CU\SEM 6\EPAM\PROJECT\frontend\vite.config.ts
+  35:70  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 19 problems (19 errors, 0 warnings)
+
