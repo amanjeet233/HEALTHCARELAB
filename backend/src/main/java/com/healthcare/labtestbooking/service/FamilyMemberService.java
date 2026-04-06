@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,7 +45,7 @@ public class FamilyMemberService {
                 .bloodGroup(request.getBloodGroup())
                 .build();
                 
-        familyMember = familyMemberRepository.save(familyMember);
+        familyMember = familyMemberRepository.save(Objects.requireNonNull(familyMember, "FamilyMember must not be null"));
         return mapToResponse(familyMember);
     }
 
@@ -59,7 +60,7 @@ public class FamilyMemberService {
     @Transactional
     public void deleteFamilyMember(Long id) {
         User currentUser = getCurrentUser();
-        FamilyMember familyMember = familyMemberRepository.findById(id)
+        FamilyMember familyMember = familyMemberRepository.findById(Objects.requireNonNull(id, "Family member ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Family member not found"));
 
         if (!familyMember.getPatient().getId().equals(currentUser.getId())) {

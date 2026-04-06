@@ -63,7 +63,6 @@ public class DashboardService {
     }
 
     public Map<String, Object> getMedicalOfficerDashboardStats() {
-        User officer = getCurrentUser();
         Map<String, Object> stats = new HashMap<>();
         
         long pendingVerifications = bookingRepository.countByStatus(BookingStatus.PENDING_VERIFICATION);

@@ -7,7 +7,8 @@ public enum PackageTier {
     SILVER("Silver", new BigDecimal("20"), 15, 25),
     GOLD("Gold", new BigDecimal("30"), 25, 50),
     PLATINUM("Platinum", new BigDecimal("35"), 50, 100),
-    DIAMOND("Diamond", new BigDecimal("40"), 75, 150);
+    DIAMOND("Diamond", new BigDecimal("40"), 75, 150),
+    ADVANCED("Advanced", new BigDecimal("45"), 80, 200);
 
     private final String displayName;
     private final BigDecimal discountPercentage;

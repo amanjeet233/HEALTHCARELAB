@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/lab-tests")
@@ -59,12 +60,25 @@ public class LabTestController {
                 return ResponseEntity.ok(ApiResponse.success("Tests fetched successfully", tests));
         }
 
-        @GetMapping("/api/tests")
-        @Operation(summary = "Get all tests (alias)", description = "Retrieve all active lab tests")
-        public ResponseEntity<ApiResponse<List<LabTestDTO>>> getAllTestsLegacy() {
-                log.info("GET /api/tests - Fetching all active tests (legacy/requested)");
-                List<LabTestDTO> tests = labTestService.getAllActiveTests();
-                return ResponseEntity.ok(ApiResponse.success("Tests fetched successfully", tests));
+        @GetMapping("/advanced")
+        @Operation(summary = "Get tests advanced search", description = "Retrieve paginated tests with dynamic filtering and sorting")
+        public ResponseEntity<Map<String, Object>> getAdvancedTests(
+                @RequestParam(required = false) String search,
+                @RequestParam(required = false) List<String> category,
+                @RequestParam(name = "sub_category", required = false) String subCategory,
+                @RequestParam(name = "is_top_deal", required = false) Boolean isTopDeal,
+                @RequestParam(name = "is_top_booked", required = false) Boolean isTopBooked,
+                @RequestParam(name = "min_price", required = false) BigDecimal minPrice,
+                @RequestParam(name = "max_price", required = false) BigDecimal maxPrice,
+                @RequestParam(name = "sort_by", required = false) String sortBy,
+                @RequestParam(defaultValue = "1") int page,
+                @RequestParam(defaultValue = "18") int limit
+        ) {
+                log.info("GET /api/lab-tests/advanced - Advanced search | categories: {}, min: {}, max: {}", 
+                    category, minPrice, maxPrice);
+                Map<String, Object> response = labTestService.getAdvancedSearchTests(
+                    search, category, subCategory, isTopDeal, isTopBooked, minPrice, maxPrice, sortBy, page, limit);
+                return ResponseEntity.ok(response);
         }
 
         @GetMapping("/{id}")
@@ -175,9 +189,9 @@ public class LabTestController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Test types fetched successfully"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<ApiResponse<List<TestType>>> getAllTestTypes() {
+        public ResponseEntity<ApiResponse<List<String>>> getAllTestTypes() {
                 log.info("GET /api/lab-tests/types");
-                List<TestType> types = labTestService.getAllTestTypes();
+                List<String> types = labTestService.getAllTestTypes();
                 return ResponseEntity.ok(ApiResponse.success("Test types fetched successfully", types));
         }
 
@@ -220,7 +234,55 @@ public class LabTestController {
                         .map(pkg -> ResponseEntity.ok(ApiResponse.success("Package fetched successfully", pkg)))
                         .orElse(ResponseEntity.notFound().build());
         }
+
+        // ============= NEW FILTER ENDPOINTS FOR INDIVIDUAL TESTS =============
+
+        @GetMapping("/filter")
+        @Operation(summary = "Filter tests with multiple criteria", 
+                  description = "Advanced filtering: category, price range, fasting requirement, search keywords, pagination")
+        public ResponseEntity<ApiResponse<Page<LabTestDTO>>> filterTests(
+                        @RequestParam(required = false) List<String> category,
+                        @RequestParam(required = false) BigDecimal minPrice,
+                        @RequestParam(required = false) BigDecimal maxPrice,
+                        @RequestParam(required = false) Boolean fasting,
+                        @RequestParam(required = false) String search,
+                        @PageableDefault(size = 12, sort = "price") Pageable pageable) {
+                log.info("GET /api/lab-tests/filter?category={}&minPrice={}&maxPrice={}&fasting={}&search={}", 
+                        category, minPrice, maxPrice, fasting, search);
+                Page<LabTestDTO> tests = labTestService.filterTests(category, minPrice, maxPrice, fasting, search, pageable);
+                return ResponseEntity.ok(ApiResponse.success("Filtered tests retrieved", tests));
+        }
+
+        @GetMapping("/categories/{categoryName}")
+        @Operation(summary = "Get tests by category name",  description = "Retrieve all tests in a specific category (BLOOD, URINE, IMAGING, etc.)")
+        public ResponseEntity<ApiResponse<Page<LabTestDTO>>> getTestsByCategoryName(
+                        @PathVariable String categoryName,
+                        @PageableDefault(size = 12, sort = "testName") Pageable pageable) {
+                log.info("GET /api/lab-tests/categories/{} | Page: {}, Size: {}", categoryName,
+                        pageable.getPageNumber(), pageable.getPageSize());
+                Page<LabTestDTO> tests = labTestService.getTestsByCategory(categoryName, pageable);
+                return ResponseEntity.ok(ApiResponse.success("Tests by category retrieved", tests));
+        }
+
+        @GetMapping("/category-counts")
+        @Operation(summary = "Get test counts by category", description = "Returns count of tests in each category")
+        public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getCategoryCount() {
+                log.info("GET /api/lab-tests/category-counts");
+                java.util.Map<String, Long> counts = labTestService.getCategoryCount();
+                return ResponseEntity.ok(ApiResponse.success("Category counts retrieved", counts));
+        }
+
+        @GetMapping("/by-tag/{tag}")
+        @Operation(summary = "Find tests by tag", description = "Search tests by tag (fever, diabetes, kidney, etc.)")
+        public ResponseEntity<ApiResponse<Page<LabTestDTO>>> getTestsByTag(
+                        @PathVariable String tag,
+                        @PageableDefault(size = 12) Pageable pageable) {
+                log.info("GET /api/lab-tests/by-tag/{}", tag);
+                Page<LabTestDTO> tests = labTestService.getTestsByTag(tag, pageable);
+                return ResponseEntity.ok(ApiResponse.success("Tests by tag retrieved", tests));
+        }
 }
+
 
 
 

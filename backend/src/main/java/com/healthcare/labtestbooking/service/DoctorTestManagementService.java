@@ -18,10 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,7 +47,7 @@ public class DoctorTestManagementService {
 
         TestCategory category = null;
         if (request.getCategoryId() != null) {
-            category = testCategoryRepository.findById(request.getCategoryId())
+            category = testCategoryRepository.findById(Objects.requireNonNull(request.getCategoryId(), "Category ID must not be null"))
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
         }
 
@@ -83,14 +83,14 @@ public class DoctorTestManagementService {
     public TestDetails updateTest(Long testId, UpdateTest request, UserDetails userDetails) {
         User user = getUserFromDetails(userDetails);
 
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + testId));
 
         // Update fields if provided
         if (request.getTestName() != null) test.setTestName(request.getTestName());
         if (request.getDescription() != null) test.setDescription(request.getDescription());
         if (request.getCategoryId() != null) {
-            TestCategory category = testCategoryRepository.findById(request.getCategoryId())
+            TestCategory category = testCategoryRepository.findById(Objects.requireNonNull(request.getCategoryId(), "Category ID must not be null"))
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
             test.setCategory(category);
         }
@@ -120,7 +120,7 @@ public class DoctorTestManagementService {
     public void deleteTest(Long testId, UserDetails userDetails) {
         User user = getUserFromDetails(userDetails);
 
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + testId));
 
         // Soft delete - mark as inactive
@@ -133,7 +133,7 @@ public class DoctorTestManagementService {
     public void permanentDeleteTest(Long testId, UserDetails userDetails) {
         User user = getUserFromDetails(userDetails);
 
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + testId));
 
         // Check if test has bookings
@@ -142,14 +142,14 @@ public class DoctorTestManagementService {
             throw new BadRequestException("Cannot delete test with existing bookings. Use soft delete instead.");
         }
 
-        labTestRepository.delete(test);
+        labTestRepository.delete(Objects.requireNonNull(test, "LabTest must not be null"));
         log.info("Test permanently deleted by user {}: {}", user.getId(), test.getTestCode());
     }
 
     // ==================== Retrieve Tests ====================
 
     public TestDetails getTestById(Long testId) {
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + testId));
         return mapToTestDetails(test);
     }
@@ -177,7 +177,17 @@ public class DoctorTestManagementService {
     }
 
     public List<TestListItem> getTestsByCategory(Long categoryId) {
-        List<LabTest> tests = labTestRepository.findByCategoryIdAndIsActiveTrue(categoryId);
+        // Note: New schema uses category names as strings, not IDs
+        // This method is kept for backward compatibility
+        // Convert categoryId to approximate categoryName if needed, or return all active tests
+        List<LabTest> tests = labTestRepository.findByIsActiveTrue();
+        return tests.stream()
+                .map(this::mapToTestListItem)
+                .collect(Collectors.toList());
+    }
+    
+    public List<TestListItem> getTestsByCategoryName(String categoryName) {
+        List<LabTest> tests = labTestRepository.findByCategoryNameAndIsActiveTrueQuery(categoryName);
         return tests.stream()
                 .map(this::mapToTestListItem)
                 .collect(Collectors.toList());
@@ -186,7 +196,7 @@ public class DoctorTestManagementService {
     // ==================== Price Comparison ====================
 
     public List<PriceComparison> getPriceComparison(Long testId, UserDetails userDetails) {
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
 
         // Find all tests with similar name
@@ -223,7 +233,7 @@ public class DoctorTestManagementService {
     // ==================== Analytics ====================
 
     public TestAnalytics getTestAnalytics(Long testId, UserDetails userDetails) {
-        LabTest test = labTestRepository.findById(testId)
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
 
         LocalDateTime now = LocalDateTime.now();
@@ -410,7 +420,7 @@ public class DoctorTestManagementService {
 
         for (Long testId : request.getTestIds()) {
             try {
-                LabTest test = labTestRepository.findById(testId).orElse(null);
+                LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null")).orElse(null);
                 if (test == null) {
                     errors.add("Test not found: " + testId);
                     failed++;
@@ -419,7 +429,7 @@ public class DoctorTestManagementService {
 
                 BigDecimal newPrice = calculateNewPrice(test.getPrice(), request);
                 test.setPrice(newPrice);
-                labTestRepository.save(test);
+                labTestRepository.save(Objects.requireNonNull(test, "LabTest must not be null"));
                 updated++;
             } catch (Exception e) {
                 errors.add("Error updating test " + testId + ": " + e.getMessage());
@@ -447,7 +457,7 @@ public class DoctorTestManagementService {
 
         for (Long testId : testIds) {
             try {
-                LabTest test = labTestRepository.findById(testId).orElse(null);
+                LabTest test = labTestRepository.findById(Objects.requireNonNull(testId, "Test ID must not be null")).orElse(null);
                 if (test == null) {
                     errors.add("Test not found: " + testId);
                     failed++;
@@ -455,7 +465,7 @@ public class DoctorTestManagementService {
                 }
 
                 test.setIsActive(active);
-                labTestRepository.save(test);
+                labTestRepository.save(Objects.requireNonNull(test, "LabTest must not be null"));
                 updated++;
             } catch (Exception e) {
                 errors.add("Error updating test " + testId + ": " + e.getMessage());

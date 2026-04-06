@@ -37,6 +37,9 @@ public class TestDataInitializer {
     @Profile("!test")
     public CommandLineRunner initializeTestData() {
         return args -> {
+            // DISABLED: Test data is now loaded via Flyway migrations (V15)
+            log.info("TestDataInitializer: Skipping - using Flyway migrations instead");
+            /*
             if (labTestRepository.count() < 100) {
                 log.info("Initializing comprehensive lab test data...");
                 initializeCategories();
@@ -45,6 +48,7 @@ public class TestDataInitializer {
             } else {
                 log.info("Lab tests already exist, skipping initialization");
             }
+            */
         };
     }
 

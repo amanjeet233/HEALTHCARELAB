@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,7 +67,7 @@ public class CartService {
     }
 
     private Cart createNewCart(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(Objects.requireNonNull(userId, "User ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Cart cart = Cart.builder()
@@ -75,7 +76,7 @@ public class CartService {
                 .expiryAt(LocalDateTime.now().plusDays(30))
                 .build();
 
-        return cartRepository.save(cart);
+        return cartRepository.save(Objects.requireNonNull(cart, "Cart must not be null"));
     }
 
     // ==================== Add Items ====================
@@ -83,7 +84,7 @@ public class CartService {
     public CartResponse addTestToCart(Long userId, AddTestToCart request) {
         Cart cart = getOrCreateCart(userId);
 
-        LabTest test = labTestRepository.findById(request.getTestId())
+        LabTest test = labTestRepository.findById(Objects.requireNonNull(request.getTestId(), "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + request.getTestId()));
 
         // Check if test already in cart
@@ -126,7 +127,7 @@ public class CartService {
     public CartResponse addPackageToCart(Long userId, AddPackageToCart request) {
         Cart cart = getOrCreateCart(userId);
 
-        TestPackage pkg = testPackageRepository.findById(request.getPackageId())
+        TestPackage pkg = testPackageRepository.findById(Objects.requireNonNull(request.getPackageId(), "Package ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Package not found with ID: " + request.getPackageId()));
 
         // Check if package already in cart
@@ -198,7 +199,7 @@ public class CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
 
         cart.removeItem(item);
-        cartItemRepository.delete(item);
+        cartItemRepository.delete(Objects.requireNonNull(item, "Cart item must not be null"));
 
         recalculateCartTotals(cart);
         return buildCartResponse(cart);

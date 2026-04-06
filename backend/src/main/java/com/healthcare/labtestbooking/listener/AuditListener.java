@@ -42,18 +42,15 @@ public class AuditListener {
 
     private static ObjectMapper objectMapper;
     private static EntityManager entityManager;
-    private static UserRepository userRepository;
     private static ApplicationEventPublisher eventPublisher;
 
     public AuditListener() {
     }
 
     @Autowired
-    public void setDependencies(ObjectMapper mapper, EntityManager em, UserRepository repo,
-            ApplicationEventPublisher publisher) {
+    public void setDependencies(ObjectMapper mapper, EntityManager em, ApplicationEventPublisher publisher) {
         objectMapper = mapper;
         entityManager = em;
-        userRepository = repo;
         eventPublisher = publisher;
     }
 

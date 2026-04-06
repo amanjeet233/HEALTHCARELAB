@@ -8,7 +8,14 @@ public enum PackageType {
     WELLNESS("Wellness & Lifestyle Packages"),
     PREVENTIVE("Preventive Health Packages"),
     CORPORATE("Corporate Health Packages"),
-    FAMILY("Family Health Packages");
+    FAMILY("Family Health Packages"),
+    MEN("Men's Packages"),
+    WOMEN("Women's Packages"),
+    COUPLE("Couple Packages"),
+    CHILD("Child Packages"),
+    SENIOR_MEN("Senior Men Packages"),
+    SENIOR_WOMEN("Senior Women Packages"),
+    VITAMINS("Vitamin Packages");
 
     private final String displayName;
 

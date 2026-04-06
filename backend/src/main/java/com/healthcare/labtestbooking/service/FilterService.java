@@ -380,9 +380,7 @@ public class FilterService {
             max = prices.stream().max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
         }
 
-        List<String> testTypes = labTestRepository.findAllTestTypes().stream()
-            .map(TestType::name)
-            .collect(Collectors.toList());
+        List<String> testTypes = labTestRepository.findAllTestTypes();
 
         return FilterResponseDTO.AvailableFiltersDTO.builder()
             .genders(GENDER_OPTIONS)

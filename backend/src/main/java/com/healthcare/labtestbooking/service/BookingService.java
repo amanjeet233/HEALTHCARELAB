@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -103,7 +103,7 @@ public class BookingService {
                 .finalAmount(finalAmount)
                 .build();
 
-        booking = bookingRepository.save(booking);
+        booking = bookingRepository.save(Objects.requireNonNull(booking, "Booking must not be null"));
         return mapToResponse(booking);
     }
 
@@ -157,7 +157,7 @@ public class BookingService {
 
     public BookingResponse getBookingById(Long id) {
         User user = getCurrentUser();
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
         if (!booking.getPatient().getId().equals(user.getId())
@@ -171,7 +171,7 @@ public class BookingService {
     @Transactional
     public BookingResponse cancelBooking(Long id) {
         User user = getCurrentUser();
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
         if (!booking.getPatient().getId().equals(user.getId())
@@ -204,10 +204,10 @@ public class BookingService {
 
     @Transactional
     public BookingResponse assignTechnician(Long bookingId, Long technicianId) {
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(bookingId, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
 
-        User technician = userRepository.findById(technicianId)
+        User technician = userRepository.findById(Objects.requireNonNull(technicianId, "Technician ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Technician not found with id: " + technicianId));
 
         if (technician.getRole() != UserRole.TECHNICIAN) {
@@ -226,7 +226,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse updateBookingStatus(Long id, String status) {
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
         booking.setStatus(BookingStatus.valueOf(status.toUpperCase()));
         booking = bookingRepository.save(booking);
@@ -235,7 +235,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse markCollected(Long id) {
-        Booking booking = bookingRepository.findById(id)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
         if (booking.getStatus() != BookingStatus.BOOKED && booking.getStatus() != BookingStatus.CONFIRMED) {
@@ -281,7 +281,7 @@ public class BookingService {
     @Transactional
     public BookingResponse rescheduleBooking(Long bookingId, LocalDate newDate, String newTimeSlot) {
         User user = getCurrentUser();
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(bookingId, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
 
         if (!booking.getPatient().getId().equals(user.getId()) && user.getRole() != UserRole.ADMIN) {
