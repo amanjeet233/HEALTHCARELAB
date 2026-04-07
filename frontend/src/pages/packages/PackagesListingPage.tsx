@@ -6,6 +6,7 @@ import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
 import api from '../../services/api';
 import { useCart } from '../../hooks/useCart';
+import { MedSyncTestCardSkeleton } from '../../components/ui/MedSyncTestCard';
 
 // Enums matching backend
 const PackageType = {
@@ -83,7 +84,7 @@ const PackagesListingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+    <div className="min-h-screen bg-transparent font-sans flex flex-col">
       <Header />
       
       {/* Hero Banner */}
@@ -168,11 +169,10 @@ const PackagesListingPage: React.FC = () => {
              </div>
          </div>
 
-         {/* Results Grid */}
-         {loading ? (
+         {/* Results Grid */}         {loading ? (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {[1,2,3,4,5,6].map(i => (
-                     <div key={i} className="bg-white rounded-3xl h-80 animate-pulse border border-slate-100 shadow-sm"/>
+                     <MedSyncTestCardSkeleton key={i} />
                  ))}
              </div>
          ) : packages.length === 0 ? (

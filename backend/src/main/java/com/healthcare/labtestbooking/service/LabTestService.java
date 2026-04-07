@@ -147,8 +147,8 @@ public class LabTestService {
         }
 
         public List<LabTestDTO> getTrendingTests() {
-                log.info("Fetching trending lab tests");
-                return labTestRepository.findByIsTrendingTrue(Pageable.ofSize(10)).getContent().stream()
+                log.info("Fetching trending lab tests (excluding packages)");
+                return labTestRepository.findByIsTrendingTrueAndIsPackageFalse(PageRequest.of(0, 12)).getContent().stream()
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
         }
@@ -156,7 +156,7 @@ public class LabTestService {
         public Page<LabTestDTO> getTrendingTests(Pageable pageable) {
                 log.info("Fetching trending tests with pagination | Page: {}, Size: {}",
                                 pageable.getPageNumber(), pageable.getPageSize());
-                return labTestRepository.findByIsTrendingTrue(pageable)
+                return labTestRepository.findByIsTrendingTrueAndIsPackageFalse(pageable)
                                 .map(this::convertToDTO);
         }
 
@@ -454,7 +454,7 @@ public class LabTestService {
         }
 
         @Transactional(readOnly = true)
-        public Map<String, Object> getAdvancedSearchTests(
+        public Page<LabTestDTO> getAdvancedSearchTests(
                 String search, 
                 List<String> categories, 
                 String subCategory, 
@@ -472,24 +472,43 @@ public class LabTestService {
                         // Deduplicate results
                         query.distinct(true);
 
-                        predicates.add(cb.isTrue(root.get("isActive")));
+                        // predicates.add(cb.isTrue(root.get("isActive"))); // TEMP REMOVED TO AUDIT 588 vs 1000+ COUNT
+                        log.info("Auditing data: Current table count is {}", labTestRepository.count());
                         
                         if (search != null && !search.trim().isEmpty()) {
-                                String likePattern = "%" + search.toLowerCase() + "%";
-                                predicates.add(cb.or(
-                                        cb.like(cb.lower(root.get("testName")), likePattern),
-                                        cb.like(cb.lower(root.get("description")), likePattern)
-                                ));
+                                String[] tokens = search.trim().toLowerCase().split("\\s+");
+                                List<Predicate> searchPredicates = new ArrayList<>();
+                                
+                                for (String token : tokens) {
+                                    token = token.replaceAll("[^a-zA-Z0-9]", "").trim();
+                                    if (token.length() < 2) continue; // Skip very short tokens
+                                    String pattern = "%" + token + "%";
+                                    searchPredicates.add(cb.or(
+                                        cb.like(cb.lower(root.get("testName")), pattern),
+                                        cb.like(cb.lower(root.get("description")), pattern),
+                                        cb.like(cb.lower(root.get("categoryName")), pattern),
+                                        cb.like(cb.lower(root.get("subCategory")), pattern)
+                                    ));
+                                }
+                                
+                                if (!searchPredicates.isEmpty()) {
+                                    predicates.add(cb.and(searchPredicates.toArray(new Predicate[0])));
+                                }
                         }
                         
                         if (categories != null && !categories.isEmpty()) {
                                 List<Predicate> catPredicates = new ArrayList<>();
                                 for (String cat : categories) {
-                                        // Use LIKE search for partial matches (e.g. "Kidney" matching "Kidney Function Test")
+                                        if (cat == null || cat.trim().isEmpty()) continue;
                                         String pattern = "%" + cat.trim().toLowerCase() + "%";
-                                        catPredicates.add(cb.like(cb.lower(root.get("categoryName")), pattern));
+                                        catPredicates.add(cb.or(
+                                            cb.like(cb.lower(root.get("categoryName")), pattern),
+                                            cb.like(cb.lower(root.get("subCategory")), pattern)
+                                        ));
                                 }
-                                predicates.add(cb.or(catPredicates.toArray(new Predicate[0])));
+                                if (!catPredicates.isEmpty()) {
+                                    predicates.add(cb.or(catPredicates.toArray(new Predicate[0])));
+                                }
                         }
                         
                         if (subCategory != null && !subCategory.trim().isEmpty()) {
@@ -504,12 +523,13 @@ public class LabTestService {
                                 predicates.add(cb.equal(root.get("isTopBooked"), isTopBooked));
                         }
 
+                        // Use discountedPrice for filtering as that is what users see
                         if (minPrice != null) {
-                                predicates.add(cb.greaterThanOrEqualTo(root.get("price"), minPrice));
+                                predicates.add(cb.greaterThanOrEqualTo(root.get("discountedPrice"), minPrice));
                         }
 
                         if (maxPrice != null) {
-                                predicates.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+                                predicates.add(cb.lessThanOrEqualTo(root.get("discountedPrice"), maxPrice));
                         }
                         
                         return cb.and(predicates.toArray(new Predicate[0]));
@@ -519,10 +539,10 @@ public class LabTestService {
                 if (sortBy != null) {
                         switch (sortBy) {
                                 case "price_low":
-                                        sort = Sort.by(Sort.Direction.ASC, "price");
+                                        sort = Sort.by(Sort.Direction.ASC, "discountedPrice");
                                         break;
                                 case "price_high":
-                                        sort = Sort.by(Sort.Direction.DESC, "price");
+                                        sort = Sort.by(Sort.Direction.DESC, "discountedPrice");
                                         break;
                                 case "discount":
                                         sort = Sort.by(Sort.Direction.DESC, "discountPercent");
@@ -541,17 +561,7 @@ public class LabTestService {
                 
                 Page<LabTest> resultPage = labTestRepository.findAll(spec, pageable);
                 
-                List<LabTestDTO> testDTOs = resultPage.getContent().stream()
-                        .map(this::convertToDTO)
-                        .collect(Collectors.toList());
-                        
-                Map<String, Object> response = new HashMap<>();
-                response.put("total_count", resultPage.getTotalElements());
-                response.put("current_page", actualPage + 1);
-                response.put("total_pages", resultPage.getTotalPages());
-                response.put("tests", testDTOs);
-                
-                return response;
+                return resultPage.map(this::convertToDTO);
         }
 }
 

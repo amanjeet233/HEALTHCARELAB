@@ -144,7 +144,7 @@ const TestListingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-transparent">
 
       {/* A — Expert-Curated Screenings */}
       <FadeSection>
@@ -170,7 +170,14 @@ const TestListingPage: React.FC = () => {
       {/* B — Most Booked Individual Tests */}
       <FadeSection>
         <div className={`${PAGE} py-6`}>
-          <SectionHeader title="Most Booked Tests" subtitle="Trusted by 2 million+ patients across India" cta={{ label: 'View All 43 Tests', onClick: () => navigate('/lab-tests/all-lab-tests') }} />
+          <SectionHeader 
+            title="Most Booked Tests" 
+            subtitle="Trusted by 2 million+ patients across India" 
+            cta={{ 
+              label: 'View All Tests', 
+              onClick: () => navigate('/lab-tests/all-lab-tests?is_top_booked=true') 
+            }} 
+          />
           <TopBookedTests />
         </div>
       </FadeSection>
@@ -185,7 +192,7 @@ const TestListingPage: React.FC = () => {
       {/* D — Popular Health Packages */}
       <FadeSection>
         <div className={`${PAGE} py-6`}>
-          <SectionHeader title="Popular Health Packages" subtitle="Comprehensive bundles with Smart Report — best value" cta={{ label: 'View All Packages', onClick: () => navigate('/packages') }} accentColor="#7C3AED" />
+          <SectionHeader title="Popular Health Packages" subtitle="Comprehensive bundles with Smart Report — best value" cta={{ label: 'View All Packages', onClick: () => navigate('/lab-tests/all-lab-tests?item_type=PACKAGE') }} accentColor="#7C3AED" />
           <PopularPackagesRow />
         </div>
       </FadeSection>

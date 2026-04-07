@@ -1,6 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;900&family=Noto+Sans:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
 @import "./styles/premium-theme.css";
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;900&family=Noto+Sans:wght@300;400;500;700&display=swap');
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -15,7 +15,7 @@
   --color-mint: #4ECDC4;
   --color-lavender: #9B7BB7;
   --color-gold: #D4AF37;
-  --color-off-white: #F8FAFC;
+  --color-off-white: #F0F9F9;
   --color-light-gray: #E2E8F0;
   --color-text-primary: #0F172A;
   --color-text-secondary: #475569;
@@ -285,9 +285,10 @@
   }
 }
 
-/* Custom Scrollbar - Completely Hidden but keeping scroll functionality */
+/* Custom Scrollbar - Scrollbars enabled for visibility */
 ::-webkit-scrollbar {
-  display: none;
+  display: block;
+  width: 6px;
 }
 
 body {

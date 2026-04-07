@@ -32,12 +32,13 @@ const TestListingBySlugPage = lazy(() => import('../../pages/TestListingBySlugPa
 const WomenWellnessPage = lazy(() => import('../../pages/WomenWellnessPage'));
 
 import MainLayout from './MainLayout';
+import { GenericPageSkeleton } from '../ui/PageSkeleton';
 
 const AnimatedRoutes: React.FC = () => {
     const location = useLocation();
 
     return (
-        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background dark:bg-gray-900"><LoadingSpinner size="lg" /></div>}>
+        <Suspense fallback={<GenericPageSkeleton />}>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
                     <Route path="/login" element={<Navigate to="/" replace />} />

@@ -1,6 +1,7 @@
 import React, {
   useState, useEffect, useCallback
 } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Home, ChevronRight, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import MedSyncTestCard, { MedSyncTestCardSkeleton, MedSyncTestCardData } from './MedSyncTestCard';
@@ -16,27 +17,36 @@ import MedSyncTestCard, { MedSyncTestCardSkeleton, MedSyncTestCardData } from '.
 ───────────────────────────────────────────────────────────────── */
 
 const ALL_CATEGORIES = [
-  'Full Body Checkup', 'Diabetes', 'Heart', 'Thyroid', 'Kidney', 'Liver',
-  "Women's Health", 'Senior Citizen', 'Pregnancy', 'Bone Health',
-  'Cancer Screening', 'Immunity', "Men's Health", 'Sexual Health',
-  'Vitamin', 'Hormone', 'Joint', 'Allergy', 'Arthritis', 'Fever',
-  'Infection', 'Iron Deficiency', 'CBC', 'Lipid Profile', 'Urine',
-  'Pre-marital', 'Nutrition', 'Imaging', 'STI / STD',
-  'Eyes', 'Lungs', 'Digestion', 'Stress', 'Skin/Hair', 'Weight',
-  'Pediatric', 'Fitness', 'Vitality', 'Healthy Wellness'
+  'Pregnancy', 'Hospital Health Check', 'Blood Studies', 'Allergy', 'Tax Saver',
+  'Bone and Joint', 'Men\'s Health', 'Fever and Infection', 'Vitamin', 'Fever',
+  'Senior Citizen', 'Covid 19', 'Hepatitis Screening', 'Reproductive & Fertility',
+  'Full Body Checkup', 'Women\'s Health', 'Diabetes', 'Kidney', 'Heart',
+  'Hormone Screening', 'Joint Pain', 'PCOD Screening', 'Weight Management Package',
+  'Cancer Screening', 'Thyroid', 'Liver', 'Iron Studies', 'Stress', 'Lungs',
+  'Sexual Wellness', 'Immunity', 'Corporates', 'Hairfall', 'All Lab Tests'
 ];
 
 const MUST_HAVE_TESTS = [
-  { id: 'cbc',    label: 'CBC (Complete Blood Count)' },
-  { id: 'lipid',  label: 'Lipid Profile' },
-  { id: 'thyroid',label: 'Thyroid Profile (TSH)' },
-  { id: 'hba1c',  label: 'HbA1c (Diabetes)' },
-  { id: 'lft',    label: 'Liver Function Test' },
-  { id: 'kft',    label: 'Kidney Function Test' },
-  { id: 'vitd',   label: 'Vitamin D Total' },
-  { id: 'vitb12', label: 'Vitamin B12' },
-  { id: 'urine',  label: 'Urine Routine' },
-  { id: 'psa',    label: 'PSA (Prostate)' },
+  { id: 'cbc-test',            label: 'CBC Test (Complete Blood Count)' },
+  { id: 'ppbs-test',           label: 'PPBS Test (Post-Prandial Blood Sugar)' },
+  { id: 'thyroid-profile',     label: 'Thyroid Profile (T3 T4 TSH) Test' },
+  { id: 'lipid-profile',       label: 'Lipid Profile Test' },
+  { id: 'lft-test',            label: 'LFT (Liver Function) Test' },
+  { id: 'urine-routine',       label: 'Urine Routine Test' },
+  { id: 'crp-test',            label: 'CRP Test (C - Reactive Protein)' },
+  { id: 'fbs-test',            label: 'FBS (Fasting Blood Sugar )Test' },
+  { id: 'kft-electrolytes',    label: 'KFT with Electrolytes (Kidney Funtion)' },
+  { id: 'hba1c-saver',         label: 'HbA1c Full Year Saver Pack' },
+  { id: 'vit-d',               label: 'Vitamin D Test' },
+  { id: 'urine-culture',       label: 'Urine Culture Test' },
+  { id: 'hba1c-test',          label: 'HbA1c Test (Hemoglobin A1c)' },
+  { id: 'vit-b12',             label: 'Vitamin B12 Test' },
+  { id: 'esr-test',            label: 'ESR Test (Erythrocyte Sedimentation Rate)' },
+  { id: 'creatinine-test',     label: 'Creatinine Test' },
+  { id: 'uric-acid-test',      label: 'Uric Acid Test' },
+  { id: 'tsh-test',            label: 'TSH Test (Thyroid Stimulating Hormone)' },
+  { id: 'rbs-test',            label: 'RBS (Random Blood Sugar) Test' },
+  { id: 'thyroid-free',        label: 'Thyroid - Free FT3, FT4 & TSH Test' },
 ];
 
 const SORT_OPTIONS = [
@@ -47,7 +57,7 @@ const SORT_OPTIONS = [
   { value: 'popular',          label: 'Most Booked' },
 ];
 
-const ITEMS_PER_PAGE = 18;
+const ITEMS_PER_PAGE = 24;
 
 /* ── Debounce hook ────────────────────────────────────────────── */
 function useDebounce<T>(value: T, delay: number): T {
@@ -106,23 +116,15 @@ interface SidebarProps {
   hideCategoryFilter?: boolean;
   searchQuery: string;
   onSearchChange: (val: string) => void;
+  toggle: (arr: string[], val: string) => string[];
 }
 
 const FilterSidebar: React.FC<SidebarProps> = ({
   typeFilter, mustHaveFilter, categoryFilter, priceRange,
   onTypeChange, onMustHaveChange, onCategoryChange, onPriceChange,
   onClearAll, accent, mobileOpen, onMobileClose, hideCategoryFilter,
-  searchQuery, onSearchChange
+  searchQuery, onSearchChange, toggle
 }) => {
-  const [showAllCats,  setShowAllCats]  = useState(false);
-  const [showMoreMust, setShowMoreMust] = useState(false);
-
-  const toggle = (arr: string[], val: string) =>
-    arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
-
-  const visibleCats  = showAllCats  ? ALL_CATEGORIES        : ALL_CATEGORIES.slice(0, 8);
-  const visibleMust  = showMoreMust ? MUST_HAVE_TESTS        : MUST_HAVE_TESTS.slice(0, 5);
-
   const hasFilters = typeFilter.length + mustHaveFilter.length + categoryFilter.length > 0
     || priceRange[0] > 0 || priceRange[1] < 15000;
 
@@ -131,15 +133,15 @@ const FilterSidebar: React.FC<SidebarProps> = ({
   }> = ({ id, label, checked, onChange }) => (
     <label
       htmlFor={id}
-      className={`flex items-center gap-3 cursor-pointer group py-2 px-3 rounded-xl transition-all duration-200 ${
-        checked ? 'bg-orange-50 border-orange-100' : 'hover:bg-slate-50 border-transparent'
+      className={`flex items-center gap-2.5 cursor-pointer group py-1.5 px-3 rounded-xl transition-all duration-200 ${
+        checked ? 'bg-teal-50/70 border-teal-100' : 'hover:bg-slate-50 border-transparent'
       } border`}
     >
-      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-        checked ? 'bg-[#C2410C] border-[#C2410C]' : 'border-slate-300 bg-white group-hover:border-[#C2410C]'
+      <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
+        checked ? 'bg-teal-600 border-teal-600' : 'border-slate-200 bg-white group-hover:border-teal-600'
       }`}>
         {checked && (
-          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
@@ -148,74 +150,64 @@ const FilterSidebar: React.FC<SidebarProps> = ({
         id={id} type="checkbox" checked={checked} onChange={onChange}
         className="sr-only"
       />
-      <span className={`text-[14px] font-semibold transition-colors leading-tight ${
-        checked ? 'text-[#C2410C]' : 'text-slate-700 group-hover:text-slate-900'
+      <span className={`text-[12.5px] font-semibold transition-colors leading-tight ${
+        checked ? 'text-teal-700' : 'text-slate-600 group-hover:text-slate-900'
       }`}>
         {label}
       </span>
     </label>
   );
 
-  const Section: React.FC<{ title: string; children: React.ReactNode; isScrollable?: boolean }> = ({ title, children, isScrollable }) => (
-    <div className="border-b border-slate-100/80 pb-5 mb-5 last:border-0 last:pb-0 last:mb-0">
-      <div className="flex items-center justify-between mb-3.5">
-        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">{title}</p>
-        {isScrollable && <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />}
-      </div>
-      <div className={`flex flex-col gap-1.5 ${isScrollable ? 'max-h-[280px] overflow-y-auto premium-scrollbar pr-1.5' : ''}`}>
+  const Section: React.FC<{ title: string; children: React.ReactNode; isScrollable?: boolean }> = ({ title, children, isScrollable = true }) => (
+    <div className="mb-5 last:mb-0">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3 px-1">{title}</p>
+      <div className={`flex flex-col gap-1 ${isScrollable ? 'max-h-[280px] overflow-y-auto premium-scrollbar pr-1' : ''}`}>
         {children}
       </div>
     </div>
   );
 
   const inner = (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 shrink-0 pb-4 border-b border-slate-50">
-        <h2 className="text-[17px] font-black text-slate-800 flex items-center gap-2.5">
-          <SlidersHorizontal className="w-4.5 h-4.5" style={{ color: accent }} strokeWidth={2.5} />
+      <div className="flex items-center justify-between mb-5 shrink-0">
+        <h2 className="text-[17px] font-black text-slate-800 flex items-center gap-2">
+          <SlidersHorizontal className="w-4.5 h-4.5" style={{ color: accent }} strokeWidth={3} />
           Filters
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {hasFilters && (
             <button
               onClick={onClearAll}
-              className="text-[12px] font-extrabold hover:text-slate-900 transition-colors uppercase tracking-wider"
+              className="text-[11px] font-black hover:opacity-80 transition-opacity uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md"
               style={{ color: accent }}
             >
-              Clear All
+              Reset
             </button>
           )}
           <button
             onClick={onMobileClose}
             className="md:hidden p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-4.5 h-4.5 text-slate-400" />
           </button>
         </div>
       </div>
 
-      {/* Internal Search Box (Prompt 7) */}
+      {/* Internal Search Box */}
       <div className="mb-6 relative">
           <input 
               type="text"
               placeholder="Search tests..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-100 placeholder:text-slate-400 transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 text-[13px] font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-teal-500/5 focus:border-teal-500/30 transition-all placeholder:text-slate-400 shadow-inner"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              {searchQuery && (
-                  <button onClick={() => onSearchChange('')} className="p-1 hover:bg-slate-100 rounded-lg">
-                      <X className="w-3 h-3 text-slate-400" />
-                  </button>
-              )}
-          </div>
       </div>
 
-      <div className="overflow-y-auto flex-1 pr-1 premium-scrollbar">
-        {/* Type of Tests */}
-        <Section title="Type of Tests">
+      <div className="overflow-y-auto flex-1 pr-1 premium-scrollbar pb-2">
+        {/* 1 Type of Tests */}
+        <Section title="1 Type of Tests" isScrollable={false}>
           {['Top Deals', 'Tests', 'Packages', 'Must Have Tests'].map(t => (
             <CheckRow
               key={t} id={`type-${t}`} label={t}
@@ -225,9 +217,11 @@ const FilterSidebar: React.FC<SidebarProps> = ({
           ))}
         </Section>
 
-        {/* Must Have Tests */}
-        <Section title="Must Have Tests" isScrollable={showMoreMust}>
-          {visibleMust.map(t => (
+        <div className="h-px bg-slate-50 my-4 mx-1" />
+
+        {/* 2 Must Have Tests */}
+        <Section title="2 Must Have Tests">
+          {MUST_HAVE_TESTS.map(t => (
             <CheckRow
               key={t.id} id={`must-${t.id}`} label={t.label}
               checked={mustHaveFilter.includes(t.id)}
@@ -235,49 +229,33 @@ const FilterSidebar: React.FC<SidebarProps> = ({
             />
           ))}
         </Section>
-        <button
-          onClick={() => setShowMoreMust(!showMoreMust)}
-          className="text-[12px] font-bold mb-4 hover:underline transition-colors block"
-          style={{ color: accent }}
-        >
-          {showMoreMust
-            ? '− Show Less'
-            : `+ ${MUST_HAVE_TESTS.length - 5} more`}
-        </button>
 
-        {/* Categories — hidden when already on a category page */}
+        <div className="h-px bg-slate-50 my-4 mx-1" />
+
+        {/* 3 Category */}
         {!hideCategoryFilter && (
-          <>
-            <Section title="Category" isScrollable={showAllCats}>
-              {visibleCats.map(cat => (
-                <CheckRow
-                  key={cat} id={`cat-${cat}`} label={cat}
-                  checked={categoryFilter.includes(cat)}
-                  onChange={() => onCategoryChange(toggle(categoryFilter, cat))}
-                />
-              ))}
-            </Section>
-            <button
-              onClick={() => setShowAllCats(!showAllCats)}
-              className="text-[12px] font-bold mb-4 hover:underline transition-colors block"
-              style={{ color: accent }}
-            >
-              {showAllCats
-                ? '− Show Less'
-                : `+ ${ALL_CATEGORIES.length - 8} more`}
-            </button>
-          </>
+          <Section title="3 Category">
+            {ALL_CATEGORIES.map(cat => (
+              <CheckRow
+                key={cat} id={`cat-${cat}`} label={cat}
+                checked={categoryFilter.includes(cat)}
+                onChange={() => onCategoryChange(toggle(categoryFilter, cat))}
+              />
+            ))}
+          </Section>
         )}
 
+        <div className="h-px bg-slate-50 my-4 mx-1" />
+
         {/* Price Range */}
-        <Section title="Price Range">
-          <div className="px-1">
-            <div className="flex justify-between text-[12px] text-slate-500 font-semibold mb-3">
-              <span>₹{priceRange[0].toLocaleString('en-IN')}</span>
-              <span>₹{priceRange[1].toLocaleString('en-IN')}</span>
+        <Section title="Price Range" isScrollable={false}>
+          <div className="px-2 pt-1">
+            <div className="flex justify-between text-[11px] text-slate-500 font-black mb-3">
+              <span>₹{priceRange[0]}</span>
+              <span>₹{priceRange[1]}</span>
             </div>
-            {/* dual-range using two transparent range inputs overlaid */}
-            <div className="relative h-5">
+            <div className="relative h-6 flex items-center group">
+              <div className="absolute w-full h-1.5 bg-slate-100 rounded-full" />
               <input
                 type="range" min={0} max={15000} step={100}
                 value={priceRange[0]}
@@ -285,9 +263,7 @@ const FilterSidebar: React.FC<SidebarProps> = ({
                   const v = Number(e.target.value);
                   if (v < priceRange[1]) onPriceChange([v, priceRange[1]]);
                 }}
-                className="absolute w-full h-1 rounded appearance-none cursor-pointer"
-                style={{ accentColor: accent }}
-                aria-label="Minimum price"
+                className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-teal-600 pointer-events-auto z-10"
               />
               <input
                 type="range" min={0} max={15000} step={100}
@@ -296,14 +272,9 @@ const FilterSidebar: React.FC<SidebarProps> = ({
                   const v = Number(e.target.value);
                   if (v > priceRange[0]) onPriceChange([priceRange[0], v]);
                 }}
-                className="absolute w-full h-1 rounded appearance-none cursor-pointer"
-                style={{ accentColor: accent }}
-                aria-label="Maximum price"
+                className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-teal-600 pointer-events-auto z-10"
               />
             </div>
-            <p className="text-[11px] text-slate-400 mt-2 text-center">
-              ₹0 – ₹15,000
-            </p>
           </div>
         </Section>
       </div>
@@ -313,7 +284,7 @@ const FilterSidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-72 shrink-0 sticky top-24 self-start max-h-[calc(100vh-100px)] bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-6 font-['Figtree']">
+      <aside className="hidden md:flex flex-col w-72 shrink-0 sticky top-24 self-start max-h-[calc(100vh-120px)] bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-4 font-['Figtree']">
         {inner}
       </aside>
 
@@ -405,9 +376,17 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   const [urlParams] = useSearchParams();
   const initialSearch = urlParams.get('search') ?? '';
   const initialCategory = urlParams.get('category') ?? '';
+  const initialTopBooked = urlParams.get('is_top_booked') === 'true';
+  const initialItemType = urlParams.get('item_type') ?? '';
 
   /* ── Filter State ─────────────────────────────────────────── */
-  const [typeFilter,     setTypeFilter]     = useState<string[]>([]);
+  const [typeFilter,     setTypeFilter]     = useState<string[]>(() => {
+    const f = [];
+    if (initialTopBooked) f.push('Top Booked');
+    if (initialItemType === 'PACKAGE' || packagesOnly) f.push('Packages');
+    else if (initialItemType === 'TEST') f.push('Tests');
+    return f;
+  });
   const [mustHaveFilter, setMustHaveFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>(
     initialCategory ? [initialCategory] : (defaultCategory ? [defaultCategory] : [])
@@ -457,8 +436,30 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
         Array.from(new Set(cats)).forEach(c => p.append('category', c));
       }
 
-      // 2. Search
-      if (debSearchQuery) p.append('search', debSearchQuery);
+      // 2. Search & Must Have Tests
+      let combinedSearch = debSearchQuery;
+      if (debMust.length > 0) {
+        const mustKeywords = debMust.map(id => {
+            const item = MUST_HAVE_TESTS.find(t => t.id === id);
+            if (!item) return '';
+            // Extract the core test name, removing parentheticals and generic terms
+            // e.g. "Thyroid Profile (T3 T4 TSH) Test" -> "Thyroid T3 T4 TSH"
+            let k = item.label;
+            if (k.includes('(')) {
+                const main = k.split('(')[0].trim();
+                const paren = k.split('(')[1].split(')')[0].trim();
+                k = `${main} ${paren}`;
+            }
+            return k.replace(/Test|Count|Profile|Routine|Mapping|Pack|Electrolytes/gi, '').trim();
+        }).filter(Boolean);
+
+        if (mustKeywords.length > 0) {
+          // Join with OR logic (multiple tokens in backend search handle this)
+          const mustStr = mustKeywords.join(' ');
+          combinedSearch = combinedSearch ? `${combinedSearch} ${mustStr}` : mustStr;
+        }
+      }
+      if (combinedSearch) p.append('search', combinedSearch);
 
       // 3. Type filter
       if (packagesOnly || debType.includes('Packages')) p.append('item_type', 'PACKAGE');
@@ -555,7 +556,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   const hasBreadcrumb = !!breadcrumb;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-transparent">
 
       {/* ── Hero header ─────────────────────────────────────── */}
       <div
@@ -644,6 +645,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
           hideCategoryFilter={hideCategoryFilter}
           searchQuery={searchQuery}
           onSearchChange={v => { setSearchQuery(v); setPage(1); }}
+          toggle={(arr: string[], val: string) => arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]}
         />
 
         {/* Right pane */}
@@ -680,8 +682,8 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
 
           {/* Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 9 }).map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2">
+              {Array.from({ length: 12 }).map((_, i) => (
                 <MedSyncTestCardSkeleton key={i} />
               ))}
             </div>
@@ -701,11 +703,28 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
               </button>
             </div>
           ) : (
-            <div className="medsync-test-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {items.map(item => (
-                <MedSyncTestCard key={`${item.itemType ?? 'test'}-${item.id}`} item={item} />
-              ))}
-            </div>
+            <motion.div 
+              layout
+              className="medsync-test-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2"
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                {items.map((item, idx) => (
+                  <motion.div
+                    key={`${item.itemType ?? 'test'}-${item.id}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ 
+                      duration: 0.25, 
+                      delay: (idx % 12) * 0.03, // Small stagger
+                      ease: "easeOut"
+                    }}
+                  >
+                     <MedSyncTestCard item={item} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           )}
 
           {/* Pagination */}

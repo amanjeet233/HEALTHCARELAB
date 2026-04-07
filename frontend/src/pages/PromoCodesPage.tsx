@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaSearch, FaTag, FaFire, FaClock, FaTag as FaFilter, FaSpinner, FaCopy, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaSearch, FaTag, FaFire, FaClock, FaCopy, FaExternalLinkAlt } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { promoCodeService } from '../services/PromoCodeService';
+import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import type { PromoCode } from '../types/promo';
 import './PromoCodesPage.css';
 
@@ -48,14 +49,12 @@ const PromoCodesPage: React.FC = () => {
   const applyFilters = () => {
     let filtered = [...promoCodes];
 
-    // Filter by type
     if (filters.type !== 'all') {
       filtered = filtered.filter(
         (code) => code.discount_type.toLowerCase() === filters.type
       );
     }
 
-    // Filter by search query
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -65,7 +64,6 @@ const PromoCodesPage: React.FC = () => {
       );
     }
 
-    // Sort
     switch (filters.sortBy) {
       case 'discount':
         filtered.sort((a, b) => b.discount_value - a.discount_value);
@@ -122,7 +120,6 @@ const PromoCodesPage: React.FC = () => {
 
   return (
     <div className="promo-codes-page">
-      {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -138,20 +135,18 @@ const PromoCodesPage: React.FC = () => {
             </div>
             <div className="stat">
               <FaFire className="stat-icon" />
-              <span>Up to {Math.max(...promoCodes.map((p) => p.discount_value))}% OFF</span>
+              <span>Up to {promoCodes.length > 0 ? Math.max(...promoCodes.map((p) => p.discount_value)) : 0}% OFF</span>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Filters Section */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
         className="filters-section"
       >
-        {/* Search */}
         <div className="search-box">
           <FaSearch className="search-icon" />
           <input
@@ -165,7 +160,6 @@ const PromoCodesPage: React.FC = () => {
           />
         </div>
 
-        {/* Filter Options */}
         <div className="filter-options">
           <div className="filter-group">
             <label>Type</label>
@@ -210,12 +204,8 @@ const PromoCodesPage: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Promo Codes Grid */}
       {loading ? (
-        <div className="loading-container">
-          <FaSpinner className="spinner" />
-          <p>Loading promo codes...</p>
-        </div>
+        <GenericPageSkeleton />
       ) : filteredCodes.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="empty-state">
           <FaTag className="empty-icon" />
@@ -239,7 +229,6 @@ const PromoCodesPage: React.FC = () => {
                 setExpandedPromo(expandedPromo === promo.id ? null : promo.id)
               }
             >
-              {/* Card Header */}
               <div className="card-header">
                 <div className="discount-tag">
                   {getDiscountText(promo)}
@@ -249,12 +238,10 @@ const PromoCodesPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Card Body */}
               <div className="card-body">
                 <h3 className="promo-code">{promo.code}</h3>
                 <p className="promo-description">{promo.description}</p>
 
-                {/* Quick Info */}
                 <div className="quick-info">
                   {promo.min_cart_value && (
                     <div className="info-item">
@@ -270,7 +257,6 @@ const PromoCodesPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Copy Button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -286,7 +272,6 @@ const PromoCodesPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Expandable Details */}
               <motion.div
                 initial={false}
                 animate={{
@@ -356,7 +341,6 @@ const PromoCodesPage: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Footer */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

@@ -6,6 +6,7 @@ import ReportCard from '../components/reports/ReportCard';
 import ReportViewerModal from '../components/reports/ReportViewerModal';
 import ReportUploadModal from '../components/reports/ReportUploadModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import { notify } from '../utils/toast';
 import { useAuth } from '../hooks/useAuth';
 import './ReportsPage.css';
@@ -218,9 +219,7 @@ const ReportsPage: React.FC = () => {
 
             {/* RESULTS */}
             {isLoading ? (
-                <div className="loading-container">
-                    <LoadingSpinner size="lg" />
-                </div>
+                <GenericPageSkeleton />
             ) : filteredAndSorted.length === 0 ? (
                 <motion.div
                     initial={{ opacity: 0 }}

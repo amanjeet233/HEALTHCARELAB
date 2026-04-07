@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import org.springframework.data.domain.PageRequest;
 
 @RestController
 @RequestMapping("/api/lab-tests")
@@ -62,7 +64,7 @@ public class LabTestController {
 
         @GetMapping("/advanced")
         @Operation(summary = "Get tests advanced search", description = "Retrieve paginated tests with dynamic filtering and sorting")
-        public ResponseEntity<Map<String, Object>> getAdvancedTests(
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getAdvancedTests(
                 @RequestParam(required = false) String search,
                 @RequestParam(required = false) List<String> category,
                 @RequestParam(name = "sub_category", required = false) String subCategory,
@@ -78,7 +80,15 @@ public class LabTestController {
                     category, minPrice, maxPrice);
                 Map<String, Object> response = labTestService.getAdvancedSearchTests(
                     search, category, subCategory, isTopDeal, isTopBooked, minPrice, maxPrice, sortBy, page, limit);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(ApiResponse.success("Advanced search results retrieved", response));
+        }
+
+        @GetMapping("/packages/best-deals")
+        @Operation(summary = "Get best deal packages", description = "Retrieve top saving test packages")
+        public ResponseEntity<ApiResponse<List<TestPackage>>> getBestDeals() {
+                log.info("GET /api/lab-tests/packages/best-deals");
+                List<TestPackage> bestDeals = testPackageService.getBestDeals();
+                return ResponseEntity.ok(ApiResponse.success("Best deals retrieved successfully", bestDeals));
         }
 
         @GetMapping("/{id}")

@@ -137,6 +137,10 @@ public class TestPackageService {
         return testPackageRepository.findTopSavingPackages(PageRequest.of(0, limit));
     }
 
+    public List<TestPackage> getBestDeals() {
+        return testPackageRepository.findTopSavingPackages(PageRequest.of(0, 8));
+    }
+
     // ==================== Smart Recommendations ====================
 
     public List<TestPackage> getRecommendedPackages(User user) {

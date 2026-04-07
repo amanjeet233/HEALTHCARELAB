@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, Clock, User, AlertCircle } from 'lucide-react';
 import { consultationService, type Doctor, type TimeSlot } from '../../services/consultationService';
+import { GenericPageSkeleton } from '../../components/ui/PageSkeleton';
 import ConsultationBookingModal from './ConsultationBookingModal';
 import { notify } from '../../utils/toast';
 
@@ -53,15 +54,7 @@ const DoctorAvailabilitySection: React.FC = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="h-96 flex items-center justify-center">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-12 h-12 border-4 border-primary/10 border-t-primary rounded-full"
-                />
-            </div>
-        );
+        return <GenericPageSkeleton />;
     }
 
     return (

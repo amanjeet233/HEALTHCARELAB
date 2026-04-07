@@ -22,10 +22,16 @@ const UserDashboard = lazy(() => import('../components/dashboard/UserDashboard')
 const HomeCollectionProcess = lazy(() => import('../components/ui/HomeCollectionProcess'));
 const PromotionalOffersWidget = lazy(() => import('../components/dashboard/PromotionalOffersWidget'));
 
+import { Skeleton, SkeletonCircle, SkeletonText } from '../components/ui/Skeleton';
+
 // Skeleton Fallback for 3D/Heavy sections
-const SkeletonFallback = () => (
-    <div className="w-full h-full min-h-50 flex items-center justify-center bg-transparent">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-20" />
+const SkeletonFallback = ({ className = "h-40" }: { className?: string }) => (
+    <div className={`w-full ${className} bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-100 p-6 space-y-4`}>
+        <div className="flex justify-between items-center">
+            <SkeletonCircle className="w-12 h-12" />
+            <Skeleton className="w-24 h-4" />
+        </div>
+        <SkeletonText lines={2} />
     </div>
 );
 
@@ -139,7 +145,7 @@ const LandingPage: React.FC = () => {
                                 </div>
 
                                 {/* Categories Cards Grid */}
-                                <div className="bg-white rounded-[1.5rem] border border-gray-100 p-3 sm:p-4 shadow-sm relative z-20 pointer-events-auto max-w-2xl mx-auto lg:mx-0">
+                                <div className="bg-transparent rounded-[1.5rem] border border-gray-100 p-3 sm:p-4 shadow-sm relative z-20 pointer-events-auto max-w-2xl mx-auto lg:mx-0">
                                     <h2 className="text-sm sm:text-base font-bold text-gray-900 mb-3 text-left">Find tests & packages for your needs</h2>
 
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
@@ -246,7 +252,7 @@ const LandingPage: React.FC = () => {
                     <ExpertsSection />
                 </Suspense>
 
-                <section className="w-full py-4 lg:py-6 bg-white relative overflow-hidden my-3 lg:my-4 flex justify-center max-w-[1240px] mx-4 xl:mx-auto rounded-[1.5rem] shadow-sm border border-slate-100">
+                <section className="w-full py-4 lg:py-6 bg-transparent relative overflow-hidden my-3 lg:my-4 flex justify-center max-w-[1240px] mx-4 xl:mx-auto rounded-[1.5rem] shadow-sm border border-slate-100">
                     <div className="content-wrapper w-full grid lg:grid-cols-2 gap-8 lg:gap-12 items-center px-6 lg:px-8">
                         <div className="space-y-3 relative z-10 text-center lg:text-left flex flex-col items-center lg:items-start lg:pl-12 w-full">
                             <h2 className="text-lg md:text-xl lg:text-2xl font-black leading-tight tracking-tighter uppercase italic text-balance text-slate-800">

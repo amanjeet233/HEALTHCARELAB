@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaHeartbeat, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { healthScoreService, type HealthScore, type HealthMetric, type HealthTrend, type HealthRecommendation } from '../services/healthScoreService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import { notify } from '../utils/toast';
 
 const HealthInsightsPage: React.FC = () => {
@@ -81,11 +82,7 @@ const HealthInsightsPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FlaskConical } from 'lucide-react';
+import { Plus, FlaskConical, Droplets, Heart, Brain, Activity, Leaf, Bone, Shield, Zap, Baby } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import api from '../../services/api';
 

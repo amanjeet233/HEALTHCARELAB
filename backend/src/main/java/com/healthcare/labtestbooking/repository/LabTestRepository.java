@@ -79,4 +79,6 @@ public interface LabTestRepository extends JpaRepository<LabTest, Long>, JpaSpec
     List<LabTest> findByTestNameContainingIgnoreCaseAndIsActiveTrue(@Param("testName") String testName);
 
     Page<LabTest> findByIsTrendingTrue(Pageable pageable);
+
+    Page<LabTest> findByIsTrendingTrueAndIsPackageFalse(Pageable pageable);
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaMapMarkerAlt, FaPhone, FaEnvelope, FaStar } from 'react-icons/fa';
 import { labPartnerService, type LabPartner } from '../services/labPartnerService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import { notify } from '../utils/toast';
 
 const LabPartnerPage: React.FC = () => {
@@ -74,11 +75,7 @@ const LabPartnerPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (

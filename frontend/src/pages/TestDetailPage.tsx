@@ -9,6 +9,8 @@ import { notify } from '../utils/toast';
 import { getEnhancedTestDetails } from '../utils/testDetailsContent';
 import type { LabTestResponse, TestFAQ, LifestyleTip, CityPrice } from '../types/labTest';
 
+import { TestDetailPageSkeleton } from '../components/ui/PageSkeleton';
+
 const TestDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { slug } = useParams<{ slug: string }>();
@@ -76,16 +78,12 @@ const TestDetailPage: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
+        return <TestDetailPageSkeleton />;
     }
 
     if (!test) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-transparent">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4">Test not found</h2>
                     <button onClick={() => navigate('/tests')} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Back to Tests</button>
@@ -97,7 +95,7 @@ const TestDetailPage: React.FC = () => {
     return (
         <div className="test-detail-page">
             {/* Breadcrumbs */}
-            <div className="bg-white border-b border-gray-100">
+            <div className="bg-transparent border-b border-gray-100">
                 <div className="test-detail-container py-3">
                     <nav className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-500">
                         <button onClick={() => navigate('/')} className="hover:text-primary transition-colors">Home</button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus } from 'react-icons/fa';
 import { familyMemberService, type FamilyMemberRequest, type FamilyMemberResponse } from '../services/familyMemberService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import FamilyMemberCard from '../components/family/FamilyMemberCard';
 import FamilyMemberForm from '../components/family/FamilyMemberForm';
 import { notify } from '../utils/toast';
@@ -62,11 +63,7 @@ const FamilyMembersPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
