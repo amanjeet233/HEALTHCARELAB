@@ -4,6 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import PromoCodeInput from '@/components/payment/PromoCodeInput';
 import type { AppliedCoupon } from '@/types/promo';
+import { useAuth } from '@/hooks/useAuth';
+import { useModal } from '@/context/ModalContext';
+import { notify } from '@/utils/toast';
 import './CartPage.css';
 
 export default function CartPage() {
@@ -20,6 +23,8 @@ export default function CartPage() {
   } = useCart();
 
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { openAuthModal } = useModal();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [couponCode, setCouponCode] = useState('');
@@ -119,7 +124,7 @@ export default function CartPage() {
         {/* ✅ ERROR */}
         {error && (
           <div className="error-alert">
-            ❌ {error}
+            {error.toLowerCase().includes('locally') ? 'ℹ️' : '❌'} {error}
           </div>
         )}
 
@@ -255,12 +260,26 @@ export default function CartPage() {
 
             <button
               className="checkout-btn"
-              onClick={() => navigate('/booking', {
-                state: {
-                  cartItems: cart.items,
-                  total: cart.totalPrice
+              onClick={() => {
+                if (!isAuthenticated) {
+                  openAuthModal('login');
+                  return;
                 }
-              })}
+                const validItems = cart.items.filter((item) => {
+                  const id = item.testId ?? item.packageId;
+                  return Boolean(id) && Number(item.quantity || 0) > 0 && Number(item.price || 0) > 0;
+                });
+                if (validItems.length === 0) {
+                  notify.error('Cart updated locally. Please add a valid item to continue.');
+                  return;
+                }
+                navigate('/booking', {
+                  state: {
+                    cartItems: validItems,
+                    total: cart.totalPrice
+                  }
+                });
+              }}
             >
               📋 Proceed to Booking
             </button>

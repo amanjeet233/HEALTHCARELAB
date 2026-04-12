@@ -17,6 +17,8 @@ import AddressModal from '../components/profile/AddressModal';
 import GlassCard from '../components/common/GlassCard';
 import GlassButton from '../components/common/GlassButton';
 
+const LOCAL_ADDRESSES_KEY = 'healthlab.localAddresses';
+
 const AddressBookPage: React.FC = () => {
     const navigate = useNavigate();
     const [addresses, setAddresses] = useState<AddressDTO[]>([]);
@@ -25,11 +27,35 @@ const AddressBookPage: React.FC = () => {
     const [editingAddress, setEditingAddress] = useState<AddressDTO | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const getLocalAddresses = (): AddressDTO[] => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(LOCAL_ADDRESSES_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const persistLocalAddresses = (items: AddressDTO[]) => {
+        localStorage.setItem(LOCAL_ADDRESSES_KEY, JSON.stringify(items));
+    };
+
+    const mergeAddresses = (server: AddressDTO[], local: AddressDTO[]) => {
+        const merged = [...server];
+        local.forEach((addr) => {
+            if (!merged.some((s) => s.id === addr.id)) {
+                merged.push(addr);
+            }
+        });
+        return merged;
+    };
+
     const fetchAddresses = async () => {
         try {
             setLoading(true);
-            const data = await addressService.getAll();
-            setAddresses(data);
+            const local = getLocalAddresses();
+            const data = await addressService.getAll().catch(() => []);
+            setAddresses(mergeAddresses(data, local));
         } catch (error) {
             notify.error('Failed to load addresses.');
         } finally {
@@ -43,19 +69,40 @@ const AddressBookPage: React.FC = () => {
 
     const handleSave = async (address: AddressDTO) => {
         try {
-            await addressService.save(address);
+            const saved = await addressService.save(address);
             notify.success(address.id ? 'Address updated.' : 'Address added.');
+            const local = getLocalAddresses().filter((a) => a.id !== saved.id);
+            persistLocalAddresses(local);
             fetchAddresses();
         } catch (error) {
-            notify.error('Failed to save address.');
+            const localId = address.id ?? -Date.now();
+            const localAddress: AddressDTO = { ...address, id: localId };
+            const local = getLocalAddresses().filter((a) => a.id !== localId);
+            persistLocalAddresses([localAddress, ...local]);
+            setAddresses((prev) => {
+                const withoutSame = prev.filter((a) => a.id !== localId);
+                return [localAddress, ...withoutSame];
+            });
+            notify('Address saved locally.', { icon: '📍' });
+            setIsModalOpen(false);
+            setEditingAddress(null);
         }
     };
 
     const handleDelete = async (id: number) => {
         if (!window.confirm('Are you sure you want to delete this address?')) return;
         try {
+            if (id < 0) {
+                const local = getLocalAddresses().filter((a) => a.id !== id);
+                persistLocalAddresses(local);
+                setAddresses((prev) => prev.filter((a) => a.id !== id));
+                notify.success('Address deleted.');
+                return;
+            }
             await addressService.delete(id);
             notify.success('Address deleted.');
+            const local = getLocalAddresses().filter((a) => a.id !== id);
+            persistLocalAddresses(local);
             fetchAddresses();
         } catch (error) {
             notify.error('Failed to delete address.');
@@ -66,6 +113,13 @@ const AddressBookPage: React.FC = () => {
         const address = addresses.find(a => a.id === id);
         if (address) {
             try {
+                if (id < 0) {
+                    const updated = addresses.map((a) => ({ ...a, isDefault: a.id === id }));
+                    setAddresses(updated);
+                    persistLocalAddresses(updated.filter((a) => Number(a.id) < 0));
+                    notify.success(`${address.label} set as default address.`);
+                    return;
+                }
                 await addressService.save({ ...address, isDefault: true });
                 notify.success(`${address.label} set as default address.`);
                 fetchAddresses();

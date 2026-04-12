@@ -144,7 +144,13 @@ export default function TestsPage() {
     setCartSuccess(null);
 
     try {
-      await addTest(testId, 1);
+      const selected = tests.find((t) => t.id === testId);
+      await addTest(
+        testId,
+        selected?.testName || selected?.name || 'Test',
+        selected?.price || 0,
+        1
+      );
       setCartSuccess('✅ Added to cart!');
       setTimeout(() => setCartSuccess(null), 2000);
     } catch (err) { }
@@ -267,7 +273,7 @@ export default function TestsPage() {
                       isPackage: test.isPackage
                     }}
                     onViewDetails={(slug) => navigate(`/test/${slug}`)}
-                    onBook={() => navigate(`/checkout?testId=${test.id}`)}
+                    onBook={() => handleAddToCart(test.id)}
                   />
                 ))}
               </div>

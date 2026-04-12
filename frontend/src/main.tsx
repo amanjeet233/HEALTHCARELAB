@@ -9,6 +9,15 @@ import { initSentry } from './utils/sentry';
 // Initialize error tracking before React renders
 initSentry();
 
+// Prevent stale PWA cache/service-worker issues during local development.
+if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
+    });
+  }).catch(() => undefined);
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

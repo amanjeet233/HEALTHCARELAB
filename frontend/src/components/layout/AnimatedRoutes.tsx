@@ -6,6 +6,29 @@ import ProtectedRoute from './ProtectedRoute';
 import PageTransition from '../common/PageTransition';
 import LoadingSpinner from '../common/LoadingSpinner';
 
+const lazyWithRetry = <T extends React.ComponentType<any>>(
+  importer: () => Promise<{ default: T }>
+) =>
+  lazy(async () => {
+    try {
+      const module = await importer();
+      sessionStorage.removeItem('lazy-retry-triggered');
+      return module;
+    } catch (error) {
+      const message = String((error as Error)?.message || error);
+      const isDynamicImportFailure =
+        message.includes('Failed to fetch dynamically imported module') ||
+        message.includes('Importing a module script failed');
+
+      if (isDynamicImportFailure && !sessionStorage.getItem('lazy-retry-triggered')) {
+        sessionStorage.setItem('lazy-retry-triggered', '1');
+        window.location.reload();
+      }
+
+      throw error;
+    }
+  });
+
 // Lazy-loaded pages
 // Auth views are now handled via AuthModal
 const LandingPage = lazy(() => import('../../pages/LandingPage'));
@@ -14,8 +37,8 @@ const TestDetailPage = lazy(() => import('../../pages/TestDetailPage'));
 const CartPage = lazy(() => import('../../pages/CartPage'));
 const PackagesListingPage = lazy(() => import('../../pages/packages/PackagesListingPage'));
 const PackageDetailPage = lazy(() => import('../../pages/packages/PackageDetailPage'));
-const BookingPage = lazy(() => import('../../pages/BookingPage'));
-const MyBookingsPage = lazy(() => import('../../pages/MyBookingsPage'));
+const BookingPage = lazyWithRetry(() => import('../../pages/BookingPage'));
+const MyBookingsPage = lazyWithRetry(() => import('../../pages/MyBookingsPage'));
 const ReportsPage = lazy(() => import('../../pages/ReportsPage'));
 const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
@@ -34,6 +57,7 @@ const CategoryListingPage = lazy(() => import('../../pages/CategoryListingPage')
 const TestListingBySlugPage = lazy(() => import('../../pages/TestListingBySlugPage'));
 const WomenWellnessPage = lazy(() => import('../../pages/WomenWellnessPage'));
 const ScreeningsPage = lazy(() => import('../../pages/ScreeningsPage'));
+const LoginPage = lazy(() => import('../../pages/LoginPage'));
 
 import MainLayout from './MainLayout';
 
@@ -44,8 +68,8 @@ const AnimatedRoutes: React.FC = () => {
         <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background dark:bg-gray-900"><LoadingSpinner size="lg" /></div>}>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
-                    <Route path="/login" element={<Navigate to="/" replace />} />
-                    <Route path="/register" element={<Navigate to="/" replace />} />
+                    <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+                    <Route path="/register" element={<PageTransition><LoginPage /></PageTransition>} />
                     <Route path="/forgot-password" element={<Navigate to="/" replace />} />
                     <Route path="/reset-password" element={<Navigate to="/" replace />} />
 

@@ -135,6 +135,12 @@ public class CartService {
         TestPackage pkg = testPackageRepository.findById(Objects.requireNonNull(request.getPackageId(), "Package ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Package not found with ID: " + request.getPackageId()));
 
+        BigDecimal packagePrice = pkg.getDiscountedPrice() != null ? pkg.getDiscountedPrice() : pkg.getTotalPrice();
+        if (packagePrice == null || packagePrice.compareTo(BigDecimal.ZERO) == 0) {
+            packagePrice = BigDecimal.valueOf(199);
+        }
+        BigDecimal originalPackagePrice = pkg.getTotalPrice() != null ? pkg.getTotalPrice() : packagePrice;
+
         // Check if package already in cart
         if (cartItemRepository.findByCartIdAndPackageId(cart.getCartId(), request.getPackageId()).isPresent()) {
             throw new BadRequestException("This package is already in your cart");
@@ -149,8 +155,8 @@ public class CartService {
                 .itemCode(pkg.getPackageCode())
                 .description(pkg.getDescription())
                 .quantity(1) // Packages always quantity 1
-                .unitPrice(pkg.getDiscountedPrice() != null ? pkg.getDiscountedPrice() : pkg.getTotalPrice())
-                .originalPrice(pkg.getTotalPrice())
+                .unitPrice(packagePrice)
+                .originalPrice(originalPackagePrice)
                 .discountPercentage(pkg.getDiscountPercentage() != null ? pkg.getDiscountPercentage() : BigDecimal.ZERO)
                 .fastingRequired(pkg.getFastingRequired())
                 .turnaroundHours(pkg.getTurnaroundHours())

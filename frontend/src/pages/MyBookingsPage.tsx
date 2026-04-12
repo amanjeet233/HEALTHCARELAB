@@ -25,6 +25,8 @@ import GlassCard from '../components/common/GlassCard';
 import GlassButton from '../components/common/GlassButton';
 import './MyBookingsPage.css';
 
+const LOCAL_PENDING_BOOKINGS_KEY = 'healthlab.pendingBookings';
+
 const MyBookingsPage: React.FC = () => {
     const navigate = useNavigate();
 
@@ -48,6 +50,71 @@ const MyBookingsPage: React.FC = () => {
     const [rescheduleTime, setRescheduleTime] = useState('');
     const [bookingToReschedule, setBookingToReschedule] = useState<number | null>(null);
     const [isRescheduling, setIsRescheduling] = useState(false);
+
+    const getLocalPendingBookings = (): BookingResponse[] => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(LOCAL_PENDING_BOOKINGS_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const setLocalPendingBookings = (items: BookingResponse[]) => {
+        localStorage.setItem(LOCAL_PENDING_BOOKINGS_KEY, JSON.stringify(items));
+    };
+
+    const mergeWithLocalBookings = (
+        serverBookings: BookingResponse[],
+        statusFilter: string,
+        searchValue: string,
+        from: string,
+        to: string
+    ): BookingResponse[] => {
+        const localPending = getLocalPendingBookings();
+        const normalizedLocal = localPending.map((b: any) => ({
+            ...b,
+            id: Number(b.id),
+            bookingReference: b.bookingReference || b.reference || `LOCAL-${Math.abs(Number(b.id) || Date.now())}`,
+            reference: b.reference || b.bookingReference,
+            testName: b.testName || b.labTestName || b.packageName || 'Diagnostic Test',
+            collectionDate: b.collectionDate || b.bookingDate,
+            bookingDate: b.bookingDate || b.collectionDate,
+            status: (b.status || 'PENDING_CONFIRMATION') as BookingStatus
+        })) as BookingResponse[];
+
+        const seenIds = new Set((serverBookings || []).map((b) => Number(b.id)));
+        let merged = [...(serverBookings || []), ...normalizedLocal.filter((b) => !seenIds.has(Number(b.id)))];
+
+        if (statusFilter !== 'All') {
+            const expected = statusFilter.toUpperCase();
+            merged = merged.filter((b) => String(b.status || '').toUpperCase() === expected);
+        }
+
+        const term = searchValue.trim().toLowerCase();
+        if (term) {
+            merged = merged.filter((b) =>
+                String(b.bookingReference || b.reference || '').toLowerCase().includes(term) ||
+                String(b.testName || b.packageName || '').toLowerCase().includes(term)
+            );
+        }
+
+        if (from) {
+            merged = merged.filter((b) => {
+                const d = b.bookingDate || b.collectionDate || '';
+                return !d || d >= from;
+            });
+        }
+
+        if (to) {
+            merged = merged.filter((b) => {
+                const d = b.bookingDate || b.collectionDate || '';
+                return !d || d <= to;
+            });
+        }
+
+        return merged;
+    };
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -81,12 +148,15 @@ const MyBookingsPage: React.FC = () => {
                 }
 
                 const response = await bookingService.getMyBookings(params);
-                // Based on BookingPageResponse, it's 'content' not 'bookings'
-                setBookings((response as any).content || []);
+                const serverList = ((response as any).content || []) as BookingResponse[];
+                setBookings(mergeWithLocalBookings(serverList, activeTab, debouncedSearch, fromDate, toDate));
                 setTotalPages(response.totalPages || 1);
             } catch (error) {
                 console.error(error);
-                notify.error('Failed to load bookings.');
+                // Keep offline/local pending bookings visible even when server fails.
+                setBookings(mergeWithLocalBookings([], activeTab, debouncedSearch, fromDate, toDate));
+                setTotalPages(1);
+                notify.error('Could not load server bookings. Showing local bookings.');
             } finally {
                 setIsLoading(false);
             }
@@ -114,12 +184,22 @@ const MyBookingsPage: React.FC = () => {
         if (!bookingToCancel) return;
         setIsCanceling(true);
         try {
+            if (Number(bookingToCancel) < 0) {
+                const localItems = getLocalPendingBookings().filter((b) => Number(b.id) !== Number(bookingToCancel));
+                setLocalPendingBookings(localItems);
+                setBookings((prev) => prev.filter((b) => Number(b.id) !== Number(bookingToCancel)));
+                notify.success('Local booking removed.');
+                setCancelModalVisible(false);
+                setBookingToCancel(null);
+                return;
+            }
             await bookingService.cancelBooking(bookingToCancel);
             notify.success('Booking cancelled successfully.');
             setCancelModalVisible(false);
             setBookingToCancel(null);
             const response = await bookingService.getMyBookings({ page: 0, size: 20 });
-            setBookings((response as any).content || []);
+            const serverList = ((response as any).content || []) as BookingResponse[];
+            setBookings(mergeWithLocalBookings(serverList, activeTab, debouncedSearch, fromDate, toDate));
         } catch (error) {
             console.error(error);
             notify.error('Failed to cancel booking.');
@@ -132,6 +212,28 @@ const MyBookingsPage: React.FC = () => {
         if (!bookingToReschedule || !rescheduleDate || !rescheduleTime) return;
         setIsRescheduling(true);
         try {
+            if (Number(bookingToReschedule) < 0) {
+                const localItems = getLocalPendingBookings();
+                const updated = localItems.map((b) =>
+                    Number(b.id) === Number(bookingToReschedule)
+                        ? { ...b, bookingDate: rescheduleDate, collectionDate: rescheduleDate, timeSlot: rescheduleTime, scheduledTime: rescheduleTime }
+                        : b
+                );
+                setLocalPendingBookings(updated as BookingResponse[]);
+                setBookings((prev) =>
+                    prev.map((b) =>
+                        Number(b.id) === Number(bookingToReschedule)
+                            ? { ...b, bookingDate: rescheduleDate, collectionDate: rescheduleDate, timeSlot: rescheduleTime, scheduledTime: rescheduleTime }
+                            : b
+                    )
+                );
+                notify.success('Local booking rescheduled.');
+                setRescheduleModalVisible(false);
+                setBookingToReschedule(null);
+                setRescheduleDate('');
+                setRescheduleTime('');
+                return;
+            }
             await bookingService.rescheduleBooking(bookingToReschedule, rescheduleDate, rescheduleTime);
             notify.success('Booking rescheduled successfully.');
             setRescheduleModalVisible(false);
@@ -139,7 +241,8 @@ const MyBookingsPage: React.FC = () => {
             setRescheduleDate('');
             setRescheduleTime('');
             const response = await bookingService.getMyBookings({ page: 0, size: 20 });
-            setBookings((response as any).content || []);
+            const serverList = ((response as any).content || []) as BookingResponse[];
+            setBookings(mergeWithLocalBookings(serverList, activeTab, debouncedSearch, fromDate, toDate));
         } catch (error) {
             console.error(error);
             notify.error('Failed to reschedule booking.');
@@ -298,7 +401,7 @@ const MyBookingsPage: React.FC = () => {
                                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">REF: {booking.bookingReference}</span>
                                                             </div>
                                                             <h3 className="text-[clamp(1.05rem,0.94rem+0.6vw,1.5rem)] font-black text-[#164E63] tracking-tight group-hover:text-cyan-600 transition-colors uppercase leading-tight mb-2">
-                                                                {booking.testName}
+                                                                {booking.testName || booking.packageName || 'Diagnostic Test'}
                                                             </h3>
                                                         </div>
                                                         <div className="text-right">

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { FaFilter, FaSearch, FaTimes } from 'react-icons/fa'
 import { IndividualTestCard } from '@/components/IndividualTestCard'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { useCart } from '@/hooks/useCart'
 import './IndividualTestsPage.css'
 
 interface Test {
@@ -37,6 +38,8 @@ interface ApiResponse {
 
 export default function IndividualTestsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { addTest } = useCart()
   
   // State
   const [tests, setTests] = useState<Test[]>([])
@@ -275,7 +278,14 @@ export default function IndividualTestsPage() {
                       isPackage: test.isPackage || test.categoryName === 'PACKAGE'
                     }}
                     onViewDetails={(slug) => navigate(`/test/${slug}`)}
-                    onBook={() => navigate(`/checkout?testId=${test.id}`)}
+                    onBook={async () => {
+                      await addTest(
+                        test.id,
+                        test.testName || 'Test',
+                        Number(test.price || 0),
+                        1
+                      )
+                    }}
                   />
                 ))}
               </div>

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BookingResponse } from '../types/booking';
 import toast from 'react-hot-toast';
+import { downloadPDF, generateBookingReceipt, generateLabReport, sendPDFViaEmail } from '../utils/pdfGenerator';
 
 interface DownloadOptions {
   includeReport?: boolean;
@@ -18,8 +19,10 @@ export const useDownloadBooking = () => {
   const downloadReceipt = useCallback(async (booking: BookingResponse) => {
     setIsDownloading(true);
     try {
-      // Stub function - PDF download not yet implemented
-      toast.success(`✅ Receipt ready for download: ${booking.bookingReference}`);
+      const receiptPdf = generateBookingReceipt(booking);
+      const filename = `receipt-${booking.bookingReference || booking.id}.pdf`;
+      downloadPDF(receiptPdf, filename);
+      toast.success(`Receipt downloaded: ${filename}`);
     } catch (error) {
       console.error('❌ Download failed:', error);
       toast.error('Failed to download receipt. Please try again.');
@@ -35,8 +38,10 @@ export const useDownloadBooking = () => {
   const downloadReport = useCallback(async (booking: BookingResponse, results?: Record<string, any>) => {
     setIsDownloading(true);
     try {
-      // Stub function - PDF download not yet implemented
-      toast.success(`✅ Report ready for download: ${booking.bookingReference}`);
+      const reportPdf = generateLabReport(booking, results);
+      const filename = `report-${booking.bookingReference || booking.id}.pdf`;
+      downloadPDF(reportPdf, filename);
+      toast.success(`Report downloaded: ${filename}`);
     } catch (error) {
       console.error('❌ Download failed:', error);
       toast.error('Failed to download report. Please try again.');
@@ -52,8 +57,13 @@ export const useDownloadBooking = () => {
   const downloadBoth = useCallback(async (booking: BookingResponse, results?: Record<string, any>) => {
     setIsDownloading(true);
     try {
-      // Stub function - PDF download not yet implemented
-      toast.success(`✅ All documents ready for download!`);
+      const receiptPdf = generateBookingReceipt(booking);
+      const reportPdf = generateLabReport(booking, results);
+      downloadPDF(receiptPdf, `receipt-${booking.bookingReference || booking.id}.pdf`);
+      setTimeout(() => {
+        downloadPDF(reportPdf, `report-${booking.bookingReference || booking.id}.pdf`);
+      }, 150);
+      toast.success('Receipt and report downloaded.');
     } catch (error) {
       console.error('❌ Download failed:', error);
       toast.error('Failed to download documents. Please try again.');
@@ -77,8 +87,15 @@ export const useDownloadBooking = () => {
         return;
       }
 
-      // Stub function - Email not yet implemented
-      toast.success(`✅ Receipt will be sent to ${email}`);
+      const receiptPdf = generateBookingReceipt(booking);
+      const sent = await sendPDFViaEmail(
+        email,
+        `Booking Receipt - ${booking.bookingReference || booking.id}`,
+        receiptPdf,
+        `receipt-${booking.bookingReference || booking.id}.pdf`
+      );
+      if (sent) toast.success(`Receipt sent to ${email}`);
+      else toast.error('Failed to send receipt via email.');
     } catch (error) {
       console.error('❌ Email send failed:', error);
       toast.error('Failed to send receipt via email.');
@@ -102,8 +119,15 @@ export const useDownloadBooking = () => {
         return;
       }
 
-      // Stub function - Email not yet implemented
-      toast.success(`✅ Report will be sent to ${email}`);
+      const reportPdf = generateLabReport(booking, results);
+      const sent = await sendPDFViaEmail(
+        email,
+        `Lab Report - ${booking.bookingReference || booking.id}`,
+        reportPdf,
+        `report-${booking.bookingReference || booking.id}.pdf`
+      );
+      if (sent) toast.success(`Report sent to ${email}`);
+      else toast.error('Failed to send report via email.');
     } catch (error) {
       console.error('❌ Email send failed:', error);
       toast.error('Failed to send report via email.');

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, ChevronDown, ChevronUp, Droplet, AlertCircle, Wallet, CalendarCheck } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
-import { useAuth } from '../hooks/useAuth';
-import { useModal } from '../context/ModalContext';
 import { notify } from '../utils/toast';
 import { getEnhancedTestDetails } from '../utils/testDetailsContent';
 import { getApiErrorMessage } from '../utils/getApiErrorMessage';
@@ -12,8 +10,6 @@ import type { LabTestResponse, TestFAQ, LifestyleTip, CityPrice } from '../types
 const TestDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { slug } = useParams<{ slug: string }>();
-    const { isAuthenticated } = useAuth();
-    const { openAuthModal } = useModal();
     const { addTest } = useCart();
 
     // State
@@ -60,11 +56,6 @@ const TestDetailPage: React.FC = () => {
     const handleAddToCart = async () => {
         if (isAddingToCart) return;
 
-        if (!isAuthenticated) {
-            openAuthModal('login');
-            return;
-        }
-
         if (!test) return;
 
         setIsAddingToCart(true);
@@ -87,16 +78,23 @@ const TestDetailPage: React.FC = () => {
     const handleBookNow = async () => {
         if (isAddingToCart) return;
 
-        if (!isAuthenticated) {
-            openAuthModal('login');
-            return;
-        }
         if (!test) return;
         setIsAddingToCart(true);
         try {
             await addTest(test.id, test.testName || test.name || 'Test', test.price, 1);
             notify.success(`✓ ${test.testName || test.name} added to cart!`);
-            navigate('/cart');
+            navigate('/booking', {
+                state: {
+                    cartItems: [{
+                        testId: test.id,
+                        testName: test.testName || test.name || 'Test',
+                        name: test.testName || test.name || 'Test',
+                        quantity: 1,
+                        price: test.price
+                    }],
+                    total: test.price
+                }
+            });
         } catch (error: unknown) {
             const apiError = error as { response?: { status: number } };
             if (apiError?.response?.status === 401) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock, ChevronRight, Activity, Star, Zap } from 'lucide-react';
 import { TestCard } from '../TestCard';
+import { useCart } from '../../hooks/useCart';
 
 /* ─── Data Types ────────────────────────────────────────────────── */
 interface WellnessTest {
@@ -121,6 +122,7 @@ const PremiumWellnessPackage: React.FC = () => {
 /* ─── Main Section ──────────────────────────────────────────────── */
 const WomenWellnessSpecifics: React.FC = () => {
   const navigate = useNavigate();
+  const { addTest } = useCart();
 
   return (
     <div className="w-full flex flex-col gap-10 py-8">
@@ -154,7 +156,9 @@ const WomenWellnessSpecifics: React.FC = () => {
                   isTopDeal: false
                 }}
                 onViewDetails={(slug) => navigate(`/test/${slug}`)}
-                onBook={() => navigate(`/checkout?testId=${test.id}`)}
+                onBook={async () => {
+                  await addTest(test.id, test.name, test.price, 1);
+                }}
               />
             </div>
           ))}

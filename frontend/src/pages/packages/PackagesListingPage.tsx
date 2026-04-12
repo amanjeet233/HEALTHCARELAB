@@ -360,7 +360,6 @@ const PackagesListingPage: React.FC = () => {
                                                                 if(!inCart) {
                                                                   await addPackage(Number(pkg.id), pkg.packageName, pkg.discountedPrice);
                                                                 }
-                                                                navigate('/cart');
                                                               } catch (error: any) {
                                                                 notify.error(getApiErrorMessage(error, 'Failed to add package to cart'));
                                                               }

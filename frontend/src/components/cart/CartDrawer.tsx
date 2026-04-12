@@ -3,14 +3,37 @@ import { ShoppingCart, X, Trash2, Plus, Minus, ChevronRight, Activity } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useCartContext } from '../../context/CartContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useModal } from '../../context/ModalContext';
+import { notify } from '../../utils/toast';
 
 const CartDrawer: React.FC = () => {
   const { cart, isCartOpen, setIsCartOpen, removeItem, updateQuantity, clearCart } = useCartContext();
+  const { isAuthenticated } = useAuth();
+  const { openAuthModal } = useModal();
   const navigate = useNavigate();
 
   const handleCheckout = () => {
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    const items = cart?.items ?? [];
+    const hasValidItems = items.some((item) => {
+      const id = item.testId ?? item.packageId;
+      return Boolean(id) && Number(item.quantity || 0) > 0 && Number(item.price || 0) > 0;
+    });
+    if (!hasValidItems) {
+      notify.error('Cart updated locally. Please add a valid item to continue.');
+      return;
+    }
     setIsCartOpen(false);
-    navigate('/checkout'); // Or '/cart'
+    navigate('/booking', {
+      state: {
+        cartItems: items,
+        total: cart?.totalPrice ?? cart?.subtotal ?? 0
+      }
+    });
   };
 
   return (

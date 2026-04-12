@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TestCard, TestCardSkeleton } from '../TestCard';
+import { useCart } from '../../hooks/useCart';
+import { notify } from '../../utils/toast';
 
 export interface MedSyncTestCardData {
   id: number;
@@ -51,9 +53,28 @@ const toSafeNumber = (value: unknown, fallback = 0): number => {
 
 const MedSyncTestCard: React.FC<{ item: MedSyncTestCardData; variant?: 'default' | 'small' }> = ({ item, variant = 'default' }) => {
   const navigate = useNavigate();
+  const { addPackage, addTest, isInCart } = useCart();
 
-  const handleBook = (testId: number) => {
-    // Legacy route
+  const handleBook = async () => {
+    const id = toSafeNumber(item.id, 0);
+    if (!id) return;
+
+    if (mappedTest.isPackage) {
+      const alreadyInCart = isInCart(undefined, id);
+      if (alreadyInCart) {
+        notify.success('Already in cart');
+        return;
+      }
+      await addPackage(id, mappedTest.name, mappedTest.price);
+      return;
+    }
+
+    const alreadyInCart = isInCart(id, undefined);
+    if (alreadyInCart) {
+      notify.success('Already in cart');
+      return;
+    }
+    await addTest(id, mappedTest.name, mappedTest.price, 1);
   };
 
   // Convert MedSyncTestCardData to TestCardProps's expected test format

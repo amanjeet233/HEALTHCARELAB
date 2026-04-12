@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TestCard } from '../TestCard';
 import api from '../../services/api';
+import { useCart } from '../../hooks/useCart';
 
 interface Test {
   id: number;
@@ -39,6 +40,7 @@ const TopBookedTests: React.FC = () => {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { addTest } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isHovered = useRef(false);
 
@@ -165,7 +167,14 @@ const TopBookedTests: React.FC = () => {
                       isPackage: test.isPackage
                     }}
                     onViewDetails={(slug) => navigate(`/test/${slug}`)}
-                    onBook={() => navigate(`/checkout?testId=${test.id}`)}
+                    onBook={async () => {
+                      await addTest(
+                        test.id,
+                        test.testName || test.name || 'Test',
+                        Number(test.price || 0),
+                        1
+                      );
+                    }}
                   />
                 </div>
               ))

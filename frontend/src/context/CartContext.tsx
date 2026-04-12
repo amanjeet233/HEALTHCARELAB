@@ -99,6 +99,11 @@ const normalizeCart = (raw: any): CartResponse | null => {
   };
 };
 
+const hasAuthToken = (): boolean => {
+  const token = localStorage.getItem('token');
+  return typeof token === 'string' && token.trim().length > 0;
+};
+
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,6 +130,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Keep cache aligned with in-memory cart on every state transition.
+  useEffect(() => {
+    syncToLocalStorage(cart);
+  }, [cart]);
+
   const fetchCart = useCallback(async () => {
     setLoading(true);
     try {
@@ -132,6 +142,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const cartData = normalizeCart(response.data.data);
       setCart(cartData);
       syncToLocalStorage(cartData);
+      setError(null);
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         // Unauthenticated means fallback to pure offline cart behaviour (LocalStorage keeps state)
@@ -139,7 +150,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Actually offline-first means we handle updates purely in JS until checkout if auth fails.
         console.warn("Unauthenticated. Using LocalStorage offline cart.");
       } else {
-        setError('Failed to load cart');
+        setError('Cart updated locally');
       }
     } finally {
       setLoading(false);
@@ -194,9 +205,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCart(cartData);
       syncToLocalStorage(cartData);
       setIsCartOpen(true);
+      setError(null);
       toast.success(`${name} added to cart!`, { duration: 2000 });
     } catch (err: any) {
       const status = err?.response?.status;
+      const message = String(err?.response?.data?.message || err?.message || '').toLowerCase();
+      const isAuthCancel = err?.code === 'ERR_CANCELED' || String(err?.message || '').toLowerCase().includes('logging out');
+      const looksLikeAuthState = !hasAuthToken() || message.includes('unauthorized') || message.includes('forbidden') || message.includes('jwt') || message.includes('token');
       if (status === 401 || status === 403) {
         // Unauthenticated -> offline cart
         processOfflineAdd(testId, 'test', name, price, quantity);
@@ -205,6 +220,15 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           duration: 3000,
           style: { background: '#1E293B', color: '#fff' }
         });
+      } else if (isAuthCancel) {
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Login required. Item saved locally.', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (status === 400 && (message.includes('not found') || message.includes('invalid') || message.includes('must not be null'))) {
+        toast.error('Invalid test ID. Please refresh and try again.');
       } else if (status === 404) {
         // Test not found in DB -> still add to offline cart with a note
         processOfflineAdd(testId, 'test', name, price, quantity);
@@ -213,10 +237,24 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           duration: 3000,
           style: { background: '#92400E', color: '#fff' }
         });
-      } else if (status === 503 || !status) {
+      } else if (status === 503) {
         // Backend down -> offline cart fallback, NO error thrown
         processOfflineAdd(testId, 'test', name, price, quantity);
-        toast('Server offline. Item saved locally.', {
+        toast('Cart updated locally.', {
+          icon: '📥',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (!status && looksLikeAuthState) {
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Login required. Item saved locally.', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (!status) {
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Cart updated locally.', {
           icon: '📥',
           duration: 3000,
           style: { background: '#1E293B', color: '#fff' }
@@ -236,8 +274,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCart(normalized);
       syncToLocalStorage(normalized);
       setIsCartOpen(true);
+      setError(null);
+      toast.success(`${name} added to cart!`, { duration: 2000 });
     } catch (err: any) {
       const status = err?.response?.status;
+      const message = String(err?.response?.data?.message || err?.message || '').toLowerCase();
+      const isAuthCancel = err?.code === 'ERR_CANCELED' || String(err?.message || '').toLowerCase().includes('logging out');
+      const looksLikeAuthState = !hasAuthToken() || message.includes('unauthorized') || message.includes('forbidden') || message.includes('jwt') || message.includes('token');
       if (status === 401 || status === 403) {
         processOfflineAdd(packageId, 'package', name, price, 1);
         toast('Login to save your cart', {
@@ -245,10 +288,25 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           duration: 3000,
           style: { background: '#1E293B', color: '#fff' }
         });
+      } else if (isAuthCancel) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Login required. Package saved locally.', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
       } else if (status === 400) {
-        // Package may already be in cart on backend; sync and open cart.
-        await fetchCart();
-        setIsCartOpen(true);
+        if (message.includes('already')) {
+          // Package already in cart on backend; sync and open cart.
+          await fetchCart();
+          setIsCartOpen(true);
+          toast('Package already in cart.', { duration: 2000 });
+        } else if (message.includes('not found') || message.includes('invalid') || message.includes('must not be null')) {
+          toast.error('Invalid package ID. Please refresh and try again.');
+        } else {
+          processOfflineAdd(packageId, 'package', name, price, 1);
+          toast('Added to local cart.', { duration: 2000 });
+        }
       } else if (status === 404) {
         processOfflineAdd(packageId, 'package', name, price, 1);
         toast('Added to local cart. Package sync pending.', {
@@ -256,9 +314,22 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           duration: 3000,
           style: { background: '#92400E', color: '#fff' }
         });
-      } else if (status === 503 || !status) {
+      } else if (status === 503) {
         processOfflineAdd(packageId, 'package', name, price, 1);
-        toast('Server offline. Package saved locally.', {
+        toast('Cart updated locally.', {
+          icon: '📥', duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (!status && looksLikeAuthState) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Login required. Package saved locally.', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (!status) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Cart updated locally.', {
           icon: '📥', duration: 3000,
           style: { background: '#1E293B', color: '#fff' }
         });
@@ -275,6 +346,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const normalized = normalizeCart(response.data.data);
       setCart(normalized);
       syncToLocalStorage(normalized);
+      setError(null);
     } catch (err: any) {
       // Offline fallback
       if (cart) {
@@ -295,6 +367,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const normalized = normalizeCart(response.data.data);
       setCart(normalized);
       syncToLocalStorage(normalized);
+      setError(null);
     } catch (err: any) {
          if (cart) {
           const newCart = { ...cart };
@@ -317,6 +390,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await api.delete('/api/cart/clear');
       setCart(null);
       syncToLocalStorage(null);
+      setError(null);
     } catch (err: any) {
       setCart(null);
       syncToLocalStorage(null);

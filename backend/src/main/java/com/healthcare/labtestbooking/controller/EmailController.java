@@ -130,19 +130,9 @@ public class EmailController {
                 return ResponseEntity.badRequest().body(createErrorResponse("bookingId is required"));
             }
 
-            BookingResponse booking = bookingService.getBookingById(request.getBookingId());
-            String email = getCurrentUserEmail();
-            String bookingReference = booking.getBookingReference() != null ? booking.getBookingReference() : ("BK-" + booking.getId());
-            String itemName = booking.getPackageName() != null ? booking.getPackageName()
-                    : booking.getLabTestName() != null ? booking.getLabTestName() : "HealthcareLab Booking";
-            emailService.sendSimpleEmail(
-                    email,
-                    "Booking Confirmed - " + bookingReference,
-                    "Your booking for " + itemName + " is confirmed on " + booking.getBookingDate() + " at " + booking.getTimeSlot()
-                            + ". Amount paid: ₹" + (booking.getAmount() != null ? booking.getAmount() : booking.getFinalAmount()) + "."
-            );
-
-            return ResponseEntity.ok(createSuccessResponse("Booking confirmation email triggered"));
+            String fallbackEmail = getCurrentUserEmail();
+            emailService.sendBookingConfirmationAsync(request.getBookingId(), fallbackEmail);
+            return ResponseEntity.accepted().body(createSuccessResponse("Booking confirmation queued"));
         } catch (Exception e) {
             log.error("❌ Failed to trigger booking confirmation email", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 
 // ✅ Use correct base URL - NO /api suffix, endpoints will have /api
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+    // Prefer same-origin/proxy in dev to avoid CORS/network issues on cart actions.
+    baseURL: import.meta.env.VITE_API_BASE_URL || '',
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
@@ -70,7 +71,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 
     try {
         const response = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/refresh-token`,
+            `${import.meta.env.VITE_API_BASE_URL || ''}/api/auth/refresh-token`,
             { refreshToken }
         );
         const newToken = response.data?.data?.accessToken || response.data?.accessToken;
