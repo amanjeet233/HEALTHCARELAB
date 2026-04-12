@@ -8,15 +8,21 @@ import RegisterForm from '../components/auth/RegisterForm';
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, currentUser } = useAuth();
 
     const [activeTab, setActiveTab] = useState<'login' | 'register'>(
         location.pathname.includes('register') ? 'register' : 'login'
     );
 
     useEffect(() => {
-        if (isAuthenticated) navigate('/profile', { replace: true });
-    }, [isAuthenticated, navigate]);
+        if (isAuthenticated && currentUser) {
+            const role = currentUser.role;
+            if (role === 'ADMIN') navigate('/admin', { replace: true });
+            else if (role === 'TECHNICIAN') navigate('/technician', { replace: true });
+            else if (role === 'MEDICAL_OFFICER') navigate('/medical-officer', { replace: true });
+            else navigate('/', { replace: true });
+        }
+    }, [isAuthenticated, currentUser, navigate]);
 
     useEffect(() => {
         setActiveTab(location.pathname.includes('register') ? 'register' : 'login');
