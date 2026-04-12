@@ -43,6 +43,9 @@ public class FamilyMemberService {
                 .dateOfBirth(request.getDateOfBirth())
                 .gender(request.getGender())
                 .bloodGroup(request.getBloodGroup())
+                .phoneNumber(request.getPhoneNumber())
+                .email(request.getEmail())
+                .medicalHistory(request.getMedicalHistory())
                 .build();
                 
         familyMember = familyMemberRepository.save(Objects.requireNonNull(familyMember, "FamilyMember must not be null"));
@@ -55,6 +58,29 @@ public class FamilyMemberService {
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public FamilyMemberResponse updateFamilyMember(Long id, FamilyMemberRequest request) {
+        User currentUser = getCurrentUser();
+        FamilyMember familyMember = familyMemberRepository.findById(Objects.requireNonNull(id, "Family member ID must not be null"))
+                .orElseThrow(() -> new RuntimeException("Family member not found"));
+
+        if (!familyMember.getPatient().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("You do not have permission to update this family member");
+        }
+
+        familyMember.setName(request.getName());
+        familyMember.setRelation(request.getRelation());
+        familyMember.setDateOfBirth(request.getDateOfBirth());
+        familyMember.setGender(request.getGender());
+        familyMember.setBloodGroup(request.getBloodGroup());
+        familyMember.setPhoneNumber(request.getPhoneNumber());
+        familyMember.setEmail(request.getEmail());
+        familyMember.setMedicalHistory(request.getMedicalHistory());
+
+        familyMember = familyMemberRepository.save(familyMember);
+        return mapToResponse(familyMember);
     }
 
     @Transactional
@@ -78,6 +104,9 @@ public class FamilyMemberService {
                 .dateOfBirth(familyMember.getDateOfBirth())
                 .gender(familyMember.getGender())
                 .bloodGroup(familyMember.getBloodGroup())
+                .phoneNumber(familyMember.getPhoneNumber())
+                .email(familyMember.getEmail())
+                .medicalHistory(familyMember.getMedicalHistory())
                 .patientId(familyMember.getPatient().getId())
                 .build();
     }

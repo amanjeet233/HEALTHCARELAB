@@ -141,6 +141,55 @@ public class EmailService {
         sendSimpleEmail(toEmail, subject, body);
     }
 
+    public void sendBookingConfirmationHtml(
+            String toEmail,
+            String userName,
+            String confirmationNumber,
+            String itemName,
+            String appointmentDate,
+            String appointmentTime,
+            String collectionAddress,
+            String paymentMethod,
+            String amount
+    ) {
+        String subject = "Booking Confirmed - " + confirmationNumber;
+        String body = """
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;padding:24px;">
+                  <div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;">
+                    <div style="background:#2E75B6;color:white;padding:24px;text-align:center;">
+                      <h1 style="margin:0;">Booking Confirmed</h1>
+                    </div>
+                    <div style="padding:24px;color:#1f2937;">
+                      <p>Hi <strong>%s</strong>,</p>
+                      <p>Your HealthcareLab booking has been confirmed.</p>
+                      <table style="width:100%%;border-collapse:collapse;">
+                        <tr><td style="padding:8px 0;color:#6b7280;">Confirmation</td><td style="padding:8px 0;text-align:right;"><strong>%s</strong></td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Package / Test</td><td style="padding:8px 0;text-align:right;"><strong>%s</strong></td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Date</td><td style="padding:8px 0;text-align:right;">%s</td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Time</td><td style="padding:8px 0;text-align:right;">%s</td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Address</td><td style="padding:8px 0;text-align:right;">%s</td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Payment Method</td><td style="padding:8px 0;text-align:right;">%s</td></tr>
+                        <tr><td style="padding:8px 0;color:#6b7280;">Amount Paid</td><td style="padding:8px 0;text-align:right;"><strong>%s</strong></td></tr>
+                      </table>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(
+                userName,
+                confirmationNumber,
+                itemName,
+                appointmentDate,
+                appointmentTime,
+                collectionAddress,
+                paymentMethod,
+                amount
+        );
+        sendEmailWithAttachment(toEmail, subject, body, "", "ignore.txt");
+    }
+
     /**
      * ✅ SEND LAB REPORT EMAIL
      */

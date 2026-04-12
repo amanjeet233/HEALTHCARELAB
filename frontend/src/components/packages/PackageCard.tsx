@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FaFlask, FaTag, FaChevronRight, FaPercentage } from 'react-icons/fa';
+import { Package, Receipt, Star, ChevronRight, Activity } from 'lucide-react';
 import type { TestPackageResponse } from '../../services/packageService';
 
 interface PackageCardProps {
@@ -16,105 +16,107 @@ const PackageCard: React.FC<PackageCardProps> = ({ pkg, onViewDetails, onBookNow
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08, duration: 0.4 }}
-            className="group relative bg-white rounded-[2rem] border-2 border-primary/5 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden cursor-pointer"
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+            className="group relative bg-white rounded-2xl border border-slate-100 hover:border-teal-500/30 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-300 overflow-hidden cursor-pointer flex flex-col h-full"
             onClick={() => onViewDetails(pkg)}
         >
-            {/* Savings Badge */}
+            {/* Glassmorphism Savings Badge */}
             {hasSavings && (
-                <div className="absolute top-6 right-6 z-10">
-                    <div className="bg-secondary text-white px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-secondary/30">
-                        <FaPercentage className="text-[10px]" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Save ₹{pkg.savings.toFixed(0)}</span>
+                <div className="absolute top-3 right-3 z-10">
+                    <div className="backdrop-blur-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3 h-3 fill-emerald-600" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Save ₹{pkg.savings.toFixed(0)}</span>
                     </div>
                 </div>
             )}
 
-            {/* Header */}
-            <div className="p-8 pb-0 space-y-5">
-                <div className="flex items-start space-x-5">
-                    <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
-                        <FaFlask className="text-xl" />
+            <div className="p-5 flex-1 flex flex-col">
+                {/* Header Icon & ID */}
+                <div className="flex items-start justify-between mb-4">
+                    <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 border border-teal-100/50 group-hover:bg-teal-600 group-hover:text-white transition-all duration-300">
+                        <Package className="w-5 h-5" />
                     </div>
-                    <div className="flex-grow min-w-0">
-                        <h3 className="text-lg font-black text-evergreen uppercase tracking-tight italic leading-tight line-clamp-2">
-                            {pkg.packageName}
-                        </h3>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-gray opacity-40 mt-1">
-                            {pkg.packageCode}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Description */}
-                <p className="text-xs text-muted-gray leading-relaxed line-clamp-2">
-                    {pkg.description || 'Comprehensive health assessment package.'}
-                </p>
-
-                {/* Tests Count */}
-                <div className="flex items-center space-x-3 p-3 bg-primary/[0.03] rounded-xl border border-primary/5">
-                    <FaTag className="text-primary text-xs" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-evergreen">
-                        {pkg.totalTests} Tests Included
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded">
+                        {pkg.packageCode}
                     </span>
                 </div>
 
-                {/* Test Pills (show first 4) */}
+                {/* Name & Desc */}
+                <div className="mb-3">
+                    <h3 className="text-[14px] font-black text-slate-900 leading-tight mb-1 group-hover:text-teal-700 transition-colors uppercase tracking-tight">
+                        {pkg.packageName}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">
+                        {pkg.description || 'Comprehensive health assessment bundle.'}
+                    </p>
+                </div>
+
+                {/* Parameters Link */}
+                <div className="flex items-center gap-2 mb-4 p-2 bg-slate-50/50 rounded-lg border border-slate-100/50">
+                    <Activity className="w-3.5 h-3.5 text-teal-600" />
+                    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">
+                        {pkg.totalTests} Parameters Included
+                    </span>
+                </div>
+
+                {/* Test Tags */}
                 {pkg.tests && pkg.tests.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {pkg.tests.slice(0, 4).map((test, idx) => (
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                        {pkg.tests.slice(0, 3).map((test, idx) => (
                             <span
                                 key={idx}
-                                className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/5 px-3 py-1.5 rounded-lg"
+                                className="text-[9px] font-bold text-slate-500 bg-slate-100/80 px-2 py-1 rounded-md"
                             >
                                 {test.name}
                             </span>
                         ))}
-                        {pkg.tests.length > 4 && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-gray bg-gray-50 px-3 py-1.5 rounded-lg">
-                                +{pkg.tests.length - 4} more
+                        {pkg.tests.length > 3 && (
+                            <span className="text-[9px] font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-md">
+                                +{pkg.tests.length - 3} More
                             </span>
                         )}
                     </div>
                 )}
-            </div>
 
-            {/* Price & Actions */}
-            <div className="p-8 pt-6 mt-4 border-t border-primary/5">
-                <div className="flex items-end justify-between mb-5">
-                    <div>
-                        {hasSavings && (
-                            <span className="text-sm font-bold text-muted-gray line-through opacity-40">
-                                ₹{pkg.price.toFixed(0)}
-                            </span>
-                        )}
-                        <div className="flex items-baseline space-x-1">
-                            <span className="text-2xl font-black text-primary">₹{pkg.discountedPrice.toFixed(0)}</span>
-                            {discountPercent > 0 && (
-                                <span className="text-[10px] font-black uppercase tracking-widest text-secondary">
-                                    {discountPercent}% off
+                {/* Price & Actions */}
+                <div className="mt-auto pt-4 border-t border-slate-50">
+                    <div className="flex items-end justify-between mb-4">
+                        <div className="flex flex-col">
+                            {hasSavings && (
+                                <span className="text-[11px] text-slate-400 line-through font-bold decoration-slate-300 mb-0.5">
+                                    ₹{pkg.price.toFixed(0)}
                                 </span>
                             )}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[20px] font-black text-slate-900 leading-none">
+                                    ₹{pkg.discountedPrice.toFixed(0)}
+                                </span>
+                                {discountPercent > 0 && (
+                                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                        {discountPercent}% OFF
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex gap-3">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onViewDetails(pkg); }}
-                        className="flex-1 h-12 bg-white border-2 border-primary/10 text-evergreen rounded-xl font-black uppercase tracking-widest text-[10px] hover:border-primary/30 hover:bg-primary/[0.02] transition-all cursor-pointer"
-                    >
-                        Details
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onBookNow(pkg); }}
-                        className="flex-1 h-12 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                        <span>Book</span>
-                        <FaChevronRight className="text-white/40 text-[8px]" />
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onViewDetails(pkg); }}
+                            className="flex-1 h-10 bg-white border border-slate-200 text-slate-700 rounded-full font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
+                        >
+                            Details
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onBookNow(pkg); }}
+                            className="flex-1 h-10 bg-slate-900 text-white rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg shadow-slate-200 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                            <span>Book Now</span>
+                            <ChevronRight className="w-3 h-3 text-white/50" />
+                        </button>
+                    </div>
                 </div>
             </div>
         </motion.div>

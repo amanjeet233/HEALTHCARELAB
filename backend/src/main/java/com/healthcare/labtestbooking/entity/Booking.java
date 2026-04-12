@@ -36,7 +36,7 @@ public class Booking {
     private User patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "test_id", nullable = false)
+    @JoinColumn(name = "test_id")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private LabTest test;
@@ -52,6 +52,12 @@ public class Booking {
 
     @Column(length = 20)
     private String timeSlot;
+
+    @Column(name = "family_member_id")
+    private Long familyMemberId;
+
+    @Column(name = "patient_display_name", length = 150)
+    private String patientDisplayName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -77,6 +83,9 @@ public class Booking {
 
     @Column(columnDefinition = "TEXT")
     private String collectionAddress;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
     @Column(precision = 10, scale = 2)
     @Builder.Default

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, FileBarChart2, Users, Check } from 'lucide-react';
-import { packageService, TestPackageResponse } from '../../services/packageService';
+import api from '../../services/api';
+import { TestPackageResponse } from '../../services/packageService';
 import { useCart } from '../../hooks/useCart';
 
 /* ─── Tier Config ────────────────────────────────────────────────── */
@@ -21,17 +22,38 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   'Vitamins':        'linear-gradient(135deg,#713F12 0%,#EAB308 100%)',
 };
 
-const MOCK_PACKAGES: TestPackageResponse[] = [
-  { id: 101, name: 'MedSync Comprehensive Full Body', packageName: 'MedSync Comprehensive Full Body', packageCode: 'CFB01', description: 'Master Health Checkup', price: 9500, discountedPrice: 4999, discountPercentage: 47, savings: 4501, totalTests: 45, tests: [], category: 'Full Body', isPopular: true },
-  { id: 102, name: 'Advanced Full Body Checkup', packageName: 'Advanced Full Body Checkup', packageCode: 'FB02', description: 'Comprehensive checkup', price: 4500, discountedPrice: 2999, discountPercentage: 33, savings: 1501, totalTests: 85, tests: [], category: 'Full Body', isPopular: true },
-  { id: 103, name: 'Women Wellness Gold', packageName: 'Women Wellness Gold', packageCode: 'WW02', description: 'Essential female screenings', price: 3500, discountedPrice: 1999, discountPercentage: 42, savings: 1501, totalTests: 62, tests: [], category: "Women's Health", isPopular: true },
-  { id: 104, name: 'Senior Citizen Care Platinum', packageName: 'Senior Citizen Care Platinum', packageCode: 'SR03', description: 'Geriatric health panel', price: 5500, discountedPrice: 3899, discountPercentage: 29, savings: 1601, totalTests: 92, tests: [], category: 'Senior Citizen', isPopular: true },
-  { id: 105, name: 'Diabetes Management Silver', packageName: 'Diabetes Management Silver', packageCode: 'DM04', description: 'Blood sugar control screen', price: 1500, discountedPrice: 999, discountPercentage: 33, savings: 501, totalTests: 12, tests: [], category: 'Vitamins', isPopular: true },
-  { id: 106, name: 'Heart Health Advanced', packageName: 'Heart Health Advanced', packageCode: 'HH05', description: 'Cardiac markers & risk profile', price: 4200, discountedPrice: 2499, discountPercentage: 40, savings: 1701, totalTests: 48, tests: [], category: 'Heart', isPopular: true },
-  { id: 107, name: 'MedSync Vital Organs Check', packageName: 'MedSync Vital Organs Check', packageCode: 'VO06', description: 'Liver, Kidney, Thyroid screen', price: 3000, discountedPrice: 1599, discountPercentage: 46, savings: 1401, totalTests: 35, tests: [], category: 'Full Body', isPopular: true },
-  { id: 108, name: 'Executive Health Package', packageName: 'Executive Health Package', packageCode: 'EH07', description: 'Stress & lifestyle markers', price: 6000, discountedPrice: 3499, discountPercentage: 41, savings: 2501, totalTests: 72, tests: [], category: 'Full Body', isPopular: true },
-  { id: 109, name: 'Immunity Booster Profile', packageName: 'Immunity Booster Profile', packageCode: 'IB08', description: 'Vitamins & CBC profile', price: 2500, discountedPrice: 1299, discountPercentage: 48, savings: 1201, totalTests: 24, tests: [], category: 'Vitamins', isPopular: true },
-];
+const normalizeCurrency = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value >= 100000 ? Math.round(value / 100) : value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed)) return parsed >= 100000 ? Math.round(parsed / 100) : parsed;
+  }
+  return 0;
+};
+
+const normalizePackage = (row: any): TestPackageResponse => {
+  const price = normalizeCurrency(row.price ?? row.totalPrice ?? row.basePriceInPaise);
+  const discountedPrice = normalizeCurrency(row.discountedPrice ?? row.finalPrice ?? row.salePrice ?? row.price ?? row.totalPrice);
+  const safeDiscounted = discountedPrice || price;
+  const computedDiscount = price > safeDiscounted ? Math.round(((price - safeDiscounted) / price) * 100) : 0;
+  return {
+    id: Number(row.id || 0),
+    name: row.name || row.packageName || 'Health Package',
+    packageName: row.packageName || row.name || 'Health Package',
+    packageCode: row.packageCode || row.code || String(row.id || ''),
+    description: row.description || '',
+    price,
+    discountedPrice: safeDiscounted,
+    discountPercentage: Number(row.discountPercentage ?? computedDiscount),
+    savings: Number(row.savings ?? Math.max(0, price - safeDiscounted)),
+    totalTests: Number(row.totalTests ?? row.testCount ?? row.testsCount ?? 0),
+    tests: row.tests || [],
+    category: row.category || row.packageType || 'General',
+    isPopular: Boolean(row.isPopular ?? row.popular ?? false),
+  };
+};
 
 const getGradient = (pkg: TestPackageResponse): string => {
   if (CATEGORY_GRADIENTS[pkg.category]) return CATEGORY_GRADIENTS[pkg.category];
@@ -59,7 +81,7 @@ const PackageCard: React.FC<{ pkg: TestPackageResponse }> = ({ pkg }) => {
       <div
         className="relative p-5 flex flex-col gap-2"
         style={{ background: gradient, minHeight: '120px' }}
-        onClick={() => navigate(`/packages`)}
+        onClick={() => navigate(`/packages/${pkg.packageCode || pkg.id}`)}
       >
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none translate-x-8 -translate-y-8" />
         {tierCfg && (
@@ -88,7 +110,7 @@ const PackageCard: React.FC<{ pkg: TestPackageResponse }> = ({ pkg }) => {
           {discount > 0 && <span className="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">{discount}% OFF</span>}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/test-listing/popular-health-checkup-packages')} className="flex-1 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-wide transition-all active:scale-95" style={{ borderColor: '#0D7C7C', color: '#0D7C7C' }}>View Details</button>
+          <button onClick={() => navigate(`/packages/${pkg.packageCode || pkg.id}`)} className="flex-1 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-wide transition-all active:scale-95" style={{ borderColor: '#0D7C7C', color: '#0D7C7C' }}>View Details</button>
           <button onClick={() => { if (!inCart) addPackage(pkg.id, pkg.name || pkg.packageName, pkg.discountedPrice || pkg.price); }} className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95 shadow-sm" style={{ background: inCart ? '#0D7C7C' : '#EA580C' }}>{inCart ? 'Added ✓' : 'Add to Cart'}</button>
         </div>
       </div>
@@ -99,6 +121,7 @@ const PackageCard: React.FC<{ pkg: TestPackageResponse }> = ({ pkg }) => {
 const PopularPackagesRow: React.FC = () => {
   const [packages, setPackages] = useState<TestPackageResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isHovered = useRef(false);
 
@@ -119,23 +142,50 @@ const PopularPackagesRow: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    packageService.getBestDeals()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setPackages(data.slice(0, 10));
-        } else {
-          return packageService.getAllPackages({ size: 10 });
+    const fetchRealPackages = async () => {
+      setLoading(true);
+      setLoadError(false);
+      const tryEndpoint = async (url: string): Promise<TestPackageResponse[]> => {
+        try {
+          const res = await api.get(url);
+          const payload = res.data;
+          const rows =
+            payload?.data?.packages
+            || payload?.packages
+            || payload?.data?.content
+            || payload?.content
+            || payload?.data
+            || payload;
+          if (!Array.isArray(rows)) return [];
+          return rows.map(normalizePackage).filter((p: TestPackageResponse) => p.id > 0);
+        } catch {
+          return [];
         }
-      })
-      .then((data) => {
-        if (data && data.length > 0) {
-          setPackages(data.slice(0, 10));
-        } else if (!packages.length) {
-          setPackages(MOCK_PACKAGES);
+      };
+
+      const sources = [
+        '/api/lab-tests/packages?page=0&size=12',
+        '/api/lab-tests/packages/best-deals',
+        '/api/packages?limit=12&sort=price',
+        '/api/packages/popular?limit=12',
+        'http://localhost:8080/api/lab-tests/packages?page=0&size=12',
+      ];
+
+      for (const src of sources) {
+        const rows = await tryEndpoint(src);
+        if (rows.length > 0) {
+          setPackages(rows.slice(0, 10));
+          setLoading(false);
+          return;
         }
-      })
-      .catch(() => { if (!packages.length) setPackages(MOCK_PACKAGES); })
-      .finally(() => setLoading(false));
+      }
+
+      setPackages([]);
+      setLoadError(true);
+      setLoading(false);
+    };
+
+    fetchRealPackages();
   }, []);
 
   const scroll = (dir: 'left' | 'right') => scrollRef.current?.scrollBy({ left: dir === 'right' ? 570 : -570, behavior: 'smooth' });
@@ -162,9 +212,17 @@ const PopularPackagesRow: React.FC = () => {
                   </div>
                 </div>
               ))
-            : [...packages, ...packages].map((pkg, idx) => (
+            : packages.length > 0
+            ? [...packages, ...packages].map((pkg, idx) => (
                 <PackageCard key={`${pkg.id}-${idx}`} pkg={pkg} />
               ))
+            : (
+                <div className="w-full rounded-2xl border border-slate-200 bg-white p-8 text-center">
+                  <p className="text-sm font-bold text-slate-500">
+                    {loadError ? 'Unable to load real packages right now.' : 'No packages available.'}
+                  </p>
+                </div>
+              )
           }
         </div>
 

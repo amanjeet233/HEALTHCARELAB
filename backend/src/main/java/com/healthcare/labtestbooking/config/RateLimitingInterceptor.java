@@ -3,6 +3,7 @@ package com.healthcare.labtestbooking.config;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -25,7 +26,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
     private static final int MAX_REQUESTS_DEFAULT = 100;
     private static final long WINDOW_SIZE_MS = 60000; // 1 minute
 
-    public RateLimitingInterceptor(RedisTemplate<String, String> redisTemplate) {
+    public RateLimitingInterceptor(@Autowired(required = false) RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
@@ -35,6 +36,11 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         
         String clientIp = getClientIp(request);
         String path = request.getRequestURI();
+
+        // If Redis is unavailable (e.g. local/dev tests), skip distributed limiting.
+        if (redisTemplate == null) {
+            return true;
+        }
         
         // Determine rate limit based on endpoint
         int maxRequests = MAX_REQUESTS_DEFAULT;

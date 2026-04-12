@@ -48,17 +48,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
     };
 
     return (
-        <form onSubmit={handleLoginSubmit(onLoginSubmit)} className="space-y-5">
+        <form onSubmit={handleLoginSubmit(onLoginSubmit)} className="space-y-3">
             <AuthInput
-                label="Secure ID (Email)"
+                label="Email"
                 icon={<FaEnvelope />}
                 error={loginErrors.email}
                 {...loginFields('email')}
-                placeholder="user@healthlab.os"
+                placeholder="YOU@EXAMPLE.COM"
                 type="email"
             />
             <AuthInput
-                label="Secure Passcode (Password)"
+                label="Password"
                 icon={<FaLock />}
                 error={loginErrors.password}
                 {...loginFields('password')}
@@ -66,34 +66,34 @@ const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
                 type="password"
             />
 
-            <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-gray/60 px-1">Access Tier</label>
+            <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1 block">Role</label>
                 <div className="relative">
                     <select
                         {...loginFields('role')}
-                        className="w-full bg-off-white border border-primary-teal/10 focus:border-primary-teal focus:ring-4 focus:ring-primary-teal/5 rounded-2xl py-4 px-6 text-[11px] font-black text-ever-green outline-none transition-all uppercase tracking-widest appearance-none cursor-pointer"
+                        className="w-full h-10 bg-white border border-slate-200 focus:border-[#008080] focus:ring-2 focus:ring-[#008080]/10 rounded-xl py-2 px-3 text-[12px] font-semibold text-slate-700 outline-none transition-all uppercase tracking-[0.08em] appearance-none cursor-pointer"
                     >
-                        <option value="PATIENT">User Patient</option>
+                        <option value="PATIENT">Patient</option>
                         <option value="MEDICAL_OFFICER">Medical Officer</option>
-                        <option value="TECHNICIAN">Laboratory Specialist</option>
+                        <option value="TECHNICIAN">Technician</option>
                         <option value="ADMIN">System Administrator</option>
                     </select>
-                    <FaChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] text-primary-teal rotate-90 pointer-events-none opacity-40" />
+                    <FaChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 rotate-90 pointer-events-none" />
                 </div>
             </div>
 
             <div className="flex justify-end pr-1">
-                <button type="button" onClick={onForgotPassword} className="text-[10px] font-black uppercase tracking-widest text-primary-teal/60 hover:text-primary-teal transition-all">
-                    Forgot Key?
+                <button type="button" onClick={onForgotPassword} className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#008080] hover:opacity-80 transition-all">
+                    Forgot Password?
                 </button>
             </div>
 
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-primary-teal text-white py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] shadow-lg shadow-primary-teal/10 hover:shadow-primary-teal/20 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50"
+                className="w-full bg-[#008080] h-10 rounded-2xl text-white font-bold text-[12px] tracking-[0.08em] uppercase transition-all hover:brightness-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-                {isSubmitting ? <LoadingSpinner size="sm" /> : <>AUTHENTICATE ACCESS <FaChevronRight className="text-[10px]" /></>}
+                {isSubmitting ? <LoadingSpinner size="sm" /> : <>Sign In <FaChevronRight className="text-[10px]" /></>}
             </button>
         </form>
     );

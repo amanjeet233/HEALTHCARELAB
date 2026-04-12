@@ -19,8 +19,13 @@ public class BookingResponse {
     private String bookingReference;
     private Long patientId;
     private String patientName;
+    private String patientEmail;
+    private String patientPhone;
+    private Long familyMemberId;
     private Long labTestId;
     private String labTestName;
+    private Long packageId;
+    private String packageName;
     private String testName;
     private LocalDate bookingDate;
     private String timeSlot;
@@ -32,6 +37,7 @@ public class BookingResponse {
     private BigDecimal amount;
     private BigDecimal discount;
     private BigDecimal finalAmount;
+    private String notes;
     private String paymentStatus;
     private LocalDateTime createdAt;
 }

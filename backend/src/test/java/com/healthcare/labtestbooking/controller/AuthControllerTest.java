@@ -6,12 +6,15 @@ import com.healthcare.labtestbooking.dto.RegisterRequest;
 import com.healthcare.labtestbooking.security.JwtUtil;
 import com.healthcare.labtestbooking.security.UserDetailsServiceImpl;
 import com.healthcare.labtestbooking.service.AuthService;
+import com.healthcare.labtestbooking.service.EmailVerificationService;
+import com.healthcare.labtestbooking.service.TokenBlacklistService;
 import com.healthcare.labtestbooking.config.TestSecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -39,13 +42,24 @@ class AuthControllerTest {
     @MockBean
     private UserDetailsServiceImpl userDetailsService;
 
+    @MockBean
+    private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
+
+    @MockBean
+    private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
     @Test
     void register_Success() throws Exception {
         RegisterRequest request = RegisterRequest.builder()
             .email("test@example.com")
-            .password("password123")
+            .password("Password123")
             .name("Test User")
-            .phone("1234567890")
+            .firstName("Test")
+            .lastName("User")
+            .phoneNumber("9876543210")
             .gender("MALE")
             .address("Test Address")
             .bloodGroup("O+")

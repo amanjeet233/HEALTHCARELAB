@@ -32,23 +32,23 @@ const ForgotPasswordModal: React.FC<Props> = ({ onBack }) => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-6"
+            className="space-y-3"
         >
-            <div className="text-center space-y-2">
-                <h4 className="text-xl font-black uppercase tracking-tighter text-ever-green italic">RECOVERY PROTOCOL</h4>
-                <p className="text-[10px] text-muted-gray font-bold uppercase tracking-widest leading-loose max-w-[300px] mx-auto opacity-70">
+            <div className="text-center space-y-1">
+                <h4 className="text-lg font-black uppercase tracking-[0.08em] text-slate-800">RESET PASSWORD</h4>
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-[0.08em] max-w-[280px] mx-auto">
                     {isSent
-                        ? "A recovery signal has been transmitted to your secure ID."
-                        : "Transmit your identifier to re-establish neural link access."}
+                        ? "Reset link sent to your email."
+                        : "Enter your email to receive a reset link."}
                 </p>
             </div>
 
             {!isSent ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="group space-y-2 px-1">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-gray/60 px-1">Verification Email</label>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <div className="group space-y-1">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.12em] mb-1 ml-1 block">Email</label>
                         <div className="relative">
-                            <div className="absolute left-6 top-1/2 -translate-y-1/2 transition-colors text-sm pointer-events-none text-muted-gray group-focus-within:text-primary-teal opacity-60">
+                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors text-xs pointer-events-none text-slate-500">
                                 <FaEnvelope />
                             </div>
                             <input
@@ -56,8 +56,8 @@ const ForgotPasswordModal: React.FC<Props> = ({ onBack }) => {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="UID@RECOVERY.OS"
-                                className="w-full bg-off-white border-2 border-primary-teal/5 focus:border-primary-teal/20 focus:bg-white focus:ring-4 focus:ring-primary-teal/5 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-bold text-ever-green outline-none transition-all placeholder:text-muted-gray/30 h-14"
+                                placeholder="YOU@EXAMPLE.COM"
+                                className="w-full h-10 bg-white border border-slate-200 focus:border-[#008080] focus:ring-2 focus:ring-[#008080]/10 rounded-xl py-2 pl-10 pr-3 text-[12px] font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400"
                             />
                         </div>
                     </div>
@@ -65,27 +65,27 @@ const ForgotPasswordModal: React.FC<Props> = ({ onBack }) => {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-ever-green text-white py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] shadow-lg hover:bg-primary-teal transition-all active:scale-95 flex items-center justify-center gap-4"
+                        className="w-full bg-[#008080] h-10 rounded-2xl text-white font-bold text-[12px] tracking-[0.08em] uppercase transition-all hover:brightness-95 active:scale-95 flex items-center justify-center gap-2"
                     >
-                        {isSubmitting ? <LoadingSpinner size="sm" /> : <>SEND PING SIGNAL <FaChevronRight className="text-[10px]" /></>}
+                        {isSubmitting ? <LoadingSpinner size="sm" /> : <>SEND LINK <FaChevronRight className="text-[10px]" /></>}
                     </button>
                 </form>
             ) : (
-                <div className="bg-primary-teal/5 border border-primary-teal/10 rounded-2xl p-6 text-center space-y-4">
-                    <div className="w-12 h-12 bg-primary-teal/10 rounded-full flex items-center justify-center mx-auto text-primary-teal">
-                        <FaEnvelope className="text-xl animate-bounce" />
+                <div className="bg-[#008080]/5 border border-[#008080]/20 rounded-2xl p-4 text-center space-y-2">
+                    <div className="w-10 h-10 bg-[#008080]/10 rounded-full flex items-center justify-center mx-auto text-[#008080]">
+                        <FaEnvelope className="text-lg" />
                     </div>
-                    <p className="text-[11px] font-black text-ever-green uppercase tracking-widest leading-relaxed">
-                        Transmission Complete. <br />Check your neural inbox.
+                    <p className="text-[11px] font-black text-slate-700 uppercase tracking-[0.08em] leading-relaxed">
+                        Link Sent. <br />Check your email inbox.
                     </p>
                 </div>
             )}
 
             <button
                 onClick={onBack}
-                className="w-full text-center text-[10px] font-black uppercase tracking-widest text-primary-teal hover:underline decoration-2 underline-offset-4"
+                className="w-full text-center text-[10px] font-black uppercase tracking-[0.08em] text-[#008080] hover:underline"
             >
-                Return to Access Gateway
+                Back To Login
             </button>
         </motion.div>
     );

@@ -53,10 +53,12 @@ public class ApiFlowIntegrationTest {
     void shouldRegisterNewPatient() throws Exception {
         // Arrange
         RegisterRequest request = new RegisterRequest();
-        request.setName("E2E Test Patient");
+        request.setFirstName("E2E");
+        request.setLastName("Patient");
+        request.setName("E2E Patient");
         request.setEmail("testpatient_e2e@test.com");
-        request.setPassword("password123");
-        request.setPhone("9998887776");
+        request.setPassword("Password123");
+        request.setPhoneNumber("9998887776");
         request.setRole(UserRole.PATIENT);
 
         // Act & Assert
@@ -73,10 +75,12 @@ public class ApiFlowIntegrationTest {
     void shouldRejectDuplicateRegistration() throws Exception {
         // Arrange - Register first time
         RegisterRequest request = new RegisterRequest();
-        request.setName("E2E Test Patient");
+        request.setFirstName("E2E");
+        request.setLastName("Patient");
+        request.setName("E2E Patient");
         request.setEmail("testpatient_e2e@test.com");
-        request.setPassword("password123");
-        request.setPhone("9998887776");
+        request.setPassword("Password123");
+        request.setPhoneNumber("9998887776");
         request.setRole(UserRole.PATIENT);
 
         mockMvc.perform(post("/api/auth/register")
@@ -86,14 +90,14 @@ public class ApiFlowIntegrationTest {
 
         // Act - Attempt duplicate registration
         // Modify phone to ensure we hit email duplication error, not phone
-        request.setPhone("9112223334");
+        request.setPhoneNumber("9112223334");
 
         // Assert
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.error").value(true));
     }
 
     @Test
@@ -101,10 +105,12 @@ public class ApiFlowIntegrationTest {
     void shouldLoginSuccessfully() throws Exception {
         // Arrange - Register a user first
         RegisterRequest request = new RegisterRequest();
-        request.setName("E2E Test Patient");
+        request.setFirstName("E2E");
+        request.setLastName("Patient");
+        request.setName("E2E Patient");
         request.setEmail("testpatient_e2e@test.com");
-        request.setPassword("password123");
-        request.setPhone("9998887776");
+        request.setPassword("Password123");
+        request.setPhoneNumber("9998887776");
         request.setRole(UserRole.PATIENT);
 
         mockMvc.perform(post("/api/auth/register")
@@ -114,7 +120,7 @@ public class ApiFlowIntegrationTest {
 
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setEmail("testpatient_e2e@test.com");
-        loginRequest.setPassword("password123");
+        loginRequest.setPassword("Password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/login")
@@ -130,10 +136,12 @@ public class ApiFlowIntegrationTest {
     void shouldRejectInvalidPassword() throws Exception {
         // Arrange - Register a user first
         RegisterRequest request = new RegisterRequest();
-        request.setName("E2E Test Patient");
+        request.setFirstName("E2E");
+        request.setLastName("Patient");
+        request.setName("E2E Patient");
         request.setEmail("testpatient_e2e@test.com");
-        request.setPassword("password123");
-        request.setPhone("9998887776");
+        request.setPassword("Password123");
+        request.setPhoneNumber("9998887776");
         request.setRole(UserRole.PATIENT);
 
         mockMvc.perform(post("/api/auth/register")
@@ -150,6 +158,6 @@ public class ApiFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.error").value(true));
     }
 }

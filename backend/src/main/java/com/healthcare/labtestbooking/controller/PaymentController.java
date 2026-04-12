@@ -23,7 +23,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
@@ -48,6 +51,61 @@ public class PaymentController {
         PaymentResponse response = paymentService.processPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Payment processed", response));
+    }
+
+    @PostMapping("/initiate")
+    @Operation(summary = "Initiate payment", description = "Compatibility endpoint for initiating payment from booking flow")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> initiatePayment(
+            @RequestBody PaymentInitiateRequestCompat request) {
+        Long bookingId = request.getBookingId();
+        if (bookingId == null && request.getBookingData() != null) {
+            Object fromNested = request.getBookingData().get("bookingId");
+            if (fromNested instanceof Number number) {
+                bookingId = number.longValue();
+            }
+        }
+
+        if (bookingId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("bookingId is required"));
+        }
+
+        PaymentRequest paymentRequest = PaymentRequest.builder()
+                .bookingId(bookingId)
+                .amount(request.getAmount() == null ? BigDecimal.ZERO : request.getAmount())
+                .paymentMethod(request.getPaymentMethod() == null ? "CARD" : request.getPaymentMethod())
+                .paymentGateway("RAZORPAY")
+                .transactionId(request.getTransactionId())
+                .build();
+
+        PaymentResponse payment = paymentService.processPayment(paymentRequest);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("paymentId", payment.getId());
+        payload.put("redirectUrl", "");
+        payload.put("status", payment.getStatus());
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Payment initiated", payload));
+    }
+
+    @PostMapping("/verify")
+    @Operation(summary = "Verify payment", description = "Compatibility endpoint for payment verification")
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyPayment(
+            @RequestBody PaymentVerifyRequestCompat request) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("status", "success");
+        payload.put("paymentId", String.valueOf(request.getPaymentId()));
+        payload.put("transactionId", request.getTransactionId() == null ? "" : request.getTransactionId());
+        return ResponseEntity.ok(ApiResponse.success("Payment verified", payload));
+    }
+
+    @PostMapping("/callback")
+    @Operation(summary = "Payment callback", description = "Compatibility endpoint for gateway callbacks")
+    public ResponseEntity<ApiResponse<Void>> paymentCallback(
+            @RequestBody String payload,
+            @RequestHeader(name = "X-Signature", required = false) String signature) {
+        paymentService.handleWebhook(payload, signature);
+        return ResponseEntity.ok(ApiResponse.success("Callback processed", null));
     }
 
     @PostMapping("/create-order")
@@ -136,6 +194,75 @@ public class PaymentController {
         return gatewayPaymentService.getGatewayPaymentByTransactionId(transactionId)
                 .map(p -> ResponseEntity.ok(ApiResponse.success("Payment found", p)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    public static class PaymentInitiateRequestCompat {
+        private Long bookingId;
+        private Map<String, Object> bookingData;
+        private BigDecimal amount;
+        private String paymentMethod;
+        private String transactionId;
+
+        public Long getBookingId() {
+            return bookingId;
+        }
+
+        public void setBookingId(Long bookingId) {
+            this.bookingId = bookingId;
+        }
+
+        public Map<String, Object> getBookingData() {
+            return bookingData;
+        }
+
+        public void setBookingData(Map<String, Object> bookingData) {
+            this.bookingData = bookingData;
+        }
+
+        public BigDecimal getAmount() {
+            return amount;
+        }
+
+        public void setAmount(BigDecimal amount) {
+            this.amount = amount;
+        }
+
+        public String getPaymentMethod() {
+            return paymentMethod;
+        }
+
+        public void setPaymentMethod(String paymentMethod) {
+            this.paymentMethod = paymentMethod;
+        }
+
+        public String getTransactionId() {
+            return transactionId;
+        }
+
+        public void setTransactionId(String transactionId) {
+            this.transactionId = transactionId;
+        }
+    }
+
+    public static class PaymentVerifyRequestCompat {
+        private Long paymentId;
+        private String transactionId;
+
+        public Long getPaymentId() {
+            return paymentId;
+        }
+
+        public void setPaymentId(Long paymentId) {
+            this.paymentId = paymentId;
+        }
+
+        public String getTransactionId() {
+            return transactionId;
+        }
+
+        public void setTransactionId(String transactionId) {
+            this.transactionId = transactionId;
+        }
     }
 }
 

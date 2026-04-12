@@ -4,8 +4,8 @@ import api from '@/services/api';
 export interface LabTest {
   id: number;
   testCode: string;
-  testName: string;          // Backend uses testName, not name
-  categoryName: string;      // Backend uses categoryName, not category
+  testName: string;
+  categoryName: string;
   categoryId?: number;
   testType?: string;
   methodology?: string;
@@ -14,17 +14,26 @@ export interface LabTest {
   normalRangeMax?: number;
   normalRangeText?: string;
   fastingRequired: boolean;
-  fastingHours?: number;     // Backend uses fastingHours, not fastingDuration
-  reportTimeHours?: number;  // Backend uses reportTimeHours, not turnaroundTime
+  fastingHours?: number;
+  reportTimeHours?: number;
   price: number;
-  parameters?: any[];
-  // Legacy aliases for backward compatibility in UI
-  name?: string;             // Alias for testName
-  category?: string;         // Alias for categoryName
-  description?: string;
-  sampleType?: string;
-  turnaroundTime?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  parametersCount?: number;
+  recommendedFor?: string;
+  isTopBooked?: boolean;
+  isTopDeal?: boolean;
+  isActive?: boolean;
+  isPackage?: boolean;
   isTrending?: boolean;
+  sampleType?: string;
+  turnaroundTime?: string;
+  description?: string;
+  shortDescription?: string;
+  parameters?: any[];
+  // Legacy aliases
+  name?: string;
+  category?: string;
 }
 
 interface UseTestsReturn {

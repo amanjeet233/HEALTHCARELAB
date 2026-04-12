@@ -72,51 +72,47 @@ const RegisterForm: React.FC = () => {
     };
 
     return (
-        <form onSubmit={handleRegisterSubmit(onRegisterSubmit as any)} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="md:col-span-2">
-                    <AuthInput label="Full Name" icon={<FaUser />} error={registerErrors.name} {...registerFields('name')} placeholder="JOHN DOE" />
-                </div>
+        <form onSubmit={handleRegisterSubmit(onRegisterSubmit as any)} className="space-y-3">
+            <div className="grid grid-cols-2 max-[520px]:grid-cols-1 gap-3">
+                <AuthInput label="Full Name" icon={<FaUser />} error={registerErrors.name} {...registerFields('name')} placeholder="YOUR NAME" />
+                <AuthInput label="Email" icon={<FaEnvelope />} error={registerErrors.email} {...registerFields('email')} placeholder="YOU@EXAMPLE.COM" type="email" />
+                <AuthInput label="Phone" icon={<FaPhone />} error={registerErrors.phone} {...registerFields('phone')} placeholder="+91 XXXXX XXXXX" />
+                <AuthInput label="Password" icon={<FaLock />} error={registerErrors.password} {...registerFields('password')} placeholder="••••••••" type="password" />
+                <AuthInput label="Confirm Password" icon={<FaLock />} error={registerErrors.confirmPassword} {...registerFields('confirmPassword')} placeholder="••••••••" type="password" />
 
-                <AuthInput label="Email Address" icon={<FaEnvelope />} error={registerErrors.email} {...registerFields('email')} placeholder="UID@BIO.OS" type="email" />
-                <AuthInput label="Cellular Link" icon={<FaPhone />} error={registerErrors.phone} {...registerFields('phone')} placeholder="+91 XXXXX XXXXX" />
-
-                <AuthInput label="Secure Passcode" icon={<FaLock />} error={registerErrors.password} {...registerFields('password')} placeholder="••••••••" type="password" />
-                <AuthInput label="Verify Passcode" icon={<FaLock />} error={registerErrors.confirmPassword} {...registerFields('confirmPassword')} placeholder="••••••••" type="password" />
-
-                <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-gray/60 px-1">Network Role</label>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1 block">Role</label>
                     <div className="relative">
                         <select
                             {...registerFields('role')}
-                            className="w-full bg-off-white border border-primary-teal/10 focus:border-primary-teal focus:ring-4 focus:ring-primary-teal/5 rounded-2xl py-4 px-6 text-[11px] font-black text-ever-green outline-none transition-all uppercase tracking-widest appearance-none cursor-pointer"
+                            className="w-full h-11 bg-white border border-slate-200 focus:border-[#008080] focus:ring-2 focus:ring-[#008080]/10 rounded-xl py-2.5 px-3 text-[13px] font-semibold text-slate-700 outline-none transition-all uppercase tracking-[0.08em] appearance-none cursor-pointer"
                         >
-                            <option value="PATIENT">Biological User</option>
-                            <option value="MEDICAL_OFFICER">Clinical Specialist</option>
-                            <option value="TECHNICIAN">Diagnostic Entity</option>
+                            <option value="PATIENT">Patient</option>
+                            <option value="MEDICAL_OFFICER">Medical Officer</option>
+                            <option value="TECHNICIAN">Technician</option>
                         </select>
-                        <FaChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] text-primary-teal rotate-90 pointer-events-none opacity-40" />
+                        <FaChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 rotate-90 pointer-events-none" />
                     </div>
                 </div>
-
-                {selectedRole === 'PATIENT' && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5"
-                    >
-                        <AuthInput label="Geo-Location" icon={<FaMapMarkerAlt />} error={registerErrors.address} {...registerFields('address')} placeholder="CITY, COUNTRY" />
-                        <AuthInput label="Birthday" icon={<FaBirthdayCake />} error={registerErrors.dateOfBirth} {...registerFields('dateOfBirth')} type="date" />
-                    </motion.div>
-                )}
             </div>
+
+            {selectedRole === 'PATIENT' && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-2 max-[520px]:grid-cols-1 gap-3"
+                >
+                    <AuthInput label="Address" icon={<FaMapMarkerAlt />} error={registerErrors.address} {...registerFields('address')} placeholder="CITY, COUNTRY" />
+                    <AuthInput label="Date Of Birth" icon={<FaBirthdayCake />} error={registerErrors.dateOfBirth} {...registerFields('dateOfBirth')} type="date" />
+                </motion.div>
+            )}
 
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-primary-teal text-white py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] shadow-lg shadow-primary-teal/10 hover:shadow-primary-teal/20 transition-all flex items-center justify-center gap-4 mt-2 active:scale-95 disabled:opacity-50"
+                className="w-full bg-[#008080] h-10 rounded-2xl text-white font-bold text-[12px] tracking-[0.08em] uppercase transition-all hover:brightness-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-                {isSubmitting ? <LoadingSpinner size="sm" /> : <>AUTHENTICATE SECURE ACCOUNT <FaChevronRight className="text-[10px]" /></>}
+                {isSubmitting ? <LoadingSpinner size="sm" /> : <>Create An Account <FaChevronRight className="text-[10px]" /></>}
             </button>
         </form>
     );

@@ -1,5 +1,6 @@
 package com.healthcare.labtestbooking.repository;
 
+import com.healthcare.labtestbooking.entity.Cart.CartStatus;
 import com.healthcare.labtestbooking.entity.CartItem;
 import com.healthcare.labtestbooking.entity.CartItem.ItemType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -53,11 +54,11 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
 
     // Check if test exists in any active cart for user
     @Query("SELECT CASE WHEN COUNT(ci) > 0 THEN true ELSE false END FROM CartItem ci " +
-           "WHERE ci.cart.user.id = :userId AND ci.cart.status = 'ACTIVE' AND ci.labTest.id = :testId")
-    boolean isTestInActiveCart(@Param("userId") Long userId, @Param("testId") Long testId);
+           "WHERE ci.cart.user.id = :userId AND ci.cart.status = :status AND ci.labTest.id = :testId")
+    boolean isTestInCartByStatus(@Param("userId") Long userId, @Param("status") CartStatus status, @Param("testId") Long testId);
 
     // Check if package exists in any active cart for user
     @Query("SELECT CASE WHEN COUNT(ci) > 0 THEN true ELSE false END FROM CartItem ci " +
-           "WHERE ci.cart.user.id = :userId AND ci.cart.status = 'ACTIVE' AND ci.testPackage.id = :packageId")
-    boolean isPackageInActiveCart(@Param("userId") Long userId, @Param("packageId") Long packageId);
+           "WHERE ci.cart.user.id = :userId AND ci.cart.status = :status AND ci.testPackage.id = :packageId")
+    boolean isPackageInCartByStatus(@Param("userId") Long userId, @Param("status") CartStatus status, @Param("packageId") Long packageId);
 }

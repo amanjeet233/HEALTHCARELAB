@@ -33,44 +33,88 @@ export interface HealthRecommendation {
   actionItems: string[];
 }
 
+const unwrap = <T>(response: any): T => {
+  if (response?.data?.data !== undefined) return response.data.data as T;
+  if (response?.data !== undefined) return response.data as T;
+  return response as T;
+};
+
+const metricStatus = (risk?: string): 'NORMAL' | 'WARNING' | 'CRITICAL' => {
+  if (!risk) return 'NORMAL';
+  const normalized = risk.toUpperCase();
+  if (normalized === 'HIGH') return 'CRITICAL';
+  if (normalized === 'MEDIUM') return 'WARNING';
+  return 'NORMAL';
+};
+
 export const healthScoreService = {
-  /**
-   * Get current health score for the logged-in user
-   */
   async getCurrentScore(): Promise<HealthScore> {
-    const response = await api.get('/api/health-score/current');
-    return response.data.data;
+    const response = await api.get('/api/users/health-insights');
+    const payload = unwrap<any>(response) || {};
+    const latest: any[] = payload.latest || [];
+    const score = Math.max(
+      0,
+      Math.round(
+        100 -
+          latest.reduce((acc, m) => acc + (String(m?.riskLevel || '').toUpperCase() === 'HIGH' ? 20 : String(m?.riskLevel || '').toUpperCase() === 'MEDIUM' ? 10 : 0), 0)
+      )
+    );
+    const category: HealthScore['category'] =
+      score >= 85 ? 'EXCELLENT' : score >= 70 ? 'GOOD' : score >= 50 ? 'FAIR' : 'POOR';
+    return {
+      score,
+      category,
+      lastUpdated: new Date().toISOString(),
+      summary: `Computed from ${latest.length} latest health metrics.`
+    };
   },
 
-  /**
-   * Get health score trends over time
-   */
-  async getScoreTrends(days: number = 30): Promise<HealthTrend[]> {
-    const response = await api.get(`/api/health-score/trends?days=${days}`);
-    return response.data.data || [];
+  async getScoreTrends(_days: number = 30): Promise<HealthTrend[]> {
+    const response = await api.get('/api/users/health-insights');
+    const payload = unwrap<any>(response) || {};
+    const trendsObj = payload.trends || {};
+    return Object.entries<any[]>(trendsObj).map(([metric, points]) => {
+      const values = points.map((p) => Number(p.metricValue ?? 0));
+      const dates = points.map((p) => p.measuredAt || p.updatedAt || new Date().toISOString());
+      const first = values[0] ?? 0;
+      const last = values[values.length - 1] ?? 0;
+      const weeklyChange = first === 0 ? 0 : ((last - first) / first) * 100;
+      return {
+        metric,
+        dates,
+        values,
+        trend: weeklyChange < -2 ? 'IMPROVING' : weeklyChange > 2 ? 'DECLINING' : 'STABLE',
+        weeklyChange
+      };
+    });
   },
 
-  /**
-   * Get personalized health recommendations
-   */
   async getRecommendations(): Promise<HealthRecommendation[]> {
-    const response = await api.get('/api/health-score/recommendations');
-    return response.data.data || [];
+    const response = await api.get('/api/users/health-metrics');
+    const metrics = unwrap<any[]>(response) || [];
+    return metrics.slice(0, 6).map((m) => ({
+      priority: String(m?.riskLevel || '').toUpperCase() === 'HIGH' ? 'HIGH' : String(m?.riskLevel || '').toUpperCase() === 'MEDIUM' ? 'MEDIUM' : 'LOW',
+      category: m.metricName || 'General',
+      recommendation: m.interpretation || 'Maintain regular monitoring and follow healthy lifestyle guidance.',
+      impact: m.trend || 'stable',
+      actionItems: ['Track this metric monthly', 'Consult doctor if symptoms persist']
+    }));
   },
 
-  /**
-   * Get current health metrics
-   */
   async getHealthMetrics(): Promise<HealthMetric[]> {
-    const response = await api.get('/api/health/metrics');
-    return response.data.data || [];
+    const response = await api.get('/api/users/health-metrics');
+    const metrics = unwrap<any[]>(response) || [];
+    return metrics.map((m) => ({
+      metricName: m.metricName || m.metricCode,
+      value: Number(m.metricValue ?? 0),
+      unit: m.unit || '',
+      lastMeasured: m.measuredAt || m.updatedAt || new Date().toISOString(),
+      status: metricStatus(m.riskLevel)
+    }));
   },
 
-  /**
-   * Get health metrics trends
-   */
   async getHealthTrends(days: number = 30): Promise<HealthTrend[]> {
-    const response = await api.get(`/api/health/trends?days=${days}`);
-    return response.data.data || [];
+    return this.getScoreTrends(days);
   }
 };
+

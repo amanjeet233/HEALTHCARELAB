@@ -63,11 +63,13 @@ public class PaymentService {
 
         String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
+        PaymentMethod paymentMethod = resolvePaymentMethod(request.getPaymentMethod());
+
         Payment payment = Payment.builder()
                 .booking(booking)
                 .transactionId(transactionId)
                 .amount(request.getAmount())
-                .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase()))
+                .paymentMethod(paymentMethod)
                 .status(PaymentStatus.PENDING)
                 .build();
 
@@ -113,7 +115,12 @@ public class PaymentService {
         invoice.append("Transaction ID: ").append(payment.getTransactionId()).append("\n");
         invoice.append("Booking ID: ").append(payment.getBooking().getId()).append("\n");
         invoice.append("Patient: ").append(payment.getBooking().getPatient().getName()).append("\n");
-        invoice.append("Test: ").append(payment.getBooking().getTest().getTestName()).append("\n");
+        String bookedItemName = payment.getBooking().getTest() != null
+                ? payment.getBooking().getTest().getTestName()
+                : payment.getBooking().getTestPackage() != null
+                ? payment.getBooking().getTestPackage().getPackageName()
+                : "HealthcareLab Booking";
+        invoice.append("Item: ").append(bookedItemName).append("\n");
         invoice.append("Amount: $").append(payment.getAmount()).append("\n");
         invoice.append("Payment Method: ").append(payment.getPaymentMethod()).append("\n");
         invoice.append("Payment Date: ").append(payment.getPaymentDate()).append("\n");
@@ -248,6 +255,22 @@ public class PaymentService {
 
     private boolean processExternalRefund(BigDecimal amount, PaymentMethod paymentMethod) {
         return true;
+    }
+
+    private PaymentMethod resolvePaymentMethod(String rawMethod) {
+        if (rawMethod == null || rawMethod.isBlank()) {
+            return PaymentMethod.CREDIT_CARD;
+        }
+
+        return switch (rawMethod.trim().toUpperCase(Locale.ROOT)) {
+            case "CARD", "CREDIT_CARD" -> PaymentMethod.CREDIT_CARD;
+            case "DEBIT_CARD" -> PaymentMethod.DEBIT_CARD;
+            case "UPI" -> PaymentMethod.UPI;
+            case "NET_BANKING" -> PaymentMethod.NET_BANKING;
+            case "WALLET" -> PaymentMethod.WALLET;
+            case "CASH_ON_DELIVERY", "COD" -> PaymentMethod.CASH_ON_DELIVERY;
+            default -> PaymentMethod.CREDIT_CARD;
+        };
     }
 
     private PaymentResponse mapToResponse(Payment payment) {

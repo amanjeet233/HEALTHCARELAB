@@ -131,7 +131,6 @@ const HomeCollectionProcess: React.FC = () => {
         >
           {steps.map((step, index) => {
             const Icon = step.icon;
-            const isEven = index % 2 === 0;
 
             return (
               <motion.div
@@ -196,8 +195,8 @@ const HomeCollectionProcess: React.FC = () => {
           <p className="text-xs md:text-sm text-gray-500 mb-4 font-medium">
             Ready to get started with home sample collection?
           </p>
-          <button className="px-6 py-2 bg-gradient-to-r from-primary-teal via-teal-500 to-emerald-500 text-white font-black uppercase text-[10px] tracking-wider rounded-xl hover:shadow-lg hover:shadow-teal-500/40 transition-all duration-300 transform hover:scale-105">
-            📥 Book Now
+          <button className="px-8 py-3 bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-wider rounded-full shadow-lg transition-all duration-300 transform hover:scale-105">
+            + BOOK
           </button>
         </motion.div>
 

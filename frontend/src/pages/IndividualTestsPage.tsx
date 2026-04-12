@@ -157,174 +157,132 @@ export default function IndividualTestsPage() {
   const hasActiveFilters = category !== 'ALL' || searchTerm || minPrice || maxPrice || fastingOnly
 
   return (
-    <div className='individual-tests-page'>
+    <div className='individual-tests-page bg-[#F8FAFC]'>
       {/* Header */}
-      <section className='page-header-individual'>
-        <div className='header-content-individual'>
-          <h1>Browse Lab Tests</h1>
-          <p>Select individual tests for your health checkup</p>
+      <section className='page-header-individual bg-white border-b border-slate-100 py-10 px-4 text-center'>
+        <div className='header-content-individual max-w-4xl mx-auto'>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">🧪 Browse Lab Tests</h1>
+          <p className="text-slate-500 font-bold uppercase text-[11px] tracking-widest mt-2 opacity-70">Premium Diagnostic Catalog</p>
         </div>
       </section>
 
-      <div className='tests-container-individual'>
+      <div className='tests-container-individual max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8'>
         {/* Sidebar Filters - Desktop */}
-        <aside className='filters-sidebar-individual'>
-          <div className='filters-header'>
-            <h3>Filters</h3>
-            {hasActiveFilters && (
-              <button className='reset-filters' onClick={handleResetFilters}>
-                <FaTimes /> Reset
-              </button>
-            )}
-          </div>
+        <aside className='filters-sidebar-individual w-full md:w-64 shrink-0'>
+          <div className='bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-6'>
+            <div className='filters-header flex items-center justify-between'>
+              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Filters</h3>
+              {hasActiveFilters && (
+                <button className='text-[10px] font-black text-red-500 uppercase tracking-tighter' onClick={handleResetFilters}>
+                  Clear All
+                </button>
+              )}
+            </div>
 
-          {/* Category Filter */}
-          <div className='filter-group-individual'>
-            <h4 className='filter-title'>Category</h4>
-            <div className='category-list'>
-              {CATEGORIES.map((cat) => (
-                <label key={cat} className='category-option'>
-                  <input
-                    type='radio'
-                    name='category'
-                    value={cat}
-                    checked={category === cat}
-                    onChange={(e) => setCategory(e.target.value)}
-                  />
-                  <span className='category-label'>
+            {/* Category Filter */}
+            <div className='space-y-3'>
+              <h4 className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Category</h4>
+              <div className='flex flex-wrap gap-2'>
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${category === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                    onClick={() => setCategory(cat)}
+                  >
                     {cat}
-                    {categoryCounts[cat] && (
-                      <span className='count-badge'>{categoryCounts[cat]}</span>
-                    )}
-                  </span>
-                </label>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Price Range Filter */}
-          <div className='filter-group-individual'>
-            <h4 className='filter-title'>Price Range</h4>
-            <div className='price-inputs'>
-              <input
-                type='number'
-                placeholder='Min (₹)'
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                className='price-input'
-                min='0'
-              />
-              <span className='dash'>-</span>
-              <input
-                type='number'
-                placeholder='Max (₹)'
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                className='price-input'
-                min='0'
-              />
+            {/* Price Range Filter */}
+            <div className='space-y-3'>
+              <h4 className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Price Range</h4>
+              <div className='grid grid-cols-2 gap-2'>
+                <input
+                  type='number'
+                  placeholder='Min'
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  className='w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-xs font-bold'
+                />
+                <input
+                  type='number'
+                  placeholder='Max'
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className='w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-xs font-bold'
+                />
+              </div>
             </div>
-            <div className='quick-prices'>
-              <button
-                className={`quick-price ${minPrice === '' && maxPrice === '500' ? 'active' : ''}`}
-                onClick={() => {
-                  setMinPrice('')
-                  setMaxPrice('500')
-                }}
-              >
-                Under ₹500
-              </button>
-              <button
-                className={`quick-price ${minPrice === '500' && maxPrice === '1000' ? 'active' : ''}`}
-                onClick={() => {
-                  setMinPrice('500')
-                  setMaxPrice('1000')
-                }}
-              >
-                ₹500-1000
-              </button>
-              <button
-                className={`quick-price ${minPrice === '1000' && maxPrice === '' ? 'active' : ''}`}
-                onClick={() => {
-                  setMinPrice('1000')
-                  setMaxPrice('')
-                }}
-              >
-                Above ₹1000
-              </button>
-            </div>
-          </div>
 
-          {/* Fasting Filter */}
-          <div className='filter-group-individual'>
-            <h4 className='filter-title'>Fasting Required</h4>
-            <label className='checkbox-option'>
-              <input
-                type='checkbox'
-                checked={fastingOnly}
-                onChange={(e) => setFastingOnly(e.target.checked)}
-              />
-              <span>Fasting required only</span>
-            </label>
+            {/* Fasting Filter */}
+            <div className='pt-2'>
+              <label className='flex items-center gap-3 cursor-pointer group'>
+                <input
+                  type='checkbox'
+                  checked={fastingOnly}
+                  onChange={(e) => setFastingOnly(e.target.checked)}
+                  className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-200"
+                />
+                <span className="text-[11px] font-black text-slate-600 uppercase tracking-tight group-hover:text-slate-900 transition-colors">Fasting Required</span>
+              </label>
+            </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <div className='tests-main-individual'>
+        <div className='tests-main-individual flex-1'>
           {/* Search Bar */}
-          <div className='search-bar-individual'>
-            <FaSearch className='search-icon' />
+          <div className='relative mb-6'>
+            <FaSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm' />
             <input
               type='text'
               placeholder='Search tests by name, code, or symptoms...'
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className='search-input'
+              className='w-full bg-white border border-slate-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all'
             />
-            {searchTerm && (
-              <button
-                className='clear-search'
-                onClick={() => setSearchTerm('')}
-              >
-                <FaTimes />
-              </button>
-            )}
-          </div>
-
-          {/* Mobile Filter Toggle */}
-          <button className='mobile-filter-toggle' onClick={() => setShowFilters(!showFilters)}>
-            <FaFilter /> Filters
-          </button>
-
-          {/* Results Info */}
-          <div className='results-info-individual'>
-            <p>
-              Showing <strong>{tests.length}</strong> of <strong>{totalResults}</strong> tests
-              {hasActiveFilters && <span className='filter-badge'>(Filtered)</span>}
-            </p>
           </div>
 
           {/* Loading State */}
-          {loading && <LoadingSpinner />}
+          {loading && (
+            <div className="flex justify-center py-20"><LoadingSpinner /></div>
+          )}
 
           {/* Tests Grid */}
           {!loading && tests.length > 0 ? (
-            <>
-              <div className='tests-grid-individual'>
+            <div className="space-y-8">
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4'>
                 {tests.map((test) => (
-                  <IndividualTestCard
+                  <TestCard
                     key={test.id}
-                    test={test}
-                    onViewDetails={handleViewDetails}
-                    onAddToCart={handleAddToCart}
-                    isLoading={loading}
+                    test={{
+                      id: test.id,
+                      name: test.testName,
+                      slug: test.testCode,
+                      category: test.categoryName,
+                      price: test.price,
+                      originalPrice: test.originalPrice || Math.round(test.price * 1.3),
+                      shortDesc: test.shortDescription || test.description,
+                      sampleType: test.sampleType,
+                      fastingRequired: test.fastingRequired,
+                      turnaroundTime: test.turnaroundTime,
+                      rating: 4.8,
+                      parametersCount: test.parametersCount || (test.subTests?.length || 0),
+                      isTopBooked: test.isTopBooked,
+                      isTopDeal: test.isTopDeal,
+                      isPackage: test.isPackage || test.categoryName === 'PACKAGE'
+                    }}
+                    onViewDetails={(slug) => navigate(`/test/${slug}`)}
+                    onBook={() => navigate(`/checkout?testId=${test.id}`)}
                   />
                 ))}
               </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className='pagination-individual'>
+                <div className='pagination-individual flex items-center justify-center gap-4 mt-8'>
                   {currentPage > 0 && (
                     <button
                       className='pagination-btn'

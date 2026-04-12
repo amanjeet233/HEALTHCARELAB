@@ -17,11 +17,14 @@ const PackageDetailPage = lazy(() => import('../../pages/packages/PackageDetailP
 const BookingPage = lazy(() => import('../../pages/BookingPage'));
 const MyBookingsPage = lazy(() => import('../../pages/MyBookingsPage'));
 const ReportsPage = lazy(() => import('../../pages/ReportsPage'));
+const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
+const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
 const ProfilePage = lazy(() => import('../../pages/ProfilePage'));
 const NotificationCenter = lazy(() => import('../../pages/NotificationCenter'));
 const AdminDashboard = lazy(() => import('../../pages/admin/AdminDashboard'));
 const BookConsultationPage = lazy(() => import('../../pages/BookConsultationPage'));
 const FamilyMembersPage = lazy(() => import('../../pages/FamilyMembersPage'));
+const AddressBookPage = lazy(() => import('../../pages/AddressBookPage'));
 const SmartReportsPage = lazy(() => import('../../pages/SmartReportsPage'));
 const HealthInsightsPage = lazy(() => import('../../pages/HealthInsightsPage'));
 const LabPartnerPage = lazy(() => import('../../pages/LabPartnerPage'));
@@ -30,15 +33,15 @@ const PromoCodesPage = lazy(() => import('../../pages/PromoCodesPage'));
 const CategoryListingPage = lazy(() => import('../../pages/CategoryListingPage'));
 const TestListingBySlugPage = lazy(() => import('../../pages/TestListingBySlugPage'));
 const WomenWellnessPage = lazy(() => import('../../pages/WomenWellnessPage'));
+const ScreeningsPage = lazy(() => import('../../pages/ScreeningsPage'));
 
 import MainLayout from './MainLayout';
-import { GenericPageSkeleton } from '../ui/PageSkeleton';
 
 const AnimatedRoutes: React.FC = () => {
     const location = useLocation();
 
     return (
-        <Suspense fallback={<GenericPageSkeleton />}>
+        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background dark:bg-gray-900"><LoadingSpinner size="lg" /></div>}>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
                     <Route path="/login" element={<Navigate to="/" replace />} />
@@ -63,6 +66,7 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/lab-tests-category/:categorySlug" element={<PageTransition><TestListingBySlugPage /></PageTransition>} />
 
                         <Route path="/tests" element={<PageTransition><TestListingPage /></PageTransition>} />
+                        <Route path="/screenings" element={<PageTransition><ScreeningsPage /></PageTransition>} />
                         <Route path="/test/:slug" element={<PageTransition><TestDetailPage /></PageTransition>} />
                         <Route path="/packages" element={<PageTransition><PackagesListingPage /></PageTransition>} />
                         <Route path="/packages/category/:pathCategory" element={<PageTransition><PackagesListingPage /></PageTransition>} />
@@ -75,11 +79,16 @@ const AnimatedRoutes: React.FC = () => {
 
                         {/* Protected Unified Pages */}
                         <Route element={<ProtectedRoute />}>
+                            <Route path="/booking" element={<PageTransition><BookingPage /></PageTransition>} />
                             <Route path="/booking/:id" element={<PageTransition><BookingPage /></PageTransition>} />
                             <Route path="/my-bookings" element={<PageTransition><MyBookingsPage /></PageTransition>} />
+                            <Route path="/bookings" element={<PageTransition><MyBookingsPage /></PageTransition>} />
                             <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
                             <Route path="/family-members" element={<PageTransition><FamilyMembersPage /></PageTransition>} />
+                            <Route path="/my-addresses" element={<PageTransition><AddressBookPage /></PageTransition>} />
                             <Route path="/health-insights" element={<PageTransition><HealthInsightsPage /></PageTransition>} />
+                            <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
+                            <Route path="/promotions" element={<PageTransition><PromotionsPage /></PageTransition>} />
                             <Route path="/lab-partners" element={<PageTransition><LabPartnerPage /></PageTransition>} />
                             <Route path="/notifications" element={<PageTransition><NotificationCenter /></PageTransition>} />
                             <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />

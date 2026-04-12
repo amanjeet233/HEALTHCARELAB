@@ -1,51 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;900&family=Noto+Sans:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
 @import "./styles/premium-theme.css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@300;400;500;600;700;900&display=swap');
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Premium Healthcare Brand Colors */
+  /* Liquid Glass Design Tokens */
+  --color-primary: #0891B2;
+  --color-secondary: #22D3EE;
+  --color-accent: #059669;
+  --color-background: #ECFEFF;
+  --color-text: #164E63;
+  --color-text-dim: #64748B;
+  
+  /* Legacy/Support Colors */
   --color-primary-teal: #0D7C7C;
-  --color-premium-orange: #C2410C;
-  --color-ocean-blue: #1E88E5;
-  --color-forest-green: #2D5F4F;
-  --color-coral-accent: #FF6B6B;
-  --color-sky-blue: #5DADE2;
-  --color-mint: #4ECDC4;
-  --color-lavender: #9B7BB7;
-  --color-gold: #D4AF37;
-  --color-off-white: #F0F9F9;
-  --color-light-gray: #E2E8F0;
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
 
   /* Semantic Mappings */
-  --color-primary: var(--color-primary-teal);
-  --color-secondary: var(--color-sky-blue);
-  --color-accent: var(--color-mint);
-  --color-background: var(--color-off-white);
-  --color-text: var(--color-text-primary);
-  --color-text-light: var(--color-text-secondary);
-  --color-success: var(--color-mint);
-  --color-warning: var(--color-gold);
-  --color-error: var(--color-coral-accent);
-  --color-info: var(--color-sky-blue);
-  --color-foreground: var(--color-text-primary);
-  --color-card: var(--color-white);
-  --color-card-foreground: var(--color-text-primary);
-  --color-popover: var(--color-white);
-  --color-popover-foreground: var(--color-text-primary);
-  --color-primary-foreground: var(--color-white);
-  --color-secondary-foreground: var(--color-white);
-  --color-muted: var(--color-light-bg);
-  --color-muted-foreground: var(--color-text-secondary);
-  --color-accent-foreground: var(--color-white);
-  --color-destructive: var(--color-coral-accent);
-  --color-destructive-foreground: var(--color-white);
-  --color-border: var(--color-light-gray);
-  --color-input: var(--color-light-gray);
-  --color-ring: var(--color-primary-teal);
+  --color-success: var(--color-accent);
+  --color-warning: #D4AF37;
+  --color-error: #FF6B6B;
+  --color-info: var(--color-secondary);
+  --color-border: rgba(13, 124, 124, 0.1);
+  --color-input: #E2E8F0;
+  --color-ring: var(--color-primary);
 
   /* Spacing Tokens */
   --space-xs: 4px;
@@ -69,7 +47,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-premium: 0 25px 50px -12px rgba(13, 124, 124, 0.15);
+  --shadow-premium: 0 25px 50px -12px rgba(8, 145, 178, 0.15);
 }
 
 @layer base {
@@ -91,9 +69,9 @@
   }
 
   body {
-    background-color: var(--color-off-white);
-    color: var(--color-text-primary);
-    font-family: 'Figtree', 'Plus Jakarta Sans', system-ui, sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: 'Inter', 'Figtree', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }
@@ -285,10 +263,9 @@
   }
 }
 
-/* Custom Scrollbar - Scrollbars enabled for visibility */
+/* Custom Scrollbar - Completely Hidden but keeping scroll functionality */
 ::-webkit-scrollbar {
-  display: block;
-  width: 6px;
+  display: none;
 }
 
 body {
@@ -422,6 +399,7 @@ body {
 /* Premium Scrollbar Utilities */
 .premium-scrollbar::-webkit-scrollbar {
   width: 5px;
+  display: block;
 }
 .premium-scrollbar::-webkit-scrollbar-track {
   background: transparent;
@@ -435,4 +413,33 @@ body {
 }
 .premium-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #C2410C66;
+}
+
+/* Visible Scrollbar + Smooth Text for listing/sidebar */
+.scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+  border: 2px solid #f1f5f9;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.text-smooth {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }

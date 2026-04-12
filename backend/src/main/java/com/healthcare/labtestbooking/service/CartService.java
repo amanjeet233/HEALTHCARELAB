@@ -47,7 +47,7 @@ public class CartService {
     }
 
     public QuickCartInfo getQuickCartInfo(Long userId) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId).orElse(null);
+        Cart cart = cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE).orElse(null);
         if (cart == null) {
             return QuickCartInfo.builder()
                     .itemCount(0)
@@ -62,7 +62,7 @@ public class CartService {
     }
 
     public Cart getOrCreateCart(Long userId) {
-        return cartRepository.findActiveCartByUserId(userId)
+        return cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE)
                 .orElseGet(() -> createNewCart(userId));
     }
 
@@ -87,6 +87,11 @@ public class CartService {
         LabTest test = labTestRepository.findById(Objects.requireNonNull(request.getTestId(), "Test ID must not be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with ID: " + request.getTestId()));
 
+        BigDecimal testPrice = test.getPrice();
+        if (testPrice == null || testPrice.compareTo(BigDecimal.ZERO) == 0) {
+            testPrice = test.getOriginalPrice() != null ? test.getOriginalPrice() : BigDecimal.valueOf(199);
+        }
+
         // Check if test already in cart
         CartItem existingItem = cartItemRepository.findByCartIdAndLabTestId(cart.getCartId(), request.getTestId())
                 .orElse(null);
@@ -107,8 +112,8 @@ public class CartService {
                     .itemCode(test.getTestCode())
                     .description(test.getDescription())
                     .quantity(request.getQuantity())
-                    .unitPrice(test.getPrice())
-                    .originalPrice(test.getPrice())
+                    .unitPrice(testPrice)
+                    .originalPrice(testPrice)
                     .discountPercentage(calculateQuantityDiscount(request.getQuantity()))
                     .fastingRequired(test.getFastingRequired())
                     .turnaroundHours(test.getReportTimeHours())
@@ -206,7 +211,7 @@ public class CartService {
     }
 
     public CartResponse clearCart(Long userId) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId).orElse(null);
+        Cart cart = cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE).orElse(null);
 
         if (cart != null) {
             cartItemRepository.deleteByCartId(cart.getCartId());
@@ -382,7 +387,7 @@ public class CartService {
     // ==================== Checkout ====================
 
     public Cart checkoutCart(Long userId) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId)
+        Cart cart = cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("No active cart found"));
 
         if (cart.getItems().isEmpty()) {
@@ -400,25 +405,28 @@ public class CartService {
         log.info("Running cart cleanup job...");
 
         // Mark expired carts
-        int expiredCount = cartRepository.markExpiredCarts(LocalDateTime.now());
+        int expiredCount = cartRepository.markExpiredCarts(CartStatus.ACTIVE, CartStatus.EXPIRED, LocalDateTime.now());
         log.info("Marked {} carts as expired", expiredCount);
 
         // Mark abandoned carts (7 days without activity)
-        int abandonedCount = cartRepository.markAbandonedCarts(LocalDateTime.now().minusDays(7));
+        int abandonedCount = cartRepository.markAbandonedCarts(CartStatus.ACTIVE, CartStatus.ABANDONED, LocalDateTime.now().minusDays(7));
         log.info("Marked {} carts as abandoned", abandonedCount);
 
         // Delete old carts (90 days)
-        int deletedCount = cartRepository.deleteOldCarts(LocalDateTime.now().minusDays(90));
+        int deletedCount = cartRepository.deleteOldCarts(
+                List.of(CartStatus.EXPIRED, CartStatus.ABANDONED, CartStatus.CHECKED_OUT),
+                LocalDateTime.now().minusDays(90)
+        );
         log.info("Deleted {} old carts", deletedCount);
     }
 
     // ==================== Validation Methods ====================
 
     public boolean isTestInCart(Long userId, Long testId) {
-        return cartItemRepository.isTestInActiveCart(userId, testId);
+        return cartItemRepository.isTestInCartByStatus(userId, CartStatus.ACTIVE, testId);
     }
 
     public boolean isPackageInCart(Long userId, Long packageId) {
-        return cartItemRepository.isPackageInActiveCart(userId, packageId);
+        return cartItemRepository.isPackageInCartByStatus(userId, CartStatus.ACTIVE, packageId);
     }
 }

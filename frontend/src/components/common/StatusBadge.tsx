@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { FaHourglassHalf, FaCheckCircle, FaTimesCircle, FaCheckDouble, FaSyringe } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
-export type BadgeStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'SAMPLE_COLLECTED';
+export type BadgeStatus = 'PENDING' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'SAMPLE_COLLECTED';
 
 /**
  * Props for the StatusBadge component.
@@ -22,31 +22,36 @@ export interface StatusBadgeProps {
  * @returns {React.ReactElement} The rendered StatusBadge component.
  */
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => {
-    const config = {
+    const config: Record<string, { colors: string; icon: React.ReactNode; label: string }> = {
         PENDING: {
-            colors: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+            colors: 'bg-amber-50 text-amber-600 border-amber-100',
             icon: <FaHourglassHalf className="mr-1.5 h-3 w-3" />,
             label: 'Pending',
         },
+        PENDING_CONFIRMATION: {
+            colors: 'bg-amber-50 text-amber-600 border-amber-100',
+            icon: <FaHourglassHalf className="mr-1.5 h-3 w-3" />,
+            label: 'Awaiting',
+        },
         CONFIRMED: {
-            colors: 'bg-green-100 text-green-800 border-green-200',
+            colors: 'bg-cyan-50 text-cyan-700 border-cyan-100',
             icon: <FaCheckCircle className="mr-1.5 h-3 w-3" />,
             label: 'Confirmed',
         },
         CANCELLED: {
-            colors: 'bg-red-100 text-red-800 border-red-200',
+            colors: 'bg-rose-50 text-rose-600 border-rose-100',
             icon: <FaTimesCircle className="mr-1.5 h-3 w-3" />,
             label: 'Cancelled',
         },
         COMPLETED: {
-            colors: 'bg-blue-100 text-blue-800 border-blue-200',
+            colors: 'bg-emerald-50 text-emerald-700 border-emerald-100',
             icon: <FaCheckDouble className="mr-1.5 h-3 w-3" />,
             label: 'Completed',
         },
         SAMPLE_COLLECTED: {
-            colors: 'bg-purple-100 text-purple-800 border-purple-200',
+            colors: 'bg-indigo-50 text-indigo-700 border-indigo-100',
             icon: <FaSyringe className="mr-1.5 h-3 w-3" />,
-            label: 'Sample Collected',
+            label: 'Collected',
         },
     };
 
@@ -54,9 +59,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
 
     return (
         <motion.span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${currentConfig.colors} ${className}`}
-            animate={status === 'PENDING' ? { opacity: [1, 0.6, 1] } : undefined}
-            transition={status === 'PENDING' ? { repeat: Infinity, duration: 1.5 } : undefined}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border backdrop-blur-md shadow-sm transition-all ${currentConfig.colors} ${className}`}
+            whileHover={{ scale: 1.05 }}
         >
             {currentConfig.icon}
             {currentConfig.label}
@@ -65,8 +69,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
 };
 
 StatusBadge.propTypes = {
-    status: PropTypes.oneOf(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'SAMPLE_COLLECTED']).isRequired,
+    status: PropTypes.oneOf(['PENDING', 'PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'SAMPLE_COLLECTED']).isRequired,
     className: PropTypes.string,
-};
+} as any;
 
 export default React.memo(StatusBadge);

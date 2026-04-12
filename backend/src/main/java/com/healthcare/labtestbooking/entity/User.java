@@ -45,6 +45,21 @@ public class User {
     @Column(unique = true, length = 15)
     private String phone;
 
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+
+    @Column(name = "secondary_phone", length = 20)
+    private String secondaryPhone;
+
+    @Column(name = "alternate_email", length = 100)
+    private String alternateEmail;
+
+    @Column(name = "marital_status", length = 50)
+    private String maritalStatus;
+
     @Column(columnDefinition = "TEXT")
     private String address;
 
@@ -55,6 +70,30 @@ public class User {
 
     @Column(length = 5)
     private String bloodGroup;
+
+    @Column(name = "language_preference", length = 10)
+    private String languagePreference;
+
+    @Column(name = "communication_channel", length = 20)
+    private String communicationChannel;
+
+    @Column(name = "notifications_enabled")
+    private Boolean notificationsEnabled;
+
+    @Column(name = "marketing_emails")
+    private Boolean marketingEmails;
+
+    @Column(name = "whatsapp_notifications")
+    private Boolean whatsappNotifications;
+
+    @Column(name = "two_factor_auth")
+    private Boolean twoFactorAuth;
+
+    @Column(name = "privacy_mode")
+    private Boolean privacyMode;
+
+    @Column(name = "theme_preference", length = 10)
+    private String themePreference;
 
     @Column(nullable = false)
     @Builder.Default

@@ -1,66 +1,70 @@
 import api from './api';
 import type { BookingResponse, CreateBookingRequest, BookingSearchParams } from '../types/booking';
 
+const unwrap = <T>(response: any): T => {
+    if (response?.data?.data !== undefined) return response.data.data as T;
+    if (response?.data !== undefined) return response.data as T;
+    return response as T;
+};
+
+const normalizeBooking = (raw: any): BookingResponse => ({
+    ...raw,
+    bookingReference: raw?.bookingReference || raw?.reference || `BK-${raw?.id}`,
+    reference: raw?.bookingReference || raw?.reference || `BK-${raw?.id}`,
+    testId: raw?.testId ?? raw?.labTestId,
+    labTestId: raw?.labTestId ?? raw?.testId,
+    testName: raw?.testName || raw?.labTestName || raw?.packageName || 'Lab Test',
+    labTestName: raw?.labTestName || raw?.testName,
+    bookingDate: raw?.bookingDate || raw?.collectionDate,
+    collectionDate: raw?.collectionDate || raw?.bookingDate,
+    timeSlot: raw?.timeSlot || raw?.scheduledTime || '09:00 AM',
+    scheduledTime: raw?.scheduledTime || raw?.timeSlot || '09:00 AM',
+    amount: Number(raw?.amount ?? raw?.totalAmount ?? raw?.finalAmount ?? 0),
+    totalAmount: Number(raw?.totalAmount ?? raw?.amount ?? raw?.finalAmount ?? 0),
+    finalAmount: Number(raw?.finalAmount ?? raw?.totalAmount ?? raw?.amount ?? 0),
+    pincode: raw?.pincode || raw?.collectionAddress?.match?.(/\b\d{6}\b/)?.[0],
+    specialNotes: raw?.specialNotes || raw?.notes,
+    notes: raw?.notes || raw?.specialNotes
+}) as BookingResponse;
+
 export const bookingService = {
-    /**
-     * Get bookings with extended search and pagination
-     */
-    getMyBookings: async (params?: BookingSearchParams): Promise<{ bookings: BookingResponse[], totalPages: number }> => {
-        try {
-            const response = await api.get('/api/bookings/my', { params: params || {} });
+    getMyBookings: async (params?: BookingSearchParams): Promise<{ bookings: BookingResponse[]; content: BookingResponse[]; totalPages: number }> => {
+        const query: Record<string, any> = {};
+        if (params?.status) query.status = params.status;
+        if (params?.fromDate) query.dateFrom = params.fromDate;
+        if (params?.toDate) query.dateTo = params.toDate;
 
-            if (response.data && response.data.content) {
-                return { bookings: response.data.content as BookingResponse[], totalPages: response.data.totalPages || 1 };
-            }
+        const response = await api.get('/api/users/bookings', { params: query });
+        const list = unwrap<any[]>(response) || [];
+        const normalized = list.map(normalizeBooking);
 
-            if (Array.isArray(response.data)) {
-                return { bookings: response.data as BookingResponse[], totalPages: 1 };
-            }
+        const filtered = params?.search
+            ? normalized.filter((b) =>
+                  String(b.reference || '').toLowerCase().includes(params.search!.toLowerCase()) ||
+                  String(b.testName || b.packageName || '').toLowerCase().includes(params.search!.toLowerCase())
+              )
+            : normalized;
 
-            return { bookings: [], totalPages: 1 };
-        } catch (error) {
-            console.error('Error fetching bookings:', error);
-            throw error;
-        }
+        return { bookings: filtered, content: filtered, totalPages: 1 };
     },
 
-    /**
-     * Get a single booking by ID
-     */
     getBookingById: async (id: number): Promise<BookingResponse> => {
-        try {
-            const response = await api.get(`/api/bookings/${id}`);
-            return (response.data?.data || response.data) as BookingResponse;
-        } catch (error) {
-            console.error(`Error fetching booking ${id}:`, error);
-            throw error;
-        }
+        const response = await api.get(`/api/users/bookings/${id}`);
+        return normalizeBooking(unwrap<any>(response)) as BookingResponse;
     },
 
-    /**
-     * Create a new booking
-     */
     createBooking: async (data: CreateBookingRequest): Promise<BookingResponse> => {
-        try {
-            const response = await api.post('/api/bookings', data);
-            return (response.data?.data || response.data) as BookingResponse;
-        } catch (error) {
-            console.error('Error creating booking:', error);
-            throw error;
-        }
+        const response = await api.post('/api/bookings', data);
+        return normalizeBooking(unwrap<any>(response)) as BookingResponse;
     },
 
-    /**
-     * Cancel a booking
-     */
-    cancelBooking: async (id: number): Promise<BookingResponse> => {
-        try {
-            // Usually mappings on spring controllers for cancel look like this or similar:
-            const response = await api.put(`/api/bookings/${id}/cancel`);
-            return (response.data?.data || response.data) as BookingResponse;
-        } catch (error) {
-            console.error(`Error canceling booking ${id}:`, error);
-            throw error;
-        }
+    cancelBooking: async (id: number, reason?: string): Promise<BookingResponse> => {
+        const response = await api.delete(`/api/users/bookings/${id}`, { data: reason ? { reason } : {} });
+        return normalizeBooking(unwrap<any>(response)) as BookingResponse;
+    },
+
+    rescheduleBooking: async (id: number, newDate: string, newTime: string): Promise<BookingResponse> => {
+        const response = await api.put(`/api/users/bookings/${id}/reschedule`, { newDate, newTime });
+        return normalizeBooking(unwrap<any>(response)) as BookingResponse;
     }
 };

@@ -28,7 +28,6 @@ import PopularPackagesRow   from '../components/ui/PopularPackagesRow';
 import WomenCareSection     from '../components/ui/WomenCareSection';
 import VitalOrgansSection   from '../components/ui/VitalOrgansSection';
 import FoodAllergyBanner    from '../components/ui/FoodAllergyBanner';
-import WomenWellnessSpecifics from '../components/ui/WomenWellnessSpecifics';
 
 import { DOCTOR_SCREENS } from '../constants/labTests';
 import DoctorScreenCard from '../components/ui/DoctorScreenCard';
@@ -97,7 +96,7 @@ const CategoryChip: React.FC<{ item: typeof POPULAR_CATS[0] }> = ({ item }) => {
   const Icon = item.icon;
   return (
     <button
-    onClick={() => navigate(`/lab-tests/all-lab-tests?search=${item.label}`)}
+    onClick={() => navigate(`/lab-tests/all-lab-tests?category=${encodeURIComponent(item.label)}`)}
       className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-xl hover:border-slate-200 hover:shadow-md transition-all duration-150 cursor-pointer group whitespace-nowrap"
     >
       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${item.color}12` }}>
@@ -144,19 +143,19 @@ const TestListingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen bg-[#F8FAFC]">
 
       {/* A — Expert-Curated Screenings */}
       <FadeSection>
         <div className={`${PAGE} py-6`}>
-          <SectionHeader 
-            title="Expert-Curated Screenings" 
-            subtitle="Doctor-designed panels for 29 health conditions" 
-            cta={{ 
-              label: 'View All Screenings', 
-              onClick: () => navigate('/category-listing/doctor-created-health-check') 
-            }} 
-          />
+            <SectionHeader 
+              title="Expert-Curated Screenings" 
+              subtitle="Doctor-designed panels for 29 health conditions" 
+              cta={{ 
+                label: 'View All Screenings', 
+                onClick: () => navigate('/category-listing/doctor-created-health-check') 
+              }} 
+            />
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 md:gap-3">
             {DOCTOR_SCREENS.slice(0, 16).map(item => (
               <DoctorScreenCard key={item.slug} item={item} />
@@ -170,14 +169,7 @@ const TestListingPage: React.FC = () => {
       {/* B — Most Booked Individual Tests */}
       <FadeSection>
         <div className={`${PAGE} py-6`}>
-          <SectionHeader 
-            title="Most Booked Tests" 
-            subtitle="Trusted by 2 million+ patients across India" 
-            cta={{ 
-              label: 'View All Tests', 
-              onClick: () => navigate('/lab-tests/all-lab-tests?is_top_booked=true') 
-            }} 
-          />
+          <SectionHeader title="Most Booked Tests" subtitle="Trusted by 2 million+ patients across India" cta={{ label: 'View All 43 Tests', onClick: () => navigate('/lab-tests/all-lab-tests') }} />
           <TopBookedTests />
         </div>
       </FadeSection>
@@ -192,7 +184,7 @@ const TestListingPage: React.FC = () => {
       {/* D — Popular Health Packages */}
       <FadeSection>
         <div className={`${PAGE} py-6`}>
-          <SectionHeader title="Popular Health Packages" subtitle="Comprehensive bundles with Smart Report — best value" cta={{ label: 'View All Packages', onClick: () => navigate('/lab-tests/all-lab-tests?item_type=PACKAGE') }} accentColor="#7C3AED" />
+          <SectionHeader title="Popular Health Packages" subtitle="Comprehensive bundles with Smart Report — best value" cta={{ label: 'View All Packages', onClick: () => navigate('/packages') }} accentColor="#7C3AED" />
           <PopularPackagesRow />
         </div>
       </FadeSection>
@@ -242,9 +234,6 @@ const TestListingPage: React.FC = () => {
         <div className={`${PAGE} py-6`}>
           <SectionHeader title="Special Care for Women" subtitle="Gynaecologist-recommended health panels for every life stage" cta={{ label: 'Women Wellness', onClick: () => navigate('/test-listing/women-wellness') }} accentColor="#DB2777" />
           <WomenCareSection />
-          
-          {/* Expanded Specific Results */}
-          <WomenWellnessSpecifics />
         </div>
       </FadeSection>
 

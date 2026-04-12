@@ -41,4 +41,13 @@ public class FamilyMember {
 
     @Column(length = 5)
     private String bloodGroup;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Column(length = 120)
+    private String email;
+
+    @Column(name = "medical_history", columnDefinition = "TEXT")
+    private String medicalHistory;
 }

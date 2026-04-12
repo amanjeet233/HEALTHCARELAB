@@ -1,12 +1,19 @@
 export type BookingStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'SAMPLE_COLLECTED';
 
 export interface CreateBookingRequest {
-    testId: number;
-    collectionDate: string; // YYYY-MM-DD
+    testId?: number;
+    packageId?: number;
+    familyMemberId?: number;
+    bookingDate?: string; // YYYY-MM-DD
+    collectionDate?: string; // compatibility alias
+    scheduledDate?: string; // compatibility alias
+    timeSlot?: string;
+    scheduledTime?: string; // compatibility alias
     collectionType: "LAB" | "HOME";
-    mobileNumber: string;
-    pincode: string;
-    address?: string; // Required for HOME collection
+    collectionAddress?: string;
+    address?: string; // compatibility alias
+    discount?: number;
+    notes?: string;
     specialNotes?: string;
 }
 
@@ -23,22 +30,34 @@ export interface BookingSearchParams {
 export interface BookingResponse {
     id: number;
     bookingReference: string;
+    reference?: string;
     patientId?: number;
     patientName?: string;
     patientEmail?: string;
-    patientPhone: string;
+    patientPhone?: string;
+    familyMemberId?: number;
     doctorId?: number;
     doctorName?: string;
     technicianId?: number;
     technicianName?: string;
-    testId: number;
-    testName: string;
-    collectionDate: string; // YYYY-MM-DD
+    testId?: number;
+    labTestId?: number;
+    testName?: string;
+    labTestName?: string;
+    packageId?: number;
+    packageName?: string;
+    bookingDate?: string; // YYYY-MM-DD
+    collectionDate?: string; // compatibility alias
+    timeSlot?: string;
+    scheduledTime?: string;
     collectionType: "LAB" | "HOME";
     collectionAddress?: string;
-    pincode: string;
+    pincode?: string;
     status: BookingStatus;
     amount: number;
+    totalAmount?: number;
+    finalAmount?: number;
+    discount?: number;
     paymentStatus?: string;
     paymentMethod?: string;
     sampleType?: string;
@@ -46,11 +65,13 @@ export interface BookingResponse {
     reportTimeHours?: number;
     createdAt?: string;
     updatedAt?: string;
+    notes?: string;
     specialNotes?: string;
 }
 
 export interface BookingPageResponse {
     content: BookingResponse[];
+    bookings?: BookingResponse[];
     pageable: unknown;
     last: boolean;
     totalPages: number;

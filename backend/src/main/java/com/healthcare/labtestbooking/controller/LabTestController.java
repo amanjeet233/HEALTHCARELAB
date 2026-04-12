@@ -64,7 +64,7 @@ public class LabTestController {
 
         @GetMapping("/advanced")
         @Operation(summary = "Get tests advanced search", description = "Retrieve paginated tests with dynamic filtering and sorting")
-        public ResponseEntity<ApiResponse<Map<String, Object>>> getAdvancedTests(
+        public ResponseEntity<ApiResponse<Page<LabTestDTO>>> getAdvancedTests(
                 @RequestParam(required = false) String search,
                 @RequestParam(required = false) List<String> category,
                 @RequestParam(name = "sub_category", required = false) String subCategory,
@@ -78,7 +78,7 @@ public class LabTestController {
         ) {
                 log.info("GET /api/lab-tests/advanced - Advanced search | categories: {}, min: {}, max: {}", 
                     category, minPrice, maxPrice);
-                Map<String, Object> response = labTestService.getAdvancedSearchTests(
+                Page<LabTestDTO> response = labTestService.getAdvancedSearchTests(
                     search, category, subCategory, isTopDeal, isTopBooked, minPrice, maxPrice, sortBy, page, limit);
                 return ResponseEntity.ok(ApiResponse.success("Advanced search results retrieved", response));
         }

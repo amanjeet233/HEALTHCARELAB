@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -148,6 +149,60 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExistsException(
+            UserAlreadyExistsException e, HttpServletRequest request) {
+
+        log.warn("User already exists: {}", e.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .error(true)
+                .code("USER_ALREADY_EXISTS")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(
+            InvalidCredentialsException e, HttpServletRequest request) {
+
+        log.warn("Invalid credentials: {}", e.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .error(true)
+                .code("INVALID_CREDENTIALS")
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    /**
+     * Handle database connectivity/query exceptions
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDataAccessException(
+            DataAccessException e, HttpServletRequest request) {
+
+        log.error("Database error: {}", e.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .error(true)
+                .code("DATABASE_UNAVAILABLE")
+                .message("Database service is temporarily unavailable")
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
+
     /**
      * Handle all other exceptions
      */
@@ -155,12 +210,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception e, HttpServletRequest request) {
         
-        log.error("Unexpected error: ", e);
+        log.error("Unhandled exception in cart/API: {}", e.getMessage(), e);
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .error(true)
                 .code("INTERNAL_SERVER_ERROR")
-                .message("An unexpected error occurred. Please try again later.")
+                .message("An unexpected error occurred: " + e.getClass().getSimpleName())
                 .timestamp(LocalDateTime.now())
                 .path(request.getRequestURI())
                 .build();

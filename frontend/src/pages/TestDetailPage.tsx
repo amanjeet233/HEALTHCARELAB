@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, ChevronDown, ChevronUp, Droplet, AlertCircle, Wallet, CalendarCheck } from 'lucide-react';
-import { labTestService } from '../services/labTest';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../context/ModalContext';
 import { notify } from '../utils/toast';
 import { getEnhancedTestDetails } from '../utils/testDetailsContent';
+import { getApiErrorMessage } from '../utils/getApiErrorMessage';
 import type { LabTestResponse, TestFAQ, LifestyleTip, CityPrice } from '../types/labTest';
-
-import { TestDetailPageSkeleton } from '../components/ui/PageSkeleton';
 
 const TestDetailPage: React.FC = () => {
     const navigate = useNavigate();
@@ -31,10 +29,17 @@ const TestDetailPage: React.FC = () => {
             try {
                 setLoading(true);
                 if (slug) {
-                    // Fetch by slug using the new service method
-                    const response = await labTestService.getLabTestBySlug(slug);
+                    const slugParam = slug || '';
+                    const isNumeric = /^\d+$/.test(slugParam);
+                    const url = isNumeric
+                        ? `/api/lab-tests/${slugParam}`
+                        : `/api/lab-tests/code/${encodeURIComponent(slugParam)}`;
+                    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                    if (!res.ok) throw new Error('Test not found');
+                    const payload = await res.json();
+                    const response = (payload?.data || payload) as LabTestResponse;
                     if (!response) throw new Error('Test not found');
-                    
+
                     // Enhance with content (passing numeric ID to utility)
                     const enhancedTest = getEnhancedTestDetails(response.id, response);
                     setTest(enhancedTest);
@@ -53,6 +58,8 @@ const TestDetailPage: React.FC = () => {
     }, [slug, navigate]);
 
     const handleAddToCart = async () => {
+        if (isAddingToCart) return;
+
         if (!isAuthenticated) {
             openAuthModal('login');
             return;
@@ -66,11 +73,36 @@ const TestDetailPage: React.FC = () => {
             await addTest(test.id, test.testName || test.name || 'Test', test.price, 1);
             notify.success(`✓ ${test.testName || test.name} added to cart!`);
         } catch (error: unknown) {
-            const apiError = error as { response?: { status: number }; message?: string };
+            const apiError = error as { response?: { status: number } };
             if (apiError?.response?.status === 401) {
                 notify.error('Please log in to add items to cart');
             } else {
-                notify.error(apiError?.message || 'Failed to add to cart');
+                notify.error(getApiErrorMessage(error, 'Failed to add to cart'));
+            }
+        } finally {
+            setIsAddingToCart(false);
+        }
+    };
+
+    const handleBookNow = async () => {
+        if (isAddingToCart) return;
+
+        if (!isAuthenticated) {
+            openAuthModal('login');
+            return;
+        }
+        if (!test) return;
+        setIsAddingToCart(true);
+        try {
+            await addTest(test.id, test.testName || test.name || 'Test', test.price, 1);
+            notify.success(`✓ ${test.testName || test.name} added to cart!`);
+            navigate('/cart');
+        } catch (error: unknown) {
+            const apiError = error as { response?: { status: number } };
+            if (apiError?.response?.status === 401) {
+                notify.error('Please log in to add items to cart');
+            } else {
+                notify.error(getApiErrorMessage(error, 'Failed to add to cart'));
             }
         } finally {
             setIsAddingToCart(false);
@@ -78,12 +110,16 @@ const TestDetailPage: React.FC = () => {
     };
 
     if (loading) {
-        return <TestDetailPageSkeleton />;
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
     }
 
     if (!test) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-transparent">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4">Test not found</h2>
                     <button onClick={() => navigate('/tests')} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Back to Tests</button>
@@ -95,15 +131,15 @@ const TestDetailPage: React.FC = () => {
     return (
         <div className="test-detail-page">
             {/* Breadcrumbs */}
-            <div className="bg-transparent border-b border-gray-100">
+            <div className="bg-white border-b border-gray-100">
                 <div className="test-detail-container py-3">
                     <nav className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-500">
                         <button onClick={() => navigate('/')} className="hover:text-primary transition-colors">Home</button>
                         <span>/</span>
                         <button onClick={() => navigate('/lab-tests')} className="hover:text-primary transition-colors">Lab Tests</button>
                         <span>/</span>
-                        <button 
-                            onClick={() => navigate(`/lab-tests-category/${(test.category || 'General').toLowerCase().replace(/\s+/g, '-')}`)} 
+                        <button
+                            onClick={() => navigate(`/lab-tests-category/${(test.category || 'General').toLowerCase().replace(/\s+/g, '-')}`)}
                             className="hover:text-primary transition-colors"
                         >
                             {test.category || 'General'}
@@ -151,7 +187,7 @@ const TestDetailPage: React.FC = () => {
                     {/* RIGHT COLUMN - 40% (STICKY) */}
                     <div className="test-detail-right">
                         {/* Price Card */}
-                        <PriceCard test={test} onAddToCart={handleAddToCart} onBooking={() => navigate(`/booking/${test.id}`)} isAddingToCart={isAddingToCart} />
+                        <PriceCard test={test} onAddToCart={handleAddToCart} onBooking={handleBookNow} isAddingToCart={isAddingToCart} />
 
                         {/* Doctor Recommended Card */}
                         <DoctorRecommendedCard test={test} />
@@ -198,7 +234,7 @@ const PriceCard: React.FC<{ test: LabTestResponse; onAddToCart: () => void; onBo
                 <Wallet className="w-5 h-5" />
                 <h3 className="text-xl font-bold leading-tight">Pricing</h3>
             </div>
-            
+
             {/* Price Display */}
             <div className="space-y-1">
                 <p className="text-xs text-gray-600 font-medium">Test Price</p>
@@ -490,8 +526,8 @@ const Section7SimilarTests: React.FC<{ category: string; currentTestId: number }
             <h2 className="test-section-header text-sm">Frequently Booked Together</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {similar.map(item => (
-                    <div 
-                        key={item.id} 
+                    <div
+                        key={item.id}
                         onClick={() => navigate(`/test/${item.slug}`)}
                         className="p-3 bg-white border border-gray-100 rounded-xl hover:shadow-md transition-all cursor-pointer group"
                     >
@@ -529,27 +565,27 @@ const Section8FAQs: React.FC<{ faqs: TestFAQ[]; expandedFAQ: number | null; setE
     const faqsToRender = [...faqs, ...additionalFaqs];
 
     return (
-    <div className="bg-white rounded-2xl p-5 shadow-lg h-full">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-        <div className="space-y-2">
-            {faqsToRender.map((faq, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <button
-                        onClick={() => setExpandedFAQ(expandedFAQ === idx ? null : idx)}
-                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors text-left font-semibold text-sm text-gray-900"
-                    >
-                        <span>{faq.question}</span>
-                        {expandedFAQ === idx ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-                    </button>
-                    {expandedFAQ === idx && (
-                        <div className="px-4 py-3 bg-blue-50 border-t border-gray-200 text-sm text-gray-700">
-                            {faq.answer}
-                        </div>
-                    )}
-                </div>
-            ))}
+        <div className="bg-white rounded-2xl p-5 shadow-lg h-full">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-2">
+                {faqsToRender.map((faq, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                            onClick={() => setExpandedFAQ(expandedFAQ === idx ? null : idx)}
+                            className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors text-left font-semibold text-sm text-gray-900"
+                        >
+                            <span>{faq.question}</span>
+                            {expandedFAQ === idx ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                        </button>
+                        {expandedFAQ === idx && (
+                            <div className="px-4 py-3 bg-blue-50 border-t border-gray-200 text-sm text-gray-700">
+                                {faq.answer}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
         </div>
-    </div>
     );
 };
 
@@ -561,18 +597,18 @@ const Section9LifestyleTips: React.FC<{ tips: LifestyleTip[] }> = ({ tips }) => 
     });
 
     return (
-    <div className="bg-white rounded-2xl p-5 shadow-lg h-full">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Lifestyle Tips to Support Healthy Blood Cells</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {tipsToRender.map((tip, idx) => (
-                <div key={idx} className="text-left bg-gray-50 rounded-lg p-3 border border-gray-100">
-                    <div className="text-2xl mb-1">{tip.icon}</div>
-                    <h3 className="font-semibold text-sm text-gray-900 mb-1">{tip.title}</h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">{tip.description}</p>
-                </div>
-            ))}
+        <div className="bg-white rounded-2xl p-5 shadow-lg h-full">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Lifestyle Tips to Support Healthy Blood Cells</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {tipsToRender.map((tip, idx) => (
+                    <div key={idx} className="text-left bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div className="text-2xl mb-1">{tip.icon}</div>
+                        <h3 className="font-semibold text-sm text-gray-900 mb-1">{tip.title}</h3>
+                        <p className="text-xs text-gray-600 leading-relaxed">{tip.description}</p>
+                    </div>
+                ))}
+            </div>
         </div>
-    </div>
     );
 };
 

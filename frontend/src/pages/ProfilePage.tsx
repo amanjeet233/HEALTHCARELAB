@@ -1,160 +1,124 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Activity, ShieldCheck } from 'lucide-react';
-import { healthDataService, type HealthProfile } from '../services/healthDataService';
-import HealthProfileSection from '../components/profile/HealthProfileSection';
-import HealthDataForm from '../components/profile/HealthDataForm';
-import QuizHistorySection from '../components/quiz/QuizHistorySection';
+import React, { useEffect, useState } from 'react';
+import { User, HeartPulse, Activity } from 'lucide-react';
+import { userService } from '../services/userService';
+import type { User as UserType } from '../types/auth';
 import { notify } from '../utils/toast';
-import './ProfilePage.css';
+import PersonalInfoTab from '../components/profile/tabs/PersonalInfoTab';
+import HealthcareTab from '../components/profile/tabs/HealthcareTab';
+import GlassCard from '../components/common/GlassCard';
+import '../styles/SecondaryPages.css';
+
+type ProfileTab = 'personal' | 'medical';
 
 const ProfilePage: React.FC = () => {
-    const [profile, setProfile] = useState<HealthProfile | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'biometrics' | 'history'>('biometrics');
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<UserType | null>(null);
+    const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
+
+    const tabs: Array<{ id: ProfileTab; label: string; icon: any; description: string }> = [
+        { id: 'personal', label: 'Identity', icon: User, description: 'Basic personal details' },
+        { id: 'medical', label: 'Health', icon: HeartPulse, description: 'Medical history' }
+    ];
+
+    const loadUser = async () => {
+        try {
+            setLoading(true);
+            const data = await userService.getProfile();
+            setUser(data);
+        } catch (error) {
+            notify.error('Failed to load profile.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        loadProfile();
+        loadUser();
     }, []);
 
-    const loadProfile = async () => {
-        try {
-            const data = await healthDataService.getHealthData();
-            setProfile(data);
-        } catch (error) {
-            notify.error('Failed to load health telemetry.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSave = async (updatedData: Partial<HealthProfile>) => {
-        try {
-            const result = await healthDataService.updateHealthData(updatedData);
-            setProfile(result);
-            setIsEditing(false);
-            notify.success('Health profile synchronized successfully.');
-        } catch (error) {
-            notify.error('Failed to update telemetry node.');
-        }
-    };
-
-    if (isLoading) {
+    if (loading || !user) {
         return (
-            <div className="profile-loading">
-                <div className="loading-spinner">
-                    <div className="spinner-ring" />
-                    <Activity className="spinner-icon" />
+            <div className="flex items-center justify-center min-vh-100 bg-[#ECFEFF]">
+                <div className="relative">
+                    <div className="w-16 h-16 border-4 border-cyan-100 border-t-cyan-600 rounded-full animate-spin" />
+                    <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-600 animate-pulse" size={20} />
                 </div>
-                <span className="loading-text">
-                    Loading Health Profile...
-                </span>
             </div>
         );
     }
 
     return (
-        <div className="profile-page">
-            {/* Page Header */}
-            <div className="profile-header">
-                <div className="profile-header-left">
-                    {/* Header Badge */}
-                    <div className="profile-header-badge">
-                        <div className="profile-header-badge-icon">
-                            <User />
-                        </div>
-                        <span className="profile-header-label">Patient Profile</span>
+        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
+            <header className="mb-8">
+                <div className="flex items-center gap-2.5 mb-3">
+                    <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">
+                        <User className="w-5 h-5 text-cyan-600" />
                     </div>
-
-                    {/* Title */}
-                    <h1>
-                        Your <span className="profile-header-highlight">Health Profile</span>
-                    </h1>
-
-                    {/* Tab Switcher */}
-                    {!isEditing && (
-                        <nav className="profile-tabs">
-                            {[
-                                { id: 'biometrics', label: 'Health Data' },
-                                { id: 'history', label: 'History' }
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`tab-item ${activeTab === tab.id ? 'active' : ''}`}
-                                >
-                                    {tab.label}
-                                    {activeTab === tab.id && (
-                                        <motion.div
-                                            layoutId="profileTabLine"
-                                            className="tab-underline"
-                                        />
-                                    )}
-                                </button>
-                            ))}
-                        </nav>
-                    )}
+                    <span className="text-[clamp(0.62rem,0.58rem+0.15vw,0.72rem)] font-extrabold uppercase tracking-[0.16em] text-cyan-800/60">
+                        Personal Details
+                    </span>
                 </div>
+                <h1 className="text-[clamp(1.75rem,1.28rem+1.6vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5">
+                    My <span className="text-cyan-600">Profile</span>
+                </h1>
+                <p className="text-[clamp(0.84rem,0.78rem+0.3vw,1rem)] text-cyan-900/60 max-w-2xl font-medium leading-relaxed">
+                    Manage your personal details and health information in one place.
+                </p>
+            </header>
 
-                {/* Status Indicator */}
-                <div className="profile-status">
-                    <div className="status-text">
-                        <span className="status-label">System Status</span>
-                        <div className="status-value">
-                            <span className="status-indicator" />
-                            <span className="status-value-text">Active</span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                <aside className="lg:col-span-4 sticky top-5">
+                    <GlassCard className="p-3.5 border-cyan-100/30">
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-50 to-white border border-cyan-100 mb-4 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-cyan-600 flex items-center justify-center text-white text-lg font-black border-2 border-white shadow-md">
+                                    {(user.name?.[0] || user.firstName?.[0] || 'U').toUpperCase()}
+                                </div>
+                                <div>
+                                    <h3 className="text-[clamp(0.98rem,0.92rem+0.3vw,1.15rem)] font-black text-slate-800 tracking-tight">
+                                        {user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim()}
+                                    </h3>
+                                    <p className="text-[0.72rem] font-bold text-cyan-600/70">{user.email}</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="status-divider" />
-                    <div className="status-security">
-                        <ShieldCheck className="status-security-icon" />
-                        <span className="status-security-text">Encrypted</span>
-                    </div>
-                </div>
+
+                        <div className="space-y-2">
+                            {tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const active = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group ${active
+                                            ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 translate-x-2'
+                                            : 'bg-white/40 text-slate-600 hover:bg-white/80 hover:translate-x-1 border border-transparent hover:border-cyan-100'
+                                            }`}
+                                    >
+                                        <div className={`p-1.5 rounded-lg transition-colors ${active ? 'bg-cyan-500' : 'bg-cyan-50 text-cyan-600 group-hover:bg-cyan-100'}`}>
+                                            <Icon size={16} />
+                                        </div>
+                                        <div>
+                                            <span className="block text-[0.72rem] font-black uppercase tracking-wider">{tab.label}</span>
+                                            <span className={`block text-[0.58rem] font-bold ${active ? 'text-cyan-100' : 'text-slate-400'}`}>
+                                                {tab.description}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </GlassCard>
+                </aside>
+
+                <main className="lg:col-span-8">
+                    <GlassCard className="min-h-[420px] border-cyan-100/30">
+                        {activeTab === 'personal' && <PersonalInfoTab user={user as any} onUpdate={loadUser} />}
+                        {activeTab === 'medical' && <HealthcareTab user={user as any} onUpdate={loadUser} />}
+                    </GlassCard>
+                </main>
             </div>
-
-            {/* Main Content */}
-            <AnimatePresence mode="wait">
-                {isEditing ? (
-                    <motion.div
-                        key="edit-form"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.4 }}
-                        className="profile-content"
-                    >
-                        {profile && (
-                            <HealthDataForm
-                                initialData={profile}
-                                onSave={handleSave}
-                                onCancel={() => setIsEditing(false)}
-                            />
-                        )}
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.5 }}
-                        className="profile-content"
-                    >
-                        {activeTab === 'biometrics' ? (
-                            profile && (
-                                <HealthProfileSection
-                                    profile={profile}
-                                    onEdit={() => setIsEditing(true)}
-                                />
-                            )
-                        ) : (
-                            <QuizHistorySection />
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

@@ -16,10 +16,19 @@ const SL = '#64748B'; // Slate-500 — matching TestListingPage muted text
 export const DoctorScreenCard: React.FC<{ item: DoctorScreenItem }> = ({ item }) => {
   const navigate = useNavigate();
   const Icon = item.icon;
+
+  const openScreening = () => {
+    const params = new URLSearchParams({
+      category: item.label,
+    });
+    navigate(`/lab-tests/all-lab-tests?${params.toString()}`);
+  };
   
   return (
     <button
-      onClick={() => navigate(`/lab-tests/all-lab-tests?category=${encodeURIComponent(item.label)}`)}
+      id={`screening-${item.slug}`}
+      aria-label={`${item.label} screening`}
+      onClick={openScreening}
       className={`group relative rounded-2xl p-3 md:p-3.5 border transition-all duration-300 cursor-pointer text-left w-full flex flex-col gap-2.5 h-full hover:shadow-xl hover:-translate-y-1`}
       style={{ 
         backgroundColor: `${item.iconColor}08`, 

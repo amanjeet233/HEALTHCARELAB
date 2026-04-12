@@ -25,4 +25,10 @@ public class FamilyMemberRequest {
     private Gender gender;
     
     private String bloodGroup;
+
+    private String phoneNumber;
+
+    private String email;
+
+    private String medicalHistory;
 }

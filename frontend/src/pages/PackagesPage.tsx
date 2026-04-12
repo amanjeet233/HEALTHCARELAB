@@ -7,6 +7,7 @@ import PackageCard from '../components/packages/PackageCard';
 import PackageDetailsModal from '../components/packages/PackageDetailsModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { notify } from '../utils/toast';
+import { getApiErrorMessage } from '../utils/getApiErrorMessage';
 import './PackagesPage.css';
 
 type SortOption = 'name' | 'price_asc' | 'price_desc' | 'savings' | 'tests';
@@ -27,16 +28,23 @@ const PackagesPage: React.FC = () => {
     const [sortBy, setSortBy] = useState<SortOption>('savings');
     const [selectedPackage, setSelectedPackage] = useState<TestPackageResponse | null>(null);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [serviceUnavailable, setServiceUnavailable] = useState(false);
+    const [serviceErrorText, setServiceErrorText] = useState('Database service is temporarily unavailable');
 
     useEffect(() => {
         const fetchPackages = async () => {
             setIsLoading(true);
+            setServiceUnavailable(false);
+            setServiceErrorText('Database service is temporarily unavailable');
             try {
                 const data = await packageService.getAllPackages();
                 setPackages(data);
             } catch (error) {
                 console.error(error);
-                notify.error('Failed to load packages.');
+                const message = getApiErrorMessage(error, 'Failed to load packages.');
+                notify.error(message);
+                setServiceUnavailable(true);
+                setServiceErrorText(message);
             } finally {
                 setIsLoading(false);
             }
@@ -168,6 +176,16 @@ const PackagesPage: React.FC = () => {
                 <div className="packages-loading">
                     <LoadingSpinner size="lg" />
                 </div>
+            ) : serviceUnavailable ? (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="empty-packages"
+                >
+                    <span className="empty-icon text-4xl">⚠️</span>
+                    <h3>{serviceErrorText}</h3>
+                    <p>Please try again in a few minutes.</p>
+                </motion.div>
             ) : filteredAndSorted.length === 0 ? (
                 <motion.div
                     initial={{ opacity: 0 }}

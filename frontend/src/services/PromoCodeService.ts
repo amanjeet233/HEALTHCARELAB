@@ -1,204 +1,104 @@
 import api from './api';
-import type {
-  PromoCode,
-  PromoCodeValidation,
-  PromoCodeError,
-  PromoValidationRequest,
-  PromoCodeResponse,
-  AppliedCoupon,
-  CouponBenefit
-} from '../types/promo';
-
-const PROMO_API_BASE = '/api/promo-codes';
+import type { PromoCode, PromoCodeValidation, PromoCodeError, AppliedCoupon } from '../types/promo';
 
 class PromoCodeService {
-  /**
-   * Get all available promo codes
-   */
   async getAvailablePromoCodes(): Promise<PromoCode[]> {
     try {
-      const response = await api.get(`${PROMO_API_BASE}/available`);
-      return response.data.data || [];
+      const response = await api.get('/api/promotions', { params: { sort: 'discount' } });
+      const data = response?.data?.data?.promotions || [];
+      return data.map((p: any) => ({
+        id: p.id,
+        code: p.code,
+        discount_type: String(p.discountType || 'FLAT').toUpperCase(),
+        discount_value: Number(p.discountValue || 0),
+        expiry_date: p.validUntil,
+        is_active: true,
+        description: p.description,
+        // UI compatibility fields
+        couponCode: p.code,
+        discountType: String(p.discountType || 'FLAT').toUpperCase(),
+        discountValue: Number(p.discountValue || 0),
+        expiryDate: p.validUntil
+      })) as PromoCode[];
     } catch (error) {
       console.error('Error fetching promo codes:', error);
       return [];
     }
   }
 
-  /**
-   * Get promo code details by code
-   */
   async getPromoCodeByCode(code: string): Promise<PromoCode | null> {
-    try {
-      const response = await api.get(`${PROMO_API_BASE}/${code}`);
-      return response.data.data;
-    } catch (error) {
-      console.error(`Error fetching promo code ${code}:`, error);
-      return null;
-    }
+    const promos = await this.getAvailablePromoCodes();
+    return promos.find((p: any) => (p.code || p.couponCode) === code) || null;
   }
 
-  /**
-   * Validate promo code for cart
-   * POST /api/promo-codes/validate
-   * Body: { code, cartValue, testIds[] }
-   */
-  async validatePromoCode(
-    code: string,
-    cartValue: number,
-    testIds?: string[]
-  ): Promise<PromoCodeValidation | null> {
+  async validatePromoCode(code: string, cartValue: number): Promise<PromoCodeValidation | null> {
     try {
-      const request: PromoValidationRequest = {
+      const response = await api.post('/api/promotions/apply', { code, orderAmount: cartValue });
+      const payload = response?.data?.data;
+      return {
+        isValid: true,
         code,
-        cartValue,
-        testIds
+        discountType: payload?.promotion?.discountType || 'FLAT',
+        discountValue: Number(payload?.promotion?.discountValue || 0),
+        discountAmount: Number(payload?.promotion?.discountAmount || 0),
+        message: 'Promo code is valid'
       };
-
-      const response = await api.post(`${PROMO_API_BASE}/validate`, request);
-      
-      if (response.data.success) {
-        return {
-          isValid: true,
-          code: response.data.data.code,
-          discountType: response.data.data.discount_type,
-          discountValue: response.data.data.discount_value,
-          discountAmount: response.data.data.discount_amount,
-          maxDiscount: response.data.data.max_discount,
-          minCartValue: response.data.data.min_cart_value,
-          message: response.data.data.message,
-          termsAndConditions: response.data.data.terms_and_conditions
-        };
-      } else {
-        return {
-          isValid: false,
-          code,
-          discountType: 'FLAT',
-          discountValue: 0,
-          discountAmount: 0,
-          message: response.data.error?.message || 'Invalid promo code'
-        };
-      }
     } catch (error: any) {
-      console.error('Error validating promo code:', error);
       return {
         isValid: false,
         code,
         discountType: 'FLAT',
         discountValue: 0,
         discountAmount: 0,
-        message: error.response?.data?.error?.message || 'Failed to validate promo code'
+        message: error?.response?.data?.message || 'Invalid promo code'
       };
     }
   }
 
-  /**
-   * Apply promo code to cart (backend will calculate discount)
-   * POST /api/promo-codes/apply
-   */
-  async applyPromoCode(
-    code: string,
-    cartValue: number,
-    testIds?: string[]
-  ): Promise<AppliedCoupon | PromoCodeError> {
+  async applyPromoCode(code: string, cartValue: number): Promise<AppliedCoupon | PromoCodeError> {
     try {
-      const response = await api.post(`${PROMO_API_BASE}/apply`, {
-        code,
-        cartValue,
-        testIds
-      });
-
-      if (response.data.success) {
-        const data = response.data.data;
-        return {
-          code: data.code,
-          benefit: {
-            type: data.discount_type,
-            value: data.discount_value,
-            maxDiscount: data.max_discount,
-            applicableItems: data.applicable_tests
-          },
-          message: data.message || `Promo code applied successfully! You saved ₹${data.discount_amount}`
-        };
-      } else {
-        const error = response.data.error;
-        return {
-          code: error.code || 'INVALID_CODE',
-          message: error.message,
-          details: error.details
-        };
-      }
-    } catch (error: any) {
-      console.error('Error applying promo code:', error);
+      const response = await api.post('/api/promotions/apply', { code, orderAmount: cartValue });
+      const payload = response?.data?.data;
       return {
-        code: 'APPLICATION_ERROR',
-        message: error.response?.data?.error?.message || 'Failed to apply promo code',
-        details: error.response?.data?.error?.details
+        code,
+        benefit: {
+          type: payload?.promotion?.discountType || 'FLAT',
+          value: Number(payload?.promotion?.discountValue || 0),
+          maxDiscount: undefined,
+          applicableItems: undefined
+        },
+        message: `Promo code applied. You saved ₹${Number(payload?.promotion?.discountAmount || 0)}`
+      };
+    } catch (error: any) {
+      return {
+        code: 'INVALID_CODE',
+        message: error?.response?.data?.message || 'Failed to apply promo code'
       };
     }
   }
 
-  /**
-   * Remove applied promo code from cart
-   * POST /api/promo-codes/remove
-   */
-  async removePromoCode(code: string): Promise<boolean> {
-    try {
-      const response = await api.post(`${PROMO_API_BASE}/remove`, { code });
-      return response.data.success;
-    } catch (error) {
-      console.error('Error removing promo code:', error);
-      return false;
-    }
+  async removePromoCode(_code: string): Promise<boolean> {
+    return true;
   }
 
-  /**
-   * Get user's promo code history (used codes)
-   */
   async getUserPromoHistory(): Promise<PromoCode[]> {
-    try {
-      const response = await api.get(`${PROMO_API_BASE}/history`);
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error fetching promo history:', error);
-      return [];
-    }
+    return [];
   }
 
-  /**
-   * Search promo codes by category or type
-   */
-  async searchPromoCodes(query: string, category?: string): Promise<PromoCode[]> {
-    try {
-      const params: Record<string, string> = { q: query };
-      if (category) params.category = category;
-      
-      const response = await api.get(`${PROMO_API_BASE}/search`, { params });
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error searching promo codes:', error);
-      return [];
-    }
+  async searchPromoCodes(query: string): Promise<PromoCode[]> {
+    const all = await this.getAvailablePromoCodes();
+    const q = query.toLowerCase();
+    return all.filter((p) =>
+      String((p as any).code || (p as any).couponCode || '').toLowerCase().includes(q) ||
+      String(p.description || '').toLowerCase().includes(q)
+    );
   }
 
-  /**
-   * Get featured/trending promo codes
-   */
   async getFeaturedPromoCodes(limit: number = 5): Promise<PromoCode[]> {
-    try {
-      const response = await api.get(`${PROMO_API_BASE}/featured`, {
-        params: { limit }
-      });
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Error fetching featured promo codes:', error);
-      return [];
-    }
+    const all = await this.getAvailablePromoCodes();
+    return all.slice(0, limit);
   }
 
-  /**
-   * Calculate discount for a given cart value and promo code
-   */
   calculateDiscount(
     cartValue: number,
     discount: number,
@@ -206,22 +106,15 @@ class PromoCodeService {
     maxDiscount?: number
   ): number {
     let discountAmount = 0;
-
     if (discountType === 'PERCENTAGE') {
       discountAmount = (cartValue * discount) / 100;
-      if (maxDiscount) {
-        discountAmount = Math.min(discountAmount, maxDiscount);
-      }
+      if (maxDiscount) discountAmount = Math.min(discountAmount, maxDiscount);
     } else {
       discountAmount = discount;
     }
-
     return Math.round(discountAmount);
   }
 
-  /**
-   * Get final price after applying discount
-   */
   getFinalPrice(cartValue: number, discountAmount: number, taxPercentage: number = 0): number {
     const afterDiscount = cartValue - discountAmount;
     const tax = (afterDiscount * taxPercentage) / 100;

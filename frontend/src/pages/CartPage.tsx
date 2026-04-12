@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useCart } from '@/hooks/useCart';
 import { Link, useNavigate } from 'react-router-dom';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { GenericPageSkeleton } from '@/components/ui/PageSkeleton';
 import PromoCodeInput from '@/components/payment/PromoCodeInput';
 import type { AppliedCoupon } from '@/types/promo';
 import './CartPage.css';
@@ -88,7 +87,7 @@ export default function CartPage() {
   };
 
   if (loading && !cart) {
-    return <GenericPageSkeleton />;
+    return <LoadingSpinner />;
   }
 
   if (!cart || cart.items.length === 0) {
@@ -256,9 +255,14 @@ export default function CartPage() {
 
             <button
               className="checkout-btn"
-              onClick={() => navigate('/checkout')}
+              onClick={() => navigate('/booking', {
+                state: {
+                  cartItems: cart.items,
+                  total: cart.totalPrice
+                }
+              })}
             >
-              💳 Proceed to Checkout
+              📋 Proceed to Booking
             </button>
 
             <button

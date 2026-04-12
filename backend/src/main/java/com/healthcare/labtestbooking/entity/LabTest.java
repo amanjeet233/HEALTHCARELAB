@@ -14,7 +14,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @EntityListeners({AuditingEntityListener.class, AuditListener.class})
@@ -201,6 +203,17 @@ public class LabTest {
     private void serializeJsonFields() {
         ObjectMapper mapper = new ObjectMapper();
         try {
+            if (testCode == null || testCode.isBlank()) {
+                String base = (testName == null ? "test" : testName)
+                        .toLowerCase(Locale.ROOT)
+                        .replaceAll("[^a-z0-9]+", "-")
+                        .replaceAll("(^-|-$)", "");
+                if (base.isBlank()) {
+                    base = "test";
+                }
+                this.testCode = base + "-" + UUID.randomUUID().toString().substring(0, 8);
+            }
+
             if (subTests != null && !subTests.isEmpty()) {
                 this.subTestsJson = mapper.writeValueAsString(subTests);
             } else {
@@ -221,15 +234,17 @@ public class LabTest {
     private void deserializeJsonFields() {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            if (subTestsJson != null && !subTestsJson.isEmpty() && !subTestsJson.equals("[]")) {
-                this.subTests = mapper.readValue(subTestsJson, 
+            String normalizedSubTestsJson = normalizeJsonArrayString(subTestsJson);
+            if (normalizedSubTestsJson != null && !normalizedSubTestsJson.isEmpty() && !normalizedSubTestsJson.equals("[]")) {
+                this.subTests = mapper.readValue(normalizedSubTestsJson,
                     mapper.getTypeFactory().constructCollectionType(List.class, String.class));
             } else {
                 this.subTests = new ArrayList<>();
             }
             
-            if (tagsJson != null && !tagsJson.isEmpty() && !tagsJson.equals("[]")) {
-                this.tags = mapper.readValue(tagsJson, 
+            String normalizedTagsJson = normalizeJsonArrayString(tagsJson);
+            if (normalizedTagsJson != null && !normalizedTagsJson.isEmpty() && !normalizedTagsJson.equals("[]")) {
+                this.tags = mapper.readValue(normalizedTagsJson,
                     mapper.getTypeFactory().constructCollectionType(List.class, String.class));
             } else {
                 this.tags = new ArrayList<>();
@@ -239,5 +254,16 @@ public class LabTest {
             this.subTests = new ArrayList<>();
             this.tags = new ArrayList<>();
         }
+    }
+
+    private String normalizeJsonArrayString(String rawJson) throws JsonProcessingException {
+        if (rawJson == null) {
+            return null;
+        }
+        String trimmed = rawJson.trim();
+        if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            return new ObjectMapper().readValue(trimmed, String.class);
+        }
+        return trimmed;
     }
 }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import api from '@/services/api';
+import toast from 'react-hot-toast';
 
 export interface CartItem {
   cartItemId: number;
@@ -48,6 +49,56 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'medsync_cart_cache';
 
+const toNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
+
+const normalizeCart = (raw: any): CartResponse | null => {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const items: CartItem[] = (Array.isArray(raw.items) ? raw.items : []).map((item: any) => {
+    const itemType = String(item?.itemType || '').toUpperCase();
+    const isPackage = itemType === 'TEST_PACKAGE' || itemType === 'PACKAGE';
+    const itemId = toNumber(item?.itemId ?? item?.testId ?? item?.packageId, 0);
+    const quantity = toNumber(item?.quantity, 1);
+    const unitPrice = toNumber(item?.unitPrice ?? item?.price, 0);
+    const lineTotal = toNumber(item?.lineTotal ?? item?.total ?? item?.finalPrice, unitPrice * quantity);
+
+    return {
+      cartItemId: toNumber(item?.cartItemId, Date.now()),
+      testId: isPackage ? undefined : itemId,
+      packageId: isPackage ? itemId : undefined,
+      testName: !isPackage ? (item?.itemName ?? item?.testName) : undefined,
+      packageName: isPackage ? (item?.itemName ?? item?.packageName) : undefined,
+      name: item?.itemName ?? item?.name,
+      quantity,
+      price: unitPrice,
+      total: lineTotal,
+      discount: toNumber(item?.discountAmount ?? item?.discount, 0),
+      finalPrice: toNumber(item?.finalPrice, lineTotal),
+      addedAt: item?.addedAt,
+      isPackage
+    };
+  });
+
+  return {
+    cartId: toNumber(raw.cartId, 0),
+    items,
+    subtotal: toNumber(raw.subtotal, 0),
+    discountAmount: toNumber(raw.discountAmount, 0),
+    taxAmount: toNumber(raw.taxAmount, 0),
+    totalPrice: toNumber(raw.totalPrice, 0),
+    gstAmount: toNumber(raw.taxAmount, 0),
+    couponCode: raw.couponCode ?? undefined,
+    itemCount: toNumber(raw.itemCount, items.reduce((acc, item) => acc + item.quantity, 0))
+  };
+};
+
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,7 +110,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const cachedCart = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (cachedCart) {
       try {
-        setCart(JSON.parse(cachedCart));
+        setCart(normalizeCart(JSON.parse(cachedCart)));
       } catch (e) {
         console.error("Failed to parse cached cart", e);
       }
@@ -78,7 +129,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     try {
       const response = await api.get('/api/cart');
-      const cartData = response.data.data;
+      const cartData = normalizeCart(response.data.data);
       setCart(cartData);
       syncToLocalStorage(cartData);
     } catch (err: any) {
@@ -139,14 +190,41 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addTest = useCallback(async (testId: number, name: string, price: number, quantity: number = 1) => {
     try {
       const response = await api.post('/api/cart/add-test', { testId, quantity });
-      setCart(response.data.data);
-      syncToLocalStorage(response.data.data);
+      const cartData = normalizeCart(response.data.data);
+      setCart(cartData);
+      syncToLocalStorage(cartData);
       setIsCartOpen(true);
+      toast.success(`${name} added to cart!`, { duration: 2000 });
     } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-          processOfflineAdd(testId, 'test', name, price, quantity);
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // Unauthenticated -> offline cart
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Login to save your cart', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (status === 404) {
+        // Test not found in DB -> still add to offline cart with a note
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Added to local cart. Test sync pending.', {
+          icon: '⚠️',
+          duration: 3000,
+          style: { background: '#92400E', color: '#fff' }
+        });
+      } else if (status === 503 || !status) {
+        // Backend down -> offline cart fallback, NO error thrown
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Server offline. Item saved locally.', {
+          icon: '📥',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
       } else {
-        throw err;
+        // Any other error -> still use offline
+        processOfflineAdd(testId, 'test', name, price, quantity);
+        toast('Added to local cart.', { duration: 2000 });
       }
     }
   }, [cart]);
@@ -154,23 +232,49 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addPackage = useCallback(async (packageId: number, name: string, price: number) => {
     try {
       const response = await api.post('/api/cart/add-package', { packageId });
-      setCart(response.data.data);
-      syncToLocalStorage(response.data.data);
+      const normalized = normalizeCart(response.data.data);
+      setCart(normalized);
+      syncToLocalStorage(normalized);
       setIsCartOpen(true);
     } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-          processOfflineAdd(packageId, 'package', name, price, 1);
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Login to save your cart', {
+          icon: '🔐',
+          duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
+      } else if (status === 400) {
+        // Package may already be in cart on backend; sync and open cart.
+        await fetchCart();
+        setIsCartOpen(true);
+      } else if (status === 404) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Added to local cart. Package sync pending.', {
+          icon: '⚠️',
+          duration: 3000,
+          style: { background: '#92400E', color: '#fff' }
+        });
+      } else if (status === 503 || !status) {
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Server offline. Package saved locally.', {
+          icon: '📥', duration: 3000,
+          style: { background: '#1E293B', color: '#fff' }
+        });
       } else {
-        throw err;
+        processOfflineAdd(packageId, 'package', name, price, 1);
+        toast('Added to local cart.', { duration: 2000 });
       }
     }
-  }, [cart]);
+  }, [cart, fetchCart]);
 
   const removeItem = useCallback(async (cartItemId: number) => {
     try {
       const response = await api.delete(`/api/cart/item/${cartItemId}`);
-      setCart(response.data.data);
-      syncToLocalStorage(response.data.data);
+      const normalized = normalizeCart(response.data.data);
+      setCart(normalized);
+      syncToLocalStorage(normalized);
     } catch (err: any) {
       // Offline fallback
       if (cart) {
@@ -188,8 +292,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateQuantity = useCallback(async (cartItemId: number, quantity: number) => {
     try {
       const response = await api.put(`/api/cart/item/${cartItemId}`, { quantity });
-      setCart(response.data.data);
-      syncToLocalStorage(response.data.data);
+      const normalized = normalizeCart(response.data.data);
+      setCart(normalized);
+      syncToLocalStorage(normalized);
     } catch (err: any) {
          if (cart) {
           const newCart = { ...cart };
@@ -221,8 +326,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isInCart = useCallback((testId?: number, packageId?: number): boolean => {
     if (!cart?.items) return false;
     return cart.items.some(item =>
-      (testId && item.testId === testId) ||
-      (packageId && item.packageId === packageId)
+      (testId !== undefined && testId !== null && item.testId === testId) ||
+      (packageId !== undefined && packageId !== null && item.packageId === packageId)
     );
   }, [cart]);
 

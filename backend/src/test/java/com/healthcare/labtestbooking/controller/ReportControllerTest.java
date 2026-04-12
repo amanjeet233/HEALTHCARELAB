@@ -5,13 +5,18 @@ import com.healthcare.labtestbooking.dto.ReportResultRequest;
 import com.healthcare.labtestbooking.dto.ReportResultDTO;
 import com.healthcare.labtestbooking.security.JwtUtil;
 import com.healthcare.labtestbooking.security.UserDetailsServiceImpl;
+import com.healthcare.labtestbooking.service.ReportGeneratorService;
+import com.healthcare.labtestbooking.service.ReportResultService;
 import com.healthcare.labtestbooking.service.ReportService;
+import com.healthcare.labtestbooking.service.ReportVerificationService;
+import com.healthcare.labtestbooking.service.TokenBlacklistService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -42,6 +47,21 @@ class ReportControllerTest {
 
     @MockBean
     private UserDetailsServiceImpl userDetailsService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
+
+    @MockBean
+    private ReportGeneratorService reportGeneratorService;
+
+    @MockBean
+    private ReportResultService reportResultService;
+
+    @MockBean
+    private ReportVerificationService reportVerificationService;
+
+    @MockBean
+    private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @WithMockUser(roles = "TECHNICIAN")
@@ -79,7 +99,14 @@ class ReportControllerTest {
         ReportResultRequest request = ReportResultRequest.builder()
             .bookingId(1L)
             .technicianId(1L)
-            .results(List.of())
+            .results(List.of(
+                ReportResultRequest.ResultItem.builder()
+                    .parameterId(1L)
+                    .resultValue("5.5")
+                    .unit("mg/dL")
+                    .notes("Normal range")
+                    .build()
+            ))
             .build();
 
         // When/Then
@@ -95,7 +122,14 @@ class ReportControllerTest {
         ReportResultRequest request = ReportResultRequest.builder()
             .bookingId(1L)
             .technicianId(1L)
-            .results(List.of())
+            .results(List.of(
+                ReportResultRequest.ResultItem.builder()
+                    .parameterId(1L)
+                    .resultValue("5.5")
+                    .unit("mg/dL")
+                    .notes("Normal range")
+                    .build()
+            ))
             .build();
 
         // When/Then

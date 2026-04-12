@@ -18,22 +18,22 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    @EntityGraph(attributePaths = {"patient", "test", "technician"})
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     Optional<Booking> findByBookingReference(String bookingReference);
 
-    @EntityGraph(attributePaths = {"patient", "test", "technician"})
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     List<Booking> findByPatientId(Long patientId);
 
-    @EntityGraph(attributePaths = {"patient", "test", "technician"})
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     Page<Booking> findByPatientId(Long patientId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"test"})
     List<Booking> findByTestId(Long testId);
 
-    @EntityGraph(attributePaths = {"patient", "test", "technician"})
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     List<Booking> findByStatus(BookingStatus status);
 
-    @EntityGraph(attributePaths = {"patient", "test", "technician"})
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     List<Booking> findByPatientIdAndStatus(Long patientId, BookingStatus status);
 
     @EntityGraph(attributePaths = {"test"})

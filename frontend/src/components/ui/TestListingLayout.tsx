@@ -1,10 +1,13 @@
 import React, {
-  useState, useEffect, useCallback
+  useState, useEffect, useCallback, useRef
 } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Home, ChevronRight, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { useSearchParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  ChevronDown, ChevronRight, X, SlidersHorizontal, Home
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import MedSyncTestCard, { MedSyncTestCardSkeleton, MedSyncTestCardData } from './MedSyncTestCard';
+import { getApiErrorMessage } from '../../utils/getApiErrorMessage';
 
 /* ─────────────────────────────────────────────────────────────────
    TestListingLayout — Reusable layout for all test listing routes:
@@ -14,50 +17,89 @@ import MedSyncTestCard, { MedSyncTestCardSkeleton, MedSyncTestCardData } from '.
      /lab-tests-category/:categorySlug
 
    @agent: frontend-specialist  @perf: performance-optimizer
-───────────────────────────────────────────────────────────────── */
+ ───────────────────────────────────────────────────────────────── */
 
 const ALL_CATEGORIES = [
-  'Pregnancy', 'Hospital Health Check', 'Blood Studies', 'Allergy', 'Tax Saver',
-  'Bone and Joint', 'Men\'s Health', 'Fever and Infection', 'Vitamin', 'Fever',
-  'Senior Citizen', 'Covid 19', 'Hepatitis Screening', 'Reproductive & Fertility',
-  'Full Body Checkup', 'Women\'s Health', 'Diabetes', 'Kidney', 'Heart',
-  'Hormone Screening', 'Joint Pain', 'PCOD Screening', 'Weight Management Package',
-  'Cancer Screening', 'Thyroid', 'Liver', 'Iron Studies', 'Stress', 'Lungs',
-  'Sexual Wellness', 'Immunity', 'Corporates', 'Hairfall', 'All Lab Tests'
+  'CBC', 'Diabetes', 'Heart', 'Thyroid', 'Kidney', 'Liver',
+  "Women's Health", 'Senior Citizen', 'Pregnancy', 'Bone Health',
+  'Cancer Screening', 'Immunity', 'Sexual Health', 'Vitamin',
+  'Hormones', 'Joints', 'Allergy', 'Fever', 'Iron Deficiency',
+  'Urine', 'Lungs', 'Eye Care', 'Digestion', 'Stress',
+  'Nutrition', 'Child Health', 'Anemia', 'Lipid Profile',
+  'Full Body Checkup', 'Healthy Wellness',
 ];
 
+const CATEGORY_DB_MAP: Record<string, string[]> = {
+  'Full Body Checkup': ['Full Body'],
+  'Full Body': ['Full Body'],
+  'Diabetes': ['Endocrinology'],
+  'Heart': ['Cardiac & Lipid'],
+  'Thyroid': ['Thyroid'],
+  'Kidney': ['Nephrology'],
+  'Liver': ['Liver Function'],
+  'Bone Health': ['Disease Specific', 'Autoimmune'],
+  'Bone': ['Disease Specific', 'Autoimmune'],
+  'Immunity': ['Autoimmune'],
+  'Nutrition': ['Vitamins & Nutrition'],
+  'Fever': ['Fever', 'Serology'],
+  'Pregnancy': ['Obstetrics'],
+  'Eye Care': ['Ophthalmology'],
+  'Eye': ['Ophthalmology'],
+  'Lungs': ['Pulmonary'],
+  'Cancer Screening': ['Oncology'],
+  'Cancer': ['Oncology'],
+  'Digestion': ['Digestive'],
+  'Allergy': ['Autoimmune'],
+  'Stress': ['Neurology'],
+  'Hormones': ['Hormones'],
+  'Joints': ['Disease Specific', 'Autoimmune'],
+  'Joint Pain': ['Disease Specific', 'Autoimmune'],
+  'Anemia': ['Hematology'],
+  'Senior Citizen': ['Senior Care'],
+  'Senior': ['Senior Care'],
+  'Child Health': ['Pediatrics'],
+  'ChildCare': ['Pediatrics'],
+  'Sexual Health': ['Serology'],
+  'STD': ['Serology'],
+  "Women's Health": ['Obstetrics', 'Hormones', 'Hematology'],
+  'CBC': ['Hematology'],
+  'Lipid Profile': ['Cardiac & Lipid'],
+  'Vitamin': ['Vitamins & Nutrition'],
+  'Urine': ['Urology'],
+  'Iron Deficiency': ['Hematology'],
+  'Pre-marital': ['Serology'],
+  'Healthy Wellness': ['Full Body'],
+  'Healthy': ['Full Body'],
+  'Brain': ['Neurology'],
+  'Weight': ['Endocrinology', 'Vitamins & Nutrition'],
+  'Fitness': ['Vitamins & Nutrition', 'Cardiac & Lipid'],
+  'Vitality': ['Vitamins & Nutrition'],
+  'Skin/Hair': ['Vitamins & Nutrition', 'Hormones'],
+  'Skin': ['Vitamins & Nutrition', 'Hormones'],
+};
+
 const MUST_HAVE_TESTS = [
-  { id: 'cbc-test',            label: 'CBC Test (Complete Blood Count)' },
-  { id: 'ppbs-test',           label: 'PPBS Test (Post-Prandial Blood Sugar)' },
-  { id: 'thyroid-profile',     label: 'Thyroid Profile (T3 T4 TSH) Test' },
-  { id: 'lipid-profile',       label: 'Lipid Profile Test' },
-  { id: 'lft-test',            label: 'LFT (Liver Function) Test' },
-  { id: 'urine-routine',       label: 'Urine Routine Test' },
-  { id: 'crp-test',            label: 'CRP Test (C - Reactive Protein)' },
-  { id: 'fbs-test',            label: 'FBS (Fasting Blood Sugar )Test' },
-  { id: 'kft-electrolytes',    label: 'KFT with Electrolytes (Kidney Funtion)' },
-  { id: 'hba1c-saver',         label: 'HbA1c Full Year Saver Pack' },
-  { id: 'vit-d',               label: 'Vitamin D Test' },
-  { id: 'urine-culture',       label: 'Urine Culture Test' },
-  { id: 'hba1c-test',          label: 'HbA1c Test (Hemoglobin A1c)' },
-  { id: 'vit-b12',             label: 'Vitamin B12 Test' },
-  { id: 'esr-test',            label: 'ESR Test (Erythrocyte Sedimentation Rate)' },
-  { id: 'creatinine-test',     label: 'Creatinine Test' },
-  { id: 'uric-acid-test',      label: 'Uric Acid Test' },
-  { id: 'tsh-test',            label: 'TSH Test (Thyroid Stimulating Hormone)' },
-  { id: 'rbs-test',            label: 'RBS (Random Blood Sugar) Test' },
-  { id: 'thyroid-free',        label: 'Thyroid - Free FT3, FT4 & TSH Test' },
+  { id: 'cbc', label: 'CBC (Complete Blood Count)' },
+  { id: 'lipid', label: 'Lipid Profile' },
+  { id: 'thyroid', label: 'Thyroid Profile (TSH)' },
+  { id: 'hba1c', label: 'HbA1c (Diabetes)' },
+  { id: 'lft', label: 'Liver Function Test' },
+  { id: 'kft', label: 'Kidney Function Test' },
+  { id: 'vitd', label: 'Vitamin D Total' },
+  { id: 'vitb12', label: 'Vitamin B12' },
+  { id: 'urine', label: 'Urine Routine' },
+  { id: 'psa', label: 'PSA (Prostate)' },
 ];
 
 const SORT_OPTIONS = [
-  { value: 'relevance',        label: 'Relevance' },
-  { value: 'price_low',        label: 'Price: Low to High' },
-  { value: 'price_high',       label: 'Price: High to Low' },
-  { value: 'discount',         label: 'Discount %' },
-  { value: 'popular',          label: 'Most Booked' },
+  { value: 'relevance', label: 'Common' },
+  { value: 'price_low', label: 'Price: Low to High' },
+  { value: 'price_high', label: 'Price: High to Low' },
+  { value: 'discount', label: 'Best' },
+  { value: 'popular', label: 'Popular' },
 ];
 
-const ITEMS_PER_PAGE = 24;
+const ITEMS_PER_PAGE = 18;
 
 /* ── Debounce hook ────────────────────────────────────────────── */
 function useDebounce<T>(value: T, delay: number): T {
@@ -71,10 +113,10 @@ function useDebounce<T>(value: T, delay: number): T {
 
 /* ── Pagination helper ────────────────────────────────────────── */
 const pageNumbers = (current: number, total: number): (number | '…')[] => {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
-  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
-  return [1, '…', current - 1, current, current + 1, '…', total];
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 3) return [1, 2, 3, 4, 5];
+  if (current >= total - 2) return [total - 4, total - 3, total - 2, total - 1, total];
+  return [current - 2, current - 1, current, current + 1, current + 2];
 };
 
 /* ── Props ────────────────────────────────────────────────────── */
@@ -116,15 +158,21 @@ interface SidebarProps {
   hideCategoryFilter?: boolean;
   searchQuery: string;
   onSearchChange: (val: string) => void;
-  toggle: (arr: string[], val: string) => string[];
 }
 
 const FilterSidebar: React.FC<SidebarProps> = ({
   typeFilter, mustHaveFilter, categoryFilter, priceRange,
   onTypeChange, onMustHaveChange, onCategoryChange, onPriceChange,
   onClearAll, accent, mobileOpen, onMobileClose, hideCategoryFilter,
-  searchQuery, onSearchChange, toggle
+  searchQuery, onSearchChange
 }) => {
+  const filterFontStyle: React.CSSProperties = {
+    fontFamily: "'Figtree', 'Inter', sans-serif",
+  };
+
+  const toggle = (arr: string[], val: string) =>
+    arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
+
   const hasFilters = typeFilter.length + mustHaveFilter.length + categoryFilter.length > 0
     || priceRange[0] > 0 || priceRange[1] < 15000;
 
@@ -133,15 +181,13 @@ const FilterSidebar: React.FC<SidebarProps> = ({
   }> = ({ id, label, checked, onChange }) => (
     <label
       htmlFor={id}
-      className={`flex items-center gap-2.5 cursor-pointer group py-1.5 px-3 rounded-xl transition-all duration-200 ${
-        checked ? 'bg-teal-50/70 border-teal-100' : 'hover:bg-slate-50 border-transparent'
-      } border`}
+      className={`flex items-center gap-2 cursor-pointer group py-1 px-2 rounded-lg transition-all duration-200 ${checked ? 'bg-orange-50 border-orange-100' : 'hover:bg-slate-50 border-transparent'
+        } border`}
     >
-      <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
-        checked ? 'bg-teal-600 border-teal-600' : 'border-slate-200 bg-white group-hover:border-teal-600'
-      }`}>
+      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${checked ? 'bg-[#C2410C] border-[#C2410C]' : 'border-slate-300 bg-white group-hover:border-[#C2410C]'
+        }`}>
         {checked && (
-          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
@@ -150,65 +196,73 @@ const FilterSidebar: React.FC<SidebarProps> = ({
         id={id} type="checkbox" checked={checked} onChange={onChange}
         className="sr-only"
       />
-      <span className={`text-[12.5px] font-semibold transition-colors leading-tight ${
-        checked ? 'text-teal-700' : 'text-slate-600 group-hover:text-slate-900'
-      }`}>
+      <span className={`text-[11px] font-medium transition-colors leading-tight ${checked ? 'text-[#C2410C]' : 'text-slate-700 group-hover:text-slate-900'
+        }`}>
         {label}
       </span>
     </label>
   );
 
-  const Section: React.FC<{ title: string; children: React.ReactNode; isScrollable?: boolean }> = ({ title, children, isScrollable = true }) => (
-    <div className="mb-5 last:mb-0">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3 px-1">{title}</p>
-      <div className={`flex flex-col gap-1 ${isScrollable ? 'max-h-[280px] overflow-y-auto premium-scrollbar pr-1' : ''}`}>
+  const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+    <div className="border-b border-slate-100/80 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">{title}</p>
+      </div>
+      <div className="flex flex-col gap-1">
         {children}
       </div>
     </div>
   );
 
   const inner = (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 bg-white" style={filterFontStyle}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5 shrink-0">
-        <h2 className="text-[17px] font-black text-slate-800 flex items-center gap-2">
-          <SlidersHorizontal className="w-4.5 h-4.5" style={{ color: accent }} strokeWidth={3} />
+      <div className="flex items-center justify-between mb-3 shrink-0 pb-2 border-b border-slate-50">
+        <h2 className="text-[16px] font-extrabold text-slate-800 flex items-center gap-2.5">
+          <SlidersHorizontal className="w-4.5 h-4.5" style={{ color: accent }} strokeWidth={2.5} />
           Filters
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {hasFilters && (
             <button
               onClick={onClearAll}
-              className="text-[11px] font-black hover:opacity-80 transition-opacity uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md"
+              className="text-[12px] font-extrabold hover:text-slate-900 transition-colors uppercase tracking-wider"
               style={{ color: accent }}
             >
-              Reset
+              Clear All
             </button>
           )}
           <button
             onClick={onMobileClose}
             className="md:hidden p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
           >
-            <X className="w-4.5 h-4.5 text-slate-400" />
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
       </div>
 
       {/* Internal Search Box */}
-      <div className="mb-6 relative">
-          <input 
-              type="text"
-              placeholder="Search tests..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 text-[13px] font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-teal-500/5 focus:border-teal-500/30 transition-all placeholder:text-slate-400 shadow-inner"
-          />
+      <div className="mb-3 relative">
+        <input
+          type="text"
+          placeholder="Search tests..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full pl-3.5 pr-10 py-2 rounded-lg border border-slate-200 bg-white text-[12px] font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-100 placeholder:text-slate-400 transition-all"
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {searchQuery && (
+            <button onClick={() => onSearchChange('')} className="p-1 hover:bg-slate-100 rounded-lg">
+              <X className="w-3 h-3 text-slate-400" />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="overflow-y-auto flex-1 pr-1 premium-scrollbar pb-2">
-        {/* 1 Type of Tests */}
-        <Section title="1 Type of Tests" isScrollable={false}>
-          {['Top Deals', 'Tests', 'Packages', 'Must Have Tests'].map(t => (
+      <div className="overflow-y-auto flex-1 min-h-0 pr-1 premium-scrollbar scrollbar-visible scroll-smooth overscroll-contain">
+        {/* Type of Tests */}
+        <Section title="Format & Category">
+          {['Tests', 'Packages', 'Top Deals', 'Special Offers', 'Fastest Report'].map(t => (
             <CheckRow
               key={t} id={`type-${t}`} label={t}
               checked={typeFilter.includes(t)}
@@ -217,10 +271,22 @@ const FilterSidebar: React.FC<SidebarProps> = ({
           ))}
         </Section>
 
-        <div className="h-px bg-slate-50 my-4 mx-1" />
+        {/* Premium Filters */}
+        <Section title="Premium Filters">
+          <CheckRow
+            id="high-discount" label="High Discount (30%+)"
+            checked={typeFilter.includes('Special Offers')}
+            onChange={() => onTypeChange(toggle(typeFilter, 'Special Offers'))}
+          />
+          <CheckRow
+            id="fast-reports" label="Express (Under 24h)"
+            checked={typeFilter.includes('Fastest Report')}
+            onChange={() => onTypeChange(toggle(typeFilter, 'Fastest Report'))}
+          />
+        </Section>
 
-        {/* 2 Must Have Tests */}
-        <Section title="2 Must Have Tests">
+        {/* Must Have Tests */}
+        <Section title="Must Have Tests">
           {MUST_HAVE_TESTS.map(t => (
             <CheckRow
               key={t.id} id={`must-${t.id}`} label={t.label}
@@ -230,11 +296,9 @@ const FilterSidebar: React.FC<SidebarProps> = ({
           ))}
         </Section>
 
-        <div className="h-px bg-slate-50 my-4 mx-1" />
-
-        {/* 3 Category */}
+        {/* Categories — hidden when already on a category page */}
         {!hideCategoryFilter && (
-          <Section title="3 Category">
+          <Section title="Category">
             {ALL_CATEGORIES.map(cat => (
               <CheckRow
                 key={cat} id={`cat-${cat}`} label={cat}
@@ -244,39 +308,44 @@ const FilterSidebar: React.FC<SidebarProps> = ({
             ))}
           </Section>
         )}
+      </div>
 
-        <div className="h-px bg-slate-50 my-4 mx-1" />
-
-        {/* Price Range */}
-        <Section title="Price Range" isScrollable={false}>
-          <div className="px-2 pt-1">
-            <div className="flex justify-between text-[11px] text-slate-500 font-black mb-3">
-              <span>₹{priceRange[0]}</span>
-              <span>₹{priceRange[1]}</span>
-            </div>
-            <div className="relative h-6 flex items-center group">
-              <div className="absolute w-full h-1.5 bg-slate-100 rounded-full" />
-              <input
-                type="range" min={0} max={15000} step={100}
-                value={priceRange[0]}
-                onChange={e => {
-                  const v = Number(e.target.value);
-                  if (v < priceRange[1]) onPriceChange([v, priceRange[1]]);
-                }}
-                className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-teal-600 pointer-events-auto z-10"
-              />
-              <input
-                type="range" min={0} max={15000} step={100}
-                value={priceRange[1]}
-                onChange={e => {
-                  const v = Number(e.target.value);
-                  if (v > priceRange[0]) onPriceChange([priceRange[0], v]);
-                }}
-                className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-teal-600 pointer-events-auto z-10"
-              />
-            </div>
+      {/* Price Range (fixed outside option scroll) */}
+      <div className="shrink-0 pt-2.5 mt-2.5 border-t border-slate-100/80">
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] mb-2.5">Price Range</p>
+        <div className="px-1">
+          <div className="flex justify-between text-[11px] text-slate-500 font-semibold mb-2">
+            <span>₹{priceRange[0].toLocaleString('en-IN')}</span>
+            <span>₹{priceRange[1].toLocaleString('en-IN')}</span>
           </div>
-        </Section>
+          <div className="relative h-5">
+            <input
+              type="range" min={0} max={15000} step={100}
+              value={priceRange[0]}
+              onChange={e => {
+                const v = Number(e.target.value);
+                if (v < priceRange[1]) onPriceChange([v, priceRange[1]]);
+              }}
+              className="absolute w-full h-1 rounded appearance-none cursor-pointer"
+              style={{ accentColor: accent }}
+              aria-label="Minimum price"
+            />
+            <input
+              type="range" min={0} max={15000} step={100}
+              value={priceRange[1]}
+              onChange={e => {
+                const v = Number(e.target.value);
+                if (v > priceRange[0]) onPriceChange([priceRange[0], v]);
+              }}
+              className="absolute w-full h-1 rounded appearance-none cursor-pointer"
+              style={{ accentColor: accent }}
+              aria-label="Maximum price"
+            />
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5 text-center">
+            ₹0 – ₹15,000
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -284,7 +353,7 @@ const FilterSidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-72 shrink-0 sticky top-24 self-start max-h-[calc(100vh-120px)] bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-4 font-['Figtree']">
+      <aside className="hidden md:flex flex-col w-72 shrink-0 sticky top-[72px] self-start h-[calc(100dvh-72px)] max-h-[calc(100dvh-72px)] overflow-hidden bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-5" style={filterFontStyle}>
         {inner}
       </aside>
 
@@ -293,7 +362,8 @@ const FilterSidebar: React.FC<SidebarProps> = ({
         <div className="fixed inset-0 z-50 flex md:hidden" onClick={onMobileClose}>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
           <div
-            className="relative ml-auto w-72 h-full bg-white shadow-2xl flex flex-col p-6 font-['Figtree'] animate-in slide-in-from-right duration-300"
+            className="relative ml-auto w-72 h-full overflow-hidden bg-white shadow-2xl flex flex-col p-5 animate-in slide-in-from-right duration-300"
+            style={filterFontStyle}
             onClick={e => e.stopPropagation()}
           >
             {inner}
@@ -321,45 +391,45 @@ const FilterPills: React.FC<{
   typeFilter, categoryFilter, mustHaveFilter, priceRange,
   onRemoveType, onRemoveCat, onRemoveMust, onResetPrice, accent,
 }) => {
-  const hasPriceFilter = priceRange[0] > 0 || priceRange[1] < 15000;
-  const all = [
-    ...typeFilter.map(v => ({ label: v, onRemove: () => onRemoveType(v) })),
-    ...categoryFilter.map(v => ({ label: v, onRemove: () => onRemoveCat(v) })),
-    ...mustHaveFilter.map(id => ({
-      label: MUST_HAVE_TESTS.find(t => t.id === id)?.label ?? id,
-      onRemove: () => onRemoveMust(id),
-    })),
-    ...(hasPriceFilter
-      ? [{
+    const hasPriceFilter = priceRange[0] > 0 || priceRange[1] < 15000;
+    const all = [
+      ...typeFilter.map(v => ({ label: v, onRemove: () => onRemoveType(v) })),
+      ...categoryFilter.map(v => ({ label: v, onRemove: () => onRemoveCat(v) })),
+      ...mustHaveFilter.map(id => ({
+        label: MUST_HAVE_TESTS.find(t => t.id === id)?.label ?? id,
+        onRemove: () => onRemoveMust(id),
+      })),
+      ...(hasPriceFilter
+        ? [{
           label: `₹${priceRange[0]}–₹${priceRange[1]}`,
           onRemove: onResetPrice,
         }]
-      : []),
-  ];
+        : []),
+    ];
 
-  if (!all.length) return null;
+    if (!all.length) return null;
 
-  return (
-    <div className="flex flex-wrap gap-2 mb-6">
-      {all.map(({ label, onRemove }) => (
-        <span
-          key={label}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[12px] font-bold border bg-white shadow-sm transition-all hover:shadow-md group"
-          style={{ borderColor: `${accent}20`, color: accent }}
-        >
-          {label}
-          <button 
-            onClick={onRemove} 
-            aria-label={`Remove filter ${label}`}
-            className="p-0.5 rounded-md hover:bg-slate-100 transition-colors"
+    return (
+      <div className="flex flex-wrap gap-2 mb-6">
+        {all.map(({ label, onRemove }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[12px] font-bold border bg-white shadow-sm transition-all hover:shadow-md group"
+            style={{ borderColor: `${accent}20`, color: accent }}
           >
-            <X className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
-          </button>
-        </span>
-      ))}
-    </div>
-  );
-};
+            {label}
+            <button
+              onClick={onRemove}
+              aria-label={`Remove filter ${label}`}
+              className="p-0.5 rounded-md hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
+            </button>
+          </span>
+        ))}
+      </div>
+    );
+  };
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN LAYOUT
@@ -373,44 +443,41 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   accent = '#0D7C7C',
   hideCategoryFilter = false,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [urlParams] = useSearchParams();
   const initialSearch = urlParams.get('search') ?? '';
   const initialCategory = urlParams.get('category') ?? '';
-  const initialTopBooked = urlParams.get('is_top_booked') === 'true';
-  const initialItemType = urlParams.get('item_type') ?? '';
 
   /* ── Filter State ─────────────────────────────────────────── */
-  const [typeFilter,     setTypeFilter]     = useState<string[]>(() => {
-    const f = [];
-    if (initialTopBooked) f.push('Top Booked');
-    if (initialItemType === 'PACKAGE' || packagesOnly) f.push('Packages');
-    else if (initialItemType === 'TEST') f.push('Tests');
-    return f;
-  });
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [mustHaveFilter, setMustHaveFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>(
     initialCategory ? [initialCategory] : (defaultCategory ? [defaultCategory] : [])
   );
-  const [priceRange,     setPriceRange]     = useState<[number, number]>([0, 15000]);
-  const [sortBy,         setSortBy]         = useState(
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 15000]);
+  const [sortBy, setSortBy] = useState(
     trendingMode ? 'most_booked' : 'relevance'
   );
-  const [page,           setPage]           = useState(1);
-  const [mobileOpen,     setMobileOpen]     = useState(false);
-  const [searchQuery,    setSearchQuery]    = useState(initialSearch || '');
+  const [page, setPage] = useState(1);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '');
 
   /* ── Data State ───────────────────────────────────────────── */
-  const [items,       setItems]       = useState<MedSyncTestCardData[]>([]);
-  const [totalCount,  setTotalCount]  = useState(0);
-  const [totalPages,  setTotalPages]  = useState(1);
-  const [loading,     setLoading]     = useState(true);
+  const [items, setItems] = useState<MedSyncTestCardData[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
+  const [serviceErrorText, setServiceErrorText] = useState('Database service is temporarily unavailable');
+  const resultsTopRef = useRef<HTMLDivElement | null>(null);
 
   /* ── Debounced filters (300ms) ─────────────────────────────── */
-  const debType        = useDebounce(typeFilter,     300);
-  const debMust        = useDebounce(mustHaveFilter, 300);
-  const debCategory    = useDebounce(categoryFilter, 300);
-  const debPriceRange  = useDebounce(priceRange,     300);
-  const debSearchQuery = useDebounce(searchQuery,    300);
+  const debType = useDebounce(typeFilter, 300);
+  const debMust = useDebounce(mustHaveFilter, 300);
+  const debCategory = useDebounce(categoryFilter, 300);
+  const debPriceRange = useDebounce(priceRange, 300);
+  const debSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     if (initialCategory) {
@@ -418,70 +485,96 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
     }
   }, [initialCategory]);
 
-  /* ── Fetch — fixed URL + category encoding + debug logging ── */
+  /* ── Fetch ── */
   const fetchItems = useCallback(async () => {
     setLoading(true);
+    setServiceUnavailable(false);
+    setServiceErrorText('Database service is temporarily unavailable');
     try {
       const p = new URLSearchParams();
-      p.append('page', String(page));
+      const effectivePage = page;
+      const effectiveSortBy = sortBy;
+      const unpackResult = (result: any): { raw: any[]; total: number; pages: number } => {
+        if (result?.success && result?.data) {
+          const raw = result.data.content ?? [];
+          return {
+            raw,
+            total: result.data.totalElements ?? raw.length,
+            pages: result.data.totalPages ?? 1,
+          };
+        }
+        if (result?.data && Array.isArray(result.data)) {
+          return { raw: result.data, total: result.data.length, pages: 1 };
+        }
+        if (result?.tests) {
+          return {
+            raw: result.tests,
+            total: result.total_count ?? result.tests.length,
+            pages: result.total_pages ?? 1,
+          };
+        }
+        if (Array.isArray(result)) {
+          return { raw: result, total: result.length, pages: 1 };
+        }
+        return { raw: [], total: 0, pages: 1 };
+      };
+      const normaliseItems = (rawItems: any[]): MedSyncTestCardData[] => rawItems.map((t: any) => ({
+        ...t,
+        id: t.id ?? Math.random(),
+        name: t.testName ?? t.packageName ?? t.name ?? 'Unknown Test',
+        originalPrice: t.originalPrice ?? t.mrpPrice ?? t.price,
+        parametersCount: t.parametersCount ?? t.totalTests ?? t.testsCount,
+        category: t.categoryName ?? t.category ?? 'General',
+        canonicalTag: t.testCode ?? t.slug ?? t.canonicalTag ?? String(t.id),
+        isTopBooked: t.isTopBooked ?? false,
+        isTopDeal: t.isTopDeal ?? false,
+      }));
+
+      p.append('page', String(effectivePage));
       p.append('limit', String(ITEMS_PER_PAGE));
 
-      // 1. Category filter
-      const cats = [
+      const rawCats = [
         ...(defaultCategory ? [defaultCategory] : []),
         ...debCategory,
       ].filter(c => c && c !== 'All Lab Tests');
+      const cats = [...new Set(
+        rawCats.flatMap(c => CATEGORY_DB_MAP[c] || [c])
+      )];
 
       if (cats.length > 0) {
-        Array.from(new Set(cats)).forEach(c => p.append('category', c));
+        cats.forEach(c => p.append('category', c));
       }
 
-      // 2. Search & Must Have Tests
-      let combinedSearch = debSearchQuery;
       if (debMust.length > 0) {
-        const mustKeywords = debMust.map(id => {
-            const item = MUST_HAVE_TESTS.find(t => t.id === id);
-            if (!item) return '';
-            // Extract the core test name, removing parentheticals and generic terms
-            // e.g. "Thyroid Profile (T3 T4 TSH) Test" -> "Thyroid T3 T4 TSH"
-            let k = item.label;
-            if (k.includes('(')) {
-                const main = k.split('(')[0].trim();
-                const paren = k.split('(')[1].split(')')[0].trim();
-                k = `${main} ${paren}`;
-            }
-            return k.replace(/Test|Count|Profile|Routine|Mapping|Pack|Electrolytes/gi, '').trim();
-        }).filter(Boolean);
-
-        if (mustKeywords.length > 0) {
-          // Join with OR logic (multiple tokens in backend search handle this)
-          const mustStr = mustKeywords.join(' ');
-          combinedSearch = combinedSearch ? `${combinedSearch} ${mustStr}` : mustStr;
-        }
+        // Must-have is treated as an OR search — pick first selected
+        const mustSearch = debMust[0];
+        p.append('search', mustSearch);
       }
-      if (combinedSearch) p.append('search', combinedSearch);
 
-      // 3. Type filter
-      if (packagesOnly || debType.includes('Packages')) p.append('item_type', 'PACKAGE');
-      else if (debType.includes('Tests')) p.append('item_type', 'TEST');
-      
-      if (debType.includes('Top Deals')) p.append('is_top_deal', 'true');
+      if (debSearchQuery) p.append('search', debSearchQuery);
+
+      const showTests = debType.includes('Tests');
+      const showPackages = debType.includes('Packages') || packagesOnly;
+
+      if (showTests && !showPackages) p.append('item_type', 'TEST');
+      else if (showPackages && !showTests) p.append('item_type', 'PACKAGE');
+
+      if (debType.includes('Top Deals') || debType.includes('Special Offers')) p.append('is_top_deal', 'true');
       if (debType.includes('Top Booked') || trendingMode) p.append('is_top_booked', 'true');
+      if (debType.includes('Fastest Report')) p.append('max_turnaround_hours', '24');
+      if (debType.includes('Special Offers')) p.append('min_discount_percentage', '30');
 
-      // 4. Sort
-      if (sortBy !== 'relevance') p.append('sort_by', sortBy);
+      if (effectiveSortBy !== 'relevance') p.append('sort_by', effectiveSortBy);
 
-      // Price
-      if (debPriceRange[0] > 0)     p.append('min_price', String(debPriceRange[0]));
+      if (debPriceRange[0] > 0) p.append('min_price', String(debPriceRange[0]));
       if (debPriceRange[1] < 15000) p.append('max_price', String(debPriceRange[1]));
 
       const url = `/api/lab-tests/advanced?${p.toString()}`;
-      console.log('[TestListingLayout] Fetching:', url);
-
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
 
       if (!res.ok) {
-        console.error('[TestListingLayout] API error:', res.status, res.statusText);
+        setServiceUnavailable(true);
+        setServiceErrorText(`Request failed with status code ${res.status}`);
         setItems([]);
         setTotalCount(0);
         setTotalPages(1);
@@ -489,62 +582,36 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
       }
 
       const result = await res.json();
-      console.log('[TestListingLayout] API response:', result);
-
-      // Spring Page<> format: { success, data: { content, totalPages, totalElements } }
-      let raw: any[] = [];
-      let total = 0;
-      let pages = 1;
-
-      if (result.success && result.data) {
-        raw   = result.data.content      ?? [];
-        total = result.data.totalElements ?? raw.length;
-        pages = result.data.totalPages    ?? 1;
-      } else if (result.data && Array.isArray(result.data)) {
-        raw = result.data; total = raw.length;
-      } else if (result.tests) {
-        raw   = result.tests;
-        total = result.total_count ?? raw.length;
-        pages = result.total_pages ?? 1;
-      } else if (Array.isArray(result)) {
-        raw = result; total = raw.length;
-      }
-
-      console.log('[TestListingLayout] Parsed tests:', raw.length, 'total:', total);
-
-      // Normalise field names — ensure every card has required fields
-      const normalised: MedSyncTestCardData[] = raw.map((t: any) => ({
-        ...t,
-        id:             t.id ?? Math.random(),
-        name:           t.testName ?? t.packageName ?? t.name ?? 'Unknown Test',
-        originalPrice:  t.originalPrice ?? t.mrpPrice ?? t.price,
-        parametersCount: t.parametersCount ?? t.totalTests ?? t.testsCount,
-        category:       t.categoryName  ?? t.category ?? 'General',
-        canonicalTag:   t.testCode ?? t.slug ?? t.canonicalTag ?? String(t.id),
-      }));
+      const { raw, total, pages } = unpackResult(result);
+      const normalised = normaliseItems(raw);
 
       setItems(normalised);
       setTotalCount(total);
       setTotalPages(Math.max(1, pages));
     } catch (err) {
-      console.error('[TestListingLayout] Fetch failed:', err);
+      setServiceUnavailable(true);
+      setServiceErrorText(getApiErrorMessage(err, 'Database service is temporarily unavailable'));
       setItems([]);
       setTotalCount(0);
       setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, sortBy, debType, debMust, debCategory, debPriceRange, debSearchQuery, packagesOnly, trendingMode, defaultCategory]);
+  }, [page, sortBy, debType, debMust, debCategory, debPriceRange, debSearchQuery, packagesOnly, trendingMode, defaultCategory, location.pathname]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  /* ── Sort change → reset page ─────────────────────────────── */
+  useEffect(() => {
+    if (page > 1) {
+      resultsTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [page]);
+
   const handleSortChange = (val: string) => {
     setSortBy(val);
     setPage(1);
   };
 
-  /* ── Clear all ────────────────────────────────────────────── */
   const clearAll = () => {
     setTypeFilter([]);
     setMustHaveFilter([]);
@@ -556,9 +623,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   const hasBreadcrumb = !!breadcrumb;
 
   return (
-    <div className="min-h-screen bg-transparent">
-
-      {/* ── Hero header ─────────────────────────────────────── */}
+    <div className="min-h-screen bg-[#F8FAFC] text-smooth">
       <div
         className="w-full px-4 md:px-8 pt-6 pb-6"
         style={{
@@ -566,7 +631,6 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
           borderBottom: `2px solid ${accent}20`,
         }}
       >
-        {/* Breadcrumb */}
         <nav aria-label="Breadcrumb">
           <ol className="flex items-center gap-1.5 text-xs text-slate-400 font-medium flex-wrap">
             <li>
@@ -598,7 +662,6 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
           </h1>
 
           <div className="flex items-center gap-3">
-            {/* Mobile filter button */}
             <button
               onClick={() => setMobileOpen(true)}
               className="md:hidden flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 shadow-sm hover:shadow-md transition-all"
@@ -607,7 +670,6 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
               Filters
             </button>
 
-            {/* Sort dropdown */}
             <div className="relative">
               <select
                 value={sortBy}
@@ -625,10 +687,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
         </div>
       </div>
 
-      {/* ── Body ────────────────────────────────────────────── */}
       <div className="flex gap-6 px-4 md:px-8 py-6">
-
-        {/* Filter sidebar */}
         <FilterSidebar
           typeFilter={typeFilter}
           mustHaveFilter={mustHaveFilter}
@@ -645,135 +704,142 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
           hideCategoryFilter={hideCategoryFilter}
           searchQuery={searchQuery}
           onSearchChange={v => { setSearchQuery(v); setPage(1); }}
-          toggle={(arr: string[], val: string) => arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]}
         />
 
-        {/* Right pane */}
-
         <div className="flex-1 min-w-0">
+          <div ref={resultsTopRef} />
 
-          {/* Search Result Banner (Prompt 7) */}
           {debSearchQuery && (
             <div className="mb-6 flex items-center justify-between bg-teal-50/50 border border-teal-100 rounded-2xl px-5 py-3 shadow-sm">
-                <p className="text-sm text-slate-600 font-medium">
-                    Showing results for <span className="text-teal-700 font-bold">"{debSearchQuery}"</span>
-                </p>
-                <button 
-                    onClick={() => { setSearchQuery(''); setPage(1); }}
-                    className="flex items-center gap-1.5 text-xs font-black text-teal-700 uppercase tracking-wider hover:underline"
-                >
-                    <X className="w-3 h-3" /> Clear Search
-                </button>
+              <p className="text-sm text-slate-600 font-medium">
+                Showing results for <span className="text-teal-700 font-bold">"{debSearchQuery}"</span>
+              </p>
+              <button
+                onClick={() => { setSearchQuery(''); setPage(1); }}
+                className="flex items-center gap-1.5 text-xs font-black text-teal-700 uppercase tracking-wider hover:underline"
+              >
+                <X className="w-3 h-3" /> Clear Search
+              </button>
             </div>
           )}
 
-          {/* Active filter pills */}
           <FilterPills
             typeFilter={typeFilter}
             categoryFilter={categoryFilter}
             mustHaveFilter={mustHaveFilter}
             priceRange={priceRange}
             onRemoveType={v => setTypeFilter(typeFilter.filter(x => x !== v))}
-            onRemoveCat={v => setCategoryFilter(categoryFilter.filter(x => x !== v))}
+            onRemoveCat={v => {
+              const nextCats = categoryFilter.filter(x => x !== v);
+              setCategoryFilter(nextCats);
+              setPage(1);
+              if (nextCats.length === 0) {
+                navigate('/lab-tests/all-lab-tests');
+              }
+            }}
             onRemoveMust={v => setMustHaveFilter(mustHaveFilter.filter(x => x !== v))}
             onResetPrice={() => setPriceRange([0, 15000])}
             accent={accent}
           />
 
-          {/* Grid */}
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <MedSyncTestCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-              <span className="text-6xl">🔬</span>
-              <p className="text-lg font-black text-slate-700">No tests found</p>
-              <p className="text-sm text-slate-400 max-w-xs">
-                Try clearing your filters or searching for a different category.
-              </p>
-              <button
-                onClick={clearAll}
-                className="mt-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:opacity-90"
-                style={{ background: accent }}
-              >
-                Clear All Filters
-              </button>
-            </div>
-          ) : (
-            <motion.div 
-              layout
-              className="medsync-test-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2"
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={loading ? `loading-${page}` : serviceUnavailable ? `error-${page}` : items.length === 0 ? `empty-${page}` : `data-${page}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
             >
-              <AnimatePresence mode="popLayout" initial={false}>
-                {items.map((item, idx) => (
-                  <motion.div
-                    key={`${item.itemType ?? 'test'}-${item.id}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ 
-                      duration: 0.25, 
-                      delay: (idx % 12) * 0.03, // Small stagger
-                      ease: "easeOut"
-                    }}
-                  >
-                     <MedSyncTestCard item={item} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          )}
-
-          {/* Pagination */}
-          {!loading && totalPages > 1 && (
-            <nav
-              aria-label="Pagination"
-              className="flex items-center justify-center gap-1.5 mt-10 flex-wrap"
-            >
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-all font-bold text-sm"
-                aria-label="Previous page"
-              >
-                ‹
-              </button>
-
-              {pageNumbers(page, totalPages).map((n, i) =>
-                n === '…' ? (
-                  <span key={`ellipsis-${i}`} className="w-9 h-9 flex items-center justify-center text-slate-400 text-sm">
-                    …
-                  </span>
-                ) : (
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <MedSyncTestCardSkeleton key={i} variant="small" />
+                  ))}
+                </div>
+              ) : serviceUnavailable ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-center bg-white border border-slate-200 rounded-2xl">
+                  <span className="text-4xl">⚠️</span>
+                  <p className="text-lg font-black text-slate-700">{serviceErrorText}</p>
+                  <p className="text-sm text-slate-500 max-w-sm">
+                    Please try again in a few minutes.
+                  </p>
+                </div>
+              ) : items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+                  <span className="text-6xl">🔬</span>
+                  <p className="text-lg font-black text-slate-700">No tests found</p>
+                  <p className="text-sm text-slate-400 max-w-xs">
+                    Try clearing your filters or searching for a different category.
+                  </p>
                   <button
-                    key={n}
-                    onClick={() => setPage(Number(n))}
-                    aria-label={`Go to page ${n}`}
-                    aria-current={page === n ? 'page' : undefined}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-all border"
-                    style={
-                      page === n
-                        ? { background: accent, color: '#fff', borderColor: accent }
-                        : { background: '#fff', color: '#475569', borderColor: '#e2e8f0' }
-                    }
+                    onClick={clearAll}
+                    className="mt-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:opacity-90"
+                    style={{ background: accent }}
                   >
-                    {n}
+                    Clear All Filters
                   </button>
-                )
+                </div>
+              ) : (
+                <div className="medsync-test-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {items.map(item => (
+                    <MedSyncTestCard key={`${item.itemType ?? 'test'}-${item.id}`} item={item} variant="small" />
+                  ))}
+                </div>
               )}
+            </motion.div>
+          </AnimatePresence>
 
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-all font-bold text-sm"
-                aria-label="Next page"
+          {!loading && totalPages > 1 && (
+            <div className="mt-8 flex flex-col items-center gap-2.5">
+              <p className="text-[11px] font-semibold text-slate-500">
+                Page {page} of {totalPages}
+              </p>
+
+              <nav
+                aria-label="Pagination"
+                className="inline-flex items-center justify-center gap-1 p-1.5 rounded-xl border border-slate-200 bg-white shadow-sm"
               >
-                ›
-              </button>
-            </nav>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-all font-bold text-sm"
+                  aria-label="Previous page"
+                >
+                  ‹
+                </button>
+
+                {pageNumbers(page, totalPages).map((n, i) =>
+                  n === '…' ? (
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-slate-400 text-xs font-semibold">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={n}
+                      onClick={() => setPage(Number(n))}
+                      aria-current={page === n ? 'page' : undefined}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-extrabold transition-all border"
+                      style={
+                        page === n
+                          ? { background: accent, color: '#fff', borderColor: accent, boxShadow: '0 6px 14px rgba(13, 124, 124, 0.22)' }
+                          : { background: '#fff', color: '#334155', borderColor: '#cbd5e1' }
+                      }
+                    >
+                      {n}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-all font-bold text-sm"
+                  aria-label="Next page"
+                >
+                  ›
+                </button>
+              </nav>
+            </div>
           )}
         </div>
       </div>

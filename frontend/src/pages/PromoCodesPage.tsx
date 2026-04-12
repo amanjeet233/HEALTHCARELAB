@@ -1,11 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { FaSearch, FaTag, FaFire, FaClock, FaCopy, FaExternalLinkAlt } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    Search, 
+    Tag, 
+    Flame, 
+    Clock, 
+    Filter, 
+    Loader2, 
+    Copy, 
+    ExternalLink, 
+    ChevronDown, 
+    Check, 
+    Gift,
+    ShieldCheck,
+    ArrowRight,
+    SearchX,
+    Sparkles,
+    Ticket
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { promoCodeService } from '../services/PromoCodeService';
-import { GenericPageSkeleton } from '../components/ui/PageSkeleton';
 import type { PromoCode } from '../types/promo';
-import './PromoCodesPage.css';
+import GlassCard from '../components/common/GlassCard';
+import GlassButton from '../components/common/GlassButton';
 
 interface FilterOptions {
   type: 'all' | 'percentage' | 'flat';
@@ -40,7 +57,7 @@ const PromoCodesPage: React.FC = () => {
       setPromoCodes(codes);
     } catch (error) {
       console.error('Error fetching promo codes:', error);
-      toast.error('Failed to load promo codes');
+      toast.error('Failed to load rewards vault.');
     } finally {
       setLoading(false);
     }
@@ -87,7 +104,7 @@ const PromoCodesPage: React.FC = () => {
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    toast.success(`${code} copied to clipboard!`);
+    toast.success(`COPIED: ${code}`);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
@@ -103,260 +120,285 @@ const PromoCodesPage: React.FC = () => {
     return new Date(expiryDate) < new Date();
   };
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
+  if (loading && promoCodes.length === 0) {
+      return (
+          <div className="min-h-[80vh] flex items-center justify-center">
+              <div className="text-center">
+                  <div className="relative">
+                      <Ticket size={48} className="text-cyan-600/20 mx-auto" strokeWidth={1} />
+                      <Loader2 size={24} className="text-cyan-600 animate-spin absolute inset-0 m-auto" />
+                  </div>
+                  <p className="mt-4 text-cyan-800/60 font-black text-[10px] uppercase tracking-widest animate-pulse">Decrypting Reward Vault...</p>
+              </div>
+          </div>
+      );
+  }
 
   return (
-    <div className="promo-codes-page">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="promo-hero"
-      >
-        <div className="hero-content">
-          <h1>Exclusive Promo Codes</h1>
-          <p>Save big on your laboratory tests and wellness packages</p>
-          <div className="hero-stats">
-            <div className="stat">
-              <FaTag className="stat-icon" />
-              <span>{promoCodes.length} Active Offers</span>
-            </div>
-            <div className="stat">
-              <FaFire className="stat-icon" />
-              <span>Up to {promoCodes.length > 0 ? Math.max(...promoCodes.map((p) => p.discount_value)) : 0}% OFF</span>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="filters-section"
-      >
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by code or description..."
-            value={filters.searchQuery}
-            onChange={(e) =>
-              setFilters({ ...filters, searchQuery: e.target.value })
-            }
-            className="search-input"
-          />
-        </div>
-
-        <div className="filter-options">
-          <div className="filter-group">
-            <label>Type</label>
-            <select
-              value={filters.type}
-              onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
-              className="filter-select"
-            >
-              <option value="all">All Types</option>
-              <option value="percentage">Percentage Discount</option>
-              <option value="flat">Flat Amount</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Sort By</label>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as any })}
-              className="filter-select"
-            >
-              <option value="newest">Newest First</option>
-              <option value="discount">Highest Discount</option>
-              <option value="expiry">Expiring Soon</option>
-            </select>
-          </div>
-
-          {(filters.searchQuery || filters.type !== 'all' || filters.sortBy !== 'newest') && (
-            <button
-              onClick={() =>
-                setFilters({
-                  type: 'all',
-                  sortBy: 'newest',
-                  searchQuery: ''
-                })
-              }
-              className="reset-filters-btn"
-            >
-              Reset Filters
-            </button>
-          )}
-        </div>
-      </motion.div>
-
-      {loading ? (
-        <GenericPageSkeleton />
-      ) : filteredCodes.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="empty-state">
-          <FaTag className="empty-icon" />
-          <h3>No promo codes found</h3>
-          <p>Try adjusting your filters or search query</p>
-        </motion.div>
-      ) : (
-        <motion.div
-          className="promo-codes-grid"
-          variants={container}
-          initial="hidden"
-          animate="show"
-        >
-          {filteredCodes.map((promo) => (
-            <motion.div
-              key={promo.id}
-              className={`promo-card ${isExpired(promo.expiry_date) ? 'expired' : ''}`}
-              variants={item}
-              whileHover={{ y: -4 }}
-              onClick={() =>
-                setExpandedPromo(expandedPromo === promo.id ? null : promo.id)
-              }
-            >
-              <div className="card-header">
-                <div className="discount-tag">
-                  {getDiscountText(promo)}
-                </div>
-                {isExpired(promo.expiry_date) && (
-                  <div className="expired-badge">EXPIRED</div>
-                )}
-              </div>
-
-              <div className="card-body">
-                <h3 className="promo-code">{promo.code}</h3>
-                <p className="promo-description">{promo.description}</p>
-
-                <div className="quick-info">
-                  {promo.min_cart_value && (
-                    <div className="info-item">
-                      <span className="label">Min Order:</span>
-                      <span className="value">₹{promo.min_cart_value}</span>
-                    </div>
-                  )}
-                  <div className="info-item">
-                    <FaClock className="icon" />
-                    <span className="value">
-                      Expires: {new Date(promo.expiry_date).toLocaleDateString()}
-                    </span>
+    <div className="max-w-[1400px] mx-auto px-6 py-12 min-h-screen">
+      <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-12 mb-16">
+          <div className="max-w-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm text-amber-500">
+                      <Sparkles className="w-5 h-5" />
                   </div>
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopyCode(promo.code);
-                  }}
-                  className={`copy-btn ${copiedCode === promo.code ? 'copied' : ''}`}
-                >
-                  {copiedCode === promo.code ? '✓ Copied!' : (
-                    <>
-                      <FaCopy /> Copy Code
-                    </>
-                  )}
-                </button>
+                  <span className="text-[12px] font-extrabold uppercase tracking-[0.2em] text-cyan-800/60">
+                      Rewards / Incentives
+                  </span>
               </div>
+              <h1 className="text-5xl font-black text-[#164E63] tracking-tighter mb-4">
+                  Exclusive <span className="text-cyan-600">Promos</span>
+              </h1>
+              <p className="text-lg text-cyan-900/60 font-medium leading-relaxed">
+                  Unlock high-value diagnostic credits and incentive packages. Premium discounts for prioritized healthcare extraction.
+              </p>
+          </div>
 
-              <motion.div
-                initial={false}
-                animate={{
-                  height: expandedPromo === promo.id ? 'auto' : 0,
-                  opacity: expandedPromo === promo.id ? 1 : 0
-                }}
-                transition={{ duration: 0.3 }}
-                className="card-details"
-              >
-                <div className="details-content">
-                  <h4>Terms & Conditions</h4>
-                  <ul className="terms-list">
-                    <li>
-                      <strong>Type:</strong> {promo.discount_type === 'PERCENTAGE' ? 'Percentage' : 'Flat Amount'}
-                    </li>
-                    {promo.max_discount && (
-                      <li>
-                        <strong>Max Discount:</strong> ₹{promo.max_discount}
-                      </li>
-                    )}
-                    {promo.usage_limit && (
-                      <li>
-                        <strong>Usage Limit:</strong> {promo.usage_limit} times
-                      </li>
-                    )}
-                    {promo.used_count && promo.usage_limit && (
-                      <li>
-                        <strong>Used:</strong> {promo.used_count} / {promo.usage_limit} times
-                      </li>
-                    )}
-                    <li>
-                      <strong>Status:</strong> {promo.is_active ? '✓ Active' : '✗ Inactive'}
-                    </li>
-                  </ul>
+          <div className="flex flex-wrap gap-4 flex-1 max-w-2xl">
+              <GlassCard className="flex-1 py-6 flex flex-col items-center justify-center text-center border-white">
+                   <Tag className="text-emerald-500 mb-3" size={20} />
+                   <span className="text-3xl font-black text-[#164E63] tracking-tighter leading-none mb-1">{promoCodes.length}</span>
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Offers</span>
+              </GlassCard>
+              <GlassCard className="flex-1 py-6 flex flex-col items-center justify-center text-center border-white">
+                   <Flame className="text-rose-500 mb-3" size={20} />
+                   <span className="text-3xl font-black text-[#164E63] tracking-tighter leading-none mb-1">
+                       {Math.max(...promoCodes.map((p) => p.discount_value), 0)}%
+                   </span>
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Max Intensity</span>
+              </GlassCard>
+          </div>
+      </header>
 
-                  {promo.applicable_tests && promo.applicable_tests.length > 0 && (
-                    <>
-                      <h4>Applicable Tests</h4>
-                      <div className="applicable-tests">
-                        {promo.applicable_tests.slice(0, 5).map((test, idx) => (
-                          <span key={idx} className="test-tag">
-                            {test}
-                          </span>
-                        ))}
-                        {promo.applicable_tests.length > 5 && (
-                          <span className="test-tag more">
-                            +{promo.applicable_tests.length - 5} more
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {promo.is_applicable_to_all && (
-                    <p className="applicable-message">
-                      ✓ This code works on ALL tests and packages
-                    </p>
-                  )}
-
-                  <a href={`/cart?promo=${promo.code}`} className="use-promo-link">
-                    Use This Promo <FaExternalLinkAlt />
-                  </a>
+      <GlassCard className="mb-12 border-white/40">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
+            <div className="flex-1 w-full">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Scan Codes</label>
+                <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-600/50" size={18} />
+                    <input 
+                      type="text"
+                      placeholder="Enter referral or sequence tags..."
+                      value={filters.searchQuery}
+                      onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
+                      className="w-full bg-white/50 border border-white/50 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/5 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-[#164E63] transition-all"
+                    />
                 </div>
-              </motion.div>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
+            </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="promo-footer"
-      >
-        <div className="footer-content">
-          <h3>How to Use Promo Codes?</h3>
-          <ol className="steps-list">
-            <li>Select your desired tests and add them to the cart</li>
-            <li>Go to checkout and enter your promo code</li>
-            <li>Click "Apply" to see the discount</li>
-            <li>Complete your payment to enjoy instant savings</li>
-          </ol>
+            <div className="flex flex-wrap items-end gap-6 w-full lg:w-auto">
+                <div className="flex-1 lg:flex-none min-w-[160px]">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Protocol Filter</label>
+                    <div className="relative">
+                        <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-600/40" />
+                        <select
+                          value={filters.type}
+                          onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
+                          className="w-full bg-white/50 border border-white rounded-2xl pl-10 pr-8 py-3.5 text-[11px] font-black text-[#164E63] uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                        >
+                          <option value="all">ALL TYPES</option>
+                          <option value="percentage">PERCENTAGE</option>
+                          <option value="flat">FLAT CREDIT</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex-1 lg:flex-none min-w-[160px]">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Sequencing</label>
+                    <div className="relative">
+                        <ArrowRight size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-600/40 rotate-90" />
+                        <select
+                          value={filters.sortBy}
+                          onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as any })}
+                          className="w-full bg-white/50 border border-white rounded-2xl pl-10 pr-8 py-3.5 text-[11px] font-black text-[#164E63] uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                        >
+                          <option value="newest">LATEST UPDATES</option>
+                          <option value="discount">HIGH INTENSITY</option>
+                          <option value="expiry">EXPIRING NODES</option>
+                        </select>
+                    </div>
+                </div>
+
+                {(filters.searchQuery || filters.type !== 'all' || filters.sortBy !== 'newest') && (
+                    <GlassButton variant="secondary" className="py-3.5 px-6" onClick={() => setFilters({ type: 'all', sortBy: 'newest', searchQuery: '' })}>
+                        RESET
+                    </GlassButton>
+                )}
+            </div>
         </div>
-      </motion.div>
+      </GlassCard>
+
+      <AnimatePresence mode="popLayout">
+        {filteredCodes.length === 0 ? (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="py-32 text-center">
+              <SearchX size={48} className="text-slate-200 mx-auto mb-6" />
+              <h3 className="text-2xl font-black text-[#164E63] tracking-tight">No Active Sequences</h3>
+              <p className="text-slate-400 font-bold text-sm uppercase tracking-tighter mt-2">Try adjusting your spectral search.</p>
+          </motion.div>
+        ) : (
+          <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredCodes.map((promo, idx) => (
+              <motion.div
+                key={promo.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <GlassCard className={`h-full p-0 overflow-hidden flex flex-col group border-white/40 transition-all ${isExpired(promo.expiry_date) ? 'grayscale opacity-60' : 'hover:border-cyan-400/50 hover:shadow-cyan-900/5'}`}>
+                   <div className="p-8 flex-1">
+                      <div className="flex justify-between items-start mb-6">
+                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${
+                            isExpired(promo.expiry_date) ? 'bg-slate-100 text-slate-400' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                         }`}>
+                             {getDiscountText(promo)}
+                         </div>
+                         {isExpired(promo.expiry_date) && (
+                            <span className="text-[8px] font-black tracking-[0.2em] text-rose-500 uppercase italic">VOIDED</span>
+                         )}
+                      </div>
+
+                      <div className="relative mb-6">
+                        <h3 className="text-3xl font-black text-[#164E63] tracking-tighter uppercase mb-2 group-hover:text-cyan-600 transition-colors">
+                            {promo.code}
+                        </h3>
+                        <p className="text-sm font-bold text-slate-400 leading-relaxed uppercase tracking-tighter">
+                            {promo.description}
+                        </p>
+                      </div>
+
+                      <div className="space-y-4 mb-8">
+                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="text-slate-300">Minimum Order</span>
+                            <span className="text-[#164E63]">₹{promo.min_cart_value || 0}</span>
+                         </div>
+                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="text-slate-300">Valid Until</span>
+                            <span className="text-[#164E63] flex items-center gap-1.5">
+                                <Clock size={12} className="text-cyan-600/50" />
+                                {new Date(promo.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                         </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                         <GlassButton 
+                           onClick={() => handleCopyCode(promo.code)}
+                           className={`flex-1 py-4 ${copiedCode === promo.code ? 'bg-emerald-500 text-white border-emerald-400' : ''}`}
+                           disabled={isExpired(promo.expiry_date)}
+                           icon={copiedCode === promo.code ? <Check size={18} /> : <Copy size={18} />}
+                         >
+                            {copiedCode === promo.code ? 'COPIED' : 'COPY'}
+                         </GlassButton>
+                         <GlassButton 
+                           variant="tertiary"
+                           className="py-4 px-4"
+                           onClick={() => setExpandedPromo(expandedPromo === promo.id ? null : promo.id)}
+                           icon={<ChevronDown size={20} className={`transition-transform duration-300 ${expandedPromo === promo.id ? 'rotate-180' : ''}`} />}
+                         />
+                      </div>
+                   </div>
+
+                   <AnimatePresence>
+                     {expandedPromo === promo.id && (
+                       <motion.div
+                         initial={{ height: 0, opacity: 0 }}
+                         animate={{ height: 'auto', opacity: 1 }}
+                         exit={{ height: 0, opacity: 0 }}
+                         className="overflow-hidden bg-gradient-to-br from-cyan-500/5 to-transparent border-t border-white/20"
+                       >
+                         <div className="p-8 space-y-6">
+                             <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Protocol Terms</h4>
+                                <ul className="grid grid-cols-2 gap-y-3">
+                                   <li className="flex flex-col">
+                                      <span className="text-[8px] font-black text-slate-300 uppercase">Limit</span>
+                                      <span className="text-[11px] font-black text-[#164E63] uppercase">{promo.usage_limit || 'UNLIMITED'}</span>
+                                   </li>
+                                   <li className="flex flex-col">
+                                      <span className="text-[8px] font-black text-slate-300 uppercase">Redeemed</span>
+                                      <span className="text-[11px] font-black text-[#164E63] uppercase">{promo.used_count || 0}</span>
+                                   </li>
+                                   {promo.max_discount && (
+                                     <li className="flex flex-col">
+                                        <span className="text-[8px] font-black text-slate-300 uppercase">Intensity Cap</span>
+                                        <span className="text-[11px] font-black text-[#164E63] uppercase">₹{promo.max_discount}</span>
+                                     </li>
+                                   )}
+                                </ul>
+                             </div>
+
+                             {promo.is_applicable_to_all ? (
+                                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center gap-3">
+                                   <ShieldCheck size={16} className="text-emerald-500" />
+                                   <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Global Protocol Alignment</span>
+                                </div>
+                             ) : (
+                                <div>
+                                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Compatible Targets</h4>
+                                   <div className="flex flex-wrap gap-2">
+                                      {promo.applicable_tests?.slice(0, 4).map((test, i) => (
+                                         <span key={i} className="px-2.5 py-1 bg-white/50 border border-white rounded-lg text-[9px] font-black text-cyan-800/60 uppercase tracking-tighter">{test}</span>
+                                      ))}
+                                      {(promo.applicable_tests?.length || 0) > 4 && (
+                                         <span className="px-2.5 py-1 text-[9px] font-black text-slate-300 uppercase">+{(promo.applicable_tests?.length || 0) - 4} More</span>
+                                      )}
+                                   </div>
+                                </div>
+                             )}
+
+                             <GlassButton 
+                                variant="secondary" 
+                                className="w-full py-4 text-[10px]"
+                                onClick={() => window.location.href = `/cart?promo=${promo.code}`}
+                                icon={<ExternalLink size={14} />}
+                             >
+                                ACTIVATE SEQUENCE
+                             </GlassButton>
+                         </div>
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.section 
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="mt-24"
+      >
+          <GlassCard className="p-12 border-white/60 bg-[#164E63]/5">
+              <div className="flex flex-col lg:flex-row items-center gap-12">
+                  <div className="lg:w-1/3">
+                      <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6">
+                          <Gift size={32} className="text-amber-500" />
+                      </div>
+                      <h3 className="text-3xl font-black text-[#164E63] tracking-tighter uppercase mb-2">How to Redeem?</h3>
+                      <p className="text-slate-400 font-bold text-sm uppercase tracking-tighter leading-relaxed">Systematic instructions for incentive activation during checkout.</p>
+                  </div>
+                  <div className="lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {[
+                        { step: '01', title: 'Target Selection', desc: 'Add required diagnostic protocols to your laboratory cart.' },
+                        { step: '02', title: 'Secure Check', desc: 'Proceed to localized checkout and verify sequence parameters.' },
+                        { step: '03', title: 'Code Injection', desc: 'Manual enter or paste the promo tag in the activation field.' },
+                        { step: '04', title: 'Value Capture', desc: 'Confirm validation and finalize payment with credit applied.' }
+                      ].map((step, i) => (
+                        <div key={i} className="flex gap-5">
+                            <span className="text-4xl font-black text-cyan-600/20 leading-none">{step.step}</span>
+                            <div>
+                                <h4 className="text-xs font-black text-[#164E63] uppercase tracking-widest mb-1">{step.title}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-normal">{step.desc}</p>
+                            </div>
+                        </div>
+                      ))}
+                  </div>
+              </div>
+          </GlassCard>
+      </motion.section>
     </div>
   );
 };

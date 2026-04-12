@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 
 import com.healthcare.labtestbooking.repository.ReportRepository;
 import com.healthcare.labtestbooking.entity.Report;
+import com.healthcare.labtestbooking.entity.ReportShare;
+import com.healthcare.labtestbooking.repository.ReportShareRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +44,7 @@ public class ReportService {
     private final TestParameterRepository testParameterRepository;
     private final ReportResultRepository reportResultRepository;
     private final ReportRepository reportRepository;
+    private final ReportShareRepository reportShareRepository;
 
     @Transactional
     public void uploadReport(Long bookingId, MultipartFile file) {
@@ -88,6 +91,20 @@ public class ReportService {
 
         List<ReportResultDTO> pagedContent = allReports.subList(start, end);
         return new PageImpl<>(pagedContent, pageable, allReports.size());
+    }
+
+    @Transactional
+    public void shareReport(Long reportId, String email, String accessType) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        ReportShare share = ReportShare.builder()
+                .report(report)
+                .sharedWithEmail(email)
+                .accessType(accessType)
+                .build();
+
+        reportShareRepository.save(share);
     }
 
     private User getCurrentUser() {

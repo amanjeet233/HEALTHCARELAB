@@ -1,670 +1,784 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Heart, Calendar, MapPin, DollarSign, ArrowLeft, Check, Phone, MapPinIcon, FileText } from 'lucide-react';
-import { labTestService } from '../services/labTest';
-import { bookingService } from '../services/booking';
-import { notify } from '../utils/toast';
-import type { LabTestResponse } from '../types/labTest';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    User, 
+    Users, 
+    Calendar, 
+    Clock, 
+    MapPin, 
+    CreditCard, 
+    CheckCircle2, 
+    ChevronRight, 
+    ChevronLeft, 
+    Plus, 
+    ShieldCheck, 
+    Zap, 
+    ShoppingCart, 
+    Printer, 
+    Home,
+    AlertCircle,
+    ArrowRight,
+    Search,
+    Loader2
+} from 'lucide-react';
+import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/hooks/useAuth';
+import { familyMemberService, type FamilyMemberResponse } from '@/services/familyMemberService';
+import { addressService, type AddressDTO } from '@/services/addressService';
+import { bookingService } from '@/services/booking';
+import { paymentService } from '@/services/paymentService';
+import type { BookingResponse, CreateBookingRequest } from '@/types/booking';
+import api from '@/services/api';
+import { notify } from '@/utils/toast';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import GlassCard from '@/components/common/GlassCard';
+import GlassButton from '@/components/common/GlassButton';
 
-interface BookingFormData {
-  testId: number;
-  collectionDate: string;
-  collectionType: 'HOME' | 'CENTER';
-  mobileNumber: string;
-  pincode: string;
-  address: string;
-  specialNotes: string;
-  agreeToTerms: boolean;
+type WizardStep = 'booking' | 'payment' | 'confirmation';
+type PaymentMethodUi = 'credit-card' | 'debit-card' | 'upi' | 'wallet';
+type PersonType = 'self' | 'family';
+
+interface BookingLocationState {
+  cartItems?: Array<{
+    cartItemId?: number;
+    testId?: number;
+    packageId?: number;
+    testName?: string;
+    packageName?: string;
+    name?: string;
+    quantity?: number;
+    price?: number;
+    discount?: number;
+    finalPrice?: number;
+  }>;
+  total?: number;
+  booking?: BookingResponse;
 }
 
-interface BookingResponse {
-  id: number;
-  bookingReference: string;
-  testId: number;
-  testName: string;
-  amount: number;
-  status: string;
-  scheduledDate: string;
-  collectionType: string;
-  sampleType: string;
-  turnaroundTime: string;
-}
+const TIME_SLOTS = ['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM'];
 
-type BookingStep = 'form' | 'payment' | 'confirmation';
+const getMinDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 2);
+  return d.toISOString().split('T')[0];
+};
+
+const mapPaymentMethod = (method: PaymentMethodUi): 'CARD' | 'UPI' | 'NET_BANKING' => {
+  if (method === 'upi') return 'UPI';
+  if (method === 'wallet') return 'NET_BANKING';
+  return 'CARD';
+};
 
 const BookingPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
-    const [searchParams] = useSearchParams();
-    const testId = parseInt(id || searchParams.get('testId') || '0', 10);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const state = (location.state || {}) as BookingLocationState;
+  const { cart, fetchCart, clearCart } = useCart();
+  const { currentUser } = useAuth();
 
-    // State
-    const [step, setStep] = useState<BookingStep>('form');
-    const [test, setTest] = useState<LabTestResponse | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-    
-    // Form state
-    const [formData, setFormData] = useState<BookingFormData>({
-        testId: testId,
-        collectionDate: '',
-        collectionType: 'CENTER',
-        mobileNumber: '',
-        pincode: '',
-        address: '',
-        specialNotes: '',
-        agreeToTerms: false,
-    });
+  const [wizardStep, setWizardStep] = useState<WizardStep>('booking');
+  const [bookingStep, setBookingStep] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberResponse[]>([]);
+  const [addresses, setAddresses] = useState<AddressDTO[]>([]);
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState<{ code: string; discount: number } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodUi>('credit-card');
+  const [confirmedBookingId, setConfirmedBookingId] = useState<number | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<BookingResponse | null>(state.booking || null);
+  const [confirmationNumber, setConfirmationNumber] = useState<string>('');
 
-    // Booking response
-    const [booking, setBooking] = useState<BookingResponse | null>(null);
+  const [personType, setPersonType] = useState<PersonType>('self');
+  const [familyMemberId, setFamilyMemberId] = useState<number | null>(null);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [addressId, setAddressId] = useState<number | null>(null);
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState<AddressDTO>({
+    label: 'Home',
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    isDefault: false
+  });
 
-    // Errors
-    const [errors, setErrors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        await fetchCart();
+        const [members, userAddresses] = await Promise.all([
+          familyMemberService.getFamilyMembers().catch(() => []),
+          addressService.getAll().catch(() => [])
+        ]);
+        setFamilyMembers(members);
+        setAddresses(userAddresses);
+        const defaultAddress = userAddresses.find((a) => a.isDefault) || userAddresses[0];
+        if (defaultAddress?.id) setAddressId(defaultAddress.id);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [fetchCart]);
 
-    // Load test details
-    useEffect(() => {
-        const loadTest = async () => {
-            try {
-                setLoading(true);
-                const response = await labTestService.getLabTestById(testId);
-                setTest(response);
-            } catch (error) {
-                console.error('Error loading test:', error);
-                notify.error('Failed to load test details');
-                navigate('/tests');
-            } finally {
-                setLoading(false);
-            }
-        };
-        if (testId) loadTest();
-    }, [testId]);
-
-    // Validation functions
-    const validateForm = (): boolean => {
-        const newErrors: Record<string, string> = {};
-
-        if (!formData.collectionDate) {
-            newErrors.collectionDate = 'Please select a collection date';
-        } else {
-            const selectedDate = new Date(formData.collectionDate);
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            if (selectedDate < tomorrow) {
-                newErrors.collectionDate = 'Collection date must be at least 24 hours from now';
-            }
+  useEffect(() => {
+    const loadBookingDetails = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const booking = await bookingService.getBookingById(Number(id));
+        setConfirmedBooking(booking);
+        setConfirmedBookingId(booking.id);
+        setConfirmationNumber(booking.bookingReference || booking.reference || `HLTH-${booking.id}`);
+        setWizardStep('confirmation');
+        setScheduledDate(booking.bookingDate || booking.collectionDate || '');
+        setScheduledTime(booking.timeSlot || booking.scheduledTime || '');
+        if (booking.familyMemberId) {
+          setPersonType('family');
+          setFamilyMemberId(booking.familyMemberId);
         }
-
-        if (!formData.mobileNumber) {
-            newErrors.mobileNumber = 'Mobile number is required';
-        } else if (!/^[0-9]{10}$/.test(formData.mobileNumber)) {
-            newErrors.mobileNumber = 'Mobile number must be 10 digits';
-        }
-
-        if (!formData.pincode) {
-            newErrors.pincode = 'Pincode is required';
-        } else if (!/^[0-9]{6}$/.test(formData.pincode)) {
-            newErrors.pincode = 'Pincode must be 6 digits';
-        }
-
-        if (formData.collectionType === 'HOME' && !formData.address) {
-            newErrors.address = 'Address is required for home collection';
-        }
-
-        if (!formData.agreeToTerms) {
-            newErrors.agreeToTerms = 'Please agree to terms and conditions';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Handle form submission
-    const handleFormSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    loadBookingDetails();
+  }, [id]);
 
-        if (!validateForm()) {
-            notify.error('Please fix the errors in the form');
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            // Call backend API to create booking
-            const bookingRequest = {
-                testId: formData.testId,
-                collectionDate: formData.collectionDate,
-                collectionType: formData.collectionType === 'HOME' ? 'HOME' : 'LAB' as const,
-                mobileNumber: formData.mobileNumber,
-                pincode: formData.pincode,
-                address: formData.address || undefined,
-                specialNotes: formData.specialNotes || undefined,
-            };
-
-            const response = await bookingService.createBooking(bookingRequest as any);
-            
-            // Transform API response to BookingResponse format
-            const booking: BookingResponse = {
-                id: response.id,
-                bookingReference: response.reference || response.bookingReference,
-                testId: response.testId,
-                testName: response.testName || test?.testName || 'Test',
-                amount: response.totalAmount || response.amount,
-                status: 'PENDING_CONFIRMATION',
-                scheduledDate: response.bookingDate || formData.collectionDate,
-                collectionType: response.collectionType || formData.collectionType,
-                sampleType: test?.sampleType || 'Blood',
-                turnaroundTime: test?.reportTimeHours ? `${test.reportTimeHours} hours` : '24 hours',
-            };
-
-            setBooking(booking);
-            setStep('payment');
-            notify.success('Booking details saved. Proceeding to payment...');
-        } catch (error: any) {
-            console.error('Booking error:', error);
-            notify.error(error?.message || 'Failed to create booking');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    // Handle payment
-    const handlePayment = async () => {
-        setSubmitting(true);
-        try {
-            // TODO: Integration with payment gateway
-            console.log('Processing payment for booking:', booking?.id);
-            
-            // Simulate successful payment
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            setStep('confirmation');
-            notify.success('Payment successful! Booking confirmed.');
-        } catch (error: any) {
-            console.error('Payment error:', error);
-            notify.error('Payment failed. Please try again.');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
+  const selectedItem = useMemo(() => {
+    if (confirmedBooking) {
+      return {
+        testId: confirmedBooking.testId || confirmedBooking.labTestId,
+        packageId: confirmedBooking.packageId,
+        testName: confirmedBooking.testName || confirmedBooking.labTestName,
+        packageName: confirmedBooking.packageName,
+        name: confirmedBooking.packageName || confirmedBooking.testName || confirmedBooking.labTestName,
+        price: confirmedBooking.totalAmount || confirmedBooking.finalAmount || confirmedBooking.amount
+      };
     }
-
-    if (!test) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Test not found</h2>
-                    <button
-                        onClick={() => navigate('/tests')}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                        Back to Tests
-                    </button>
-                </div>
-            </div>
-        );
+    const fromState = state.cartItems?.[0];
+    if (fromState) return fromState;
+    if (cart?.items?.length) {
+      const first = cart.items[0];
+      return {
+        cartItemId: first.cartItemId,
+        testId: first.testId,
+        packageId: first.packageId,
+        testName: first.testName,
+        packageName: first.packageName,
+        name: first.name,
+        quantity: first.quantity,
+        price: first.price,
+        discount: first.discount,
+        finalPrice: first.finalPrice
+      };
     }
+    return null;
+  }, [confirmedBooking, state.cartItems, cart?.items]);
 
+  const itemName = selectedItem?.packageName || selectedItem?.testName || selectedItem?.name || 'Diagnostic Arsenal';
+  const originalPrice = Number(selectedItem?.price || 0);
+  const baseDiscount = Math.floor(originalPrice * 0.4);
+  const promoDiscount = promo?.discount || 0;
+  const subtotal = Math.max(0, originalPrice - baseDiscount - promoDiscount);
+  const tax = Math.floor(subtotal * 0.1);
+  const total = subtotal + tax;
+
+  const selectedAddress =
+    addresses.find((a) => a.id === addressId) ||
+    (confirmedBooking?.collectionAddress
+      ? {
+          label: 'Saved',
+          street: confirmedBooking.collectionAddress,
+          city: '',
+          state: '',
+          postalCode: ''
+        }
+      : undefined);
+  const patientName =
+    confirmedBooking?.patientName ||
+    (personType === 'self'
+      ? currentUser?.name || 'Self'
+      : (familyMembers.find((m) => m.id === familyMemberId)?.name || 'Biosynthetic Node'));
+
+  const validateBookingStep = () => {
+    if (bookingStep === 1 && personType === 'family' && !familyMemberId) {
+      notify.error('Specify family unit member');
+      return false;
+    }
+    if (bookingStep === 2 && (!scheduledDate || !scheduledTime)) {
+      notify.error('Temporal parameters required (Date/Time)');
+      return false;
+    }
+    if (bookingStep === 3) {
+      if (!addressId && !showNewAddress) {
+        notify.error('Geospatial coordinate required (Address)');
+        return false;
+      }
+      if (showNewAddress && (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.postalCode)) {
+        notify.error('Incomplete coordinate metadata');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleApplyPromo = () => {
+    const code = promoInput.trim().toUpperCase();
+    if (code === 'PROMO20') {
+      setPromo({ code, discount: 200 });
+      notify.success('Promo sequence activated');
+      return;
+    }
+    setPromo(null);
+    notify.error('Invalid promo signature');
+  };
+
+  const handleNextBookingStep = () => {
+    if (!validateBookingStep()) return;
+    if (bookingStep < 3) {
+      setBookingStep((s) => s + 1);
+      return;
+    }
+    setWizardStep('payment');
+  };
+
+  const handleSaveNewAddress = async () => {
+    try {
+      const saved = await addressService.save(newAddress);
+      setAddresses((prev) => [saved, ...prev]);
+      if (saved.id) setAddressId(saved.id);
+      setShowNewAddress(false);
+      notify.success('Coordinate recorded');
+    } catch (error) {
+      console.error(error);
+      notify.error('Failed to encode coordinates');
+    }
+  };
+
+  const ensureAddressPersisted = async (): Promise<AddressDTO | null> => {
+    if (addressId) {
+      return addresses.find((a) => a.id === addressId) || null;
+    }
+    if (showNewAddress && newAddress.street && newAddress.city && newAddress.state && newAddress.postalCode) {
+      const saved = await addressService.save(newAddress);
+      setAddresses((prev) => [saved, ...prev]);
+      if (saved.id) setAddressId(saved.id);
+      setShowNewAddress(false);
+      return saved;
+    }
+    return null;
+  };
+
+  const handlePayNow = async () => {
+    if (!selectedItem) return;
+    setPaying(true);
+    try {
+      const persistedAddress = await ensureAddressPersisted();
+      if (!persistedAddress) {
+        notify.error('Coordinate persistent failure');
+        setPaying(false);
+        return;
+      }
+
+      const bookingPayload: CreateBookingRequest = {
+        testId: selectedItem.testId,
+        packageId: selectedItem.packageId,
+        familyMemberId: personType === 'family' ? familyMemberId || undefined : undefined,
+        bookingDate: scheduledDate,
+        timeSlot: scheduledTime,
+        collectionType: 'HOME',
+        collectionAddress: `${persistedAddress.street}, ${persistedAddress.city || ''}, ${persistedAddress.state || ''} ${persistedAddress.postalCode || ''}`.replace(/\s+/g, ' ').trim(),
+        discount: baseDiscount + promoDiscount,
+        notes: `Booked for ${patientName}`
+      };
+
+      const created = await bookingService.createBooking(bookingPayload);
+
+      await paymentService.initiatePayment({
+        bookingId: created.id,
+        amount: total,
+        paymentMethod: mapPaymentMethod(paymentMethod),
+        paymentGateway: 'RAZORPAY',
+        transactionId: `TXN-${Date.now()}`
+      });
+
+      await api.post('/api/emails/send-booking-confirmation', { bookingId: created.id }).catch(() => null);
+      await clearCart().catch(() => null);
+
+      setConfirmedBooking(created);
+      setConfirmedBookingId(created.id);
+      setConfirmationNumber(created.bookingReference || created.reference || `HLTH-${created.id}`);
+      setWizardStep('confirmation');
+      navigate(`/booking/${created.id}`, {
+        replace: true,
+        state: {
+          booking: created
+        }
+      });
+      notify.success('PAYMENT SUCCESSFUL | BOOKING SECURED');
+    } catch (error: any) {
+      console.error(error);
+      notify.error(error?.message || 'Transaction failure');
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (loading) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
-            <div className="max-w-5xl mx-auto">
-                {/* Header */}
-                <button
-                    onClick={() => step === 'form' ? navigate('/tests') : setStep('form')}
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold mb-8"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    {step === 'form' ? 'Back to Tests' : 'Edit Booking Details'}
-                </button>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+            <Loader2 className="w-12 h-12 text-cyan-600 animate-spin mx-auto mb-4" />
+            <p className="text-[10px] font-black text-cyan-800/60 uppercase tracking-widest">Constructing Booking Matrix...</p>
+        </div>
+      </div>
+    );
+  }
 
-                {/* Step Indicator */}
-                <div className="flex justify-center gap-4 mb-12">
-                    <div className={`flex items-center gap-3 px-6 py-3 rounded-lg font-semibold ${step === 'form' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold ${step === 'form' ? 'bg-white text-blue-600' : 'bg-gray-300 text-gray-700'}`}>1</div>
-                        Booking Details
-                    </div>
-                    <div className="w-12 h-1 bg-gray-300 self-center"></div>
-                    <div className={`flex items-center gap-3 px-6 py-3 rounded-lg font-semibold ${step === 'payment' ? 'bg-blue-600 text-white' : step === 'confirmation' ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400'}`}>
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold ${step === 'payment' || step === 'confirmation' ? 'bg-white text-blue-600' : 'bg-gray-300 text-gray-600'}`}>2</div>
-                        Payment
-                    </div>
-                    <div className="w-12 h-1 bg-gray-300 self-center"></div>
-                    <div className={`flex items-center gap-3 px-6 py-3 rounded-lg font-semibold ${step === 'confirmation' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold ${step === 'confirmation' ? 'bg-white text-blue-600' : 'bg-gray-300 text-gray-600'}`}>3</div>
-                        Confirmation
-                    </div>
-                </div>
+  if (!selectedItem) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <GlassCard className="max-w-md p-12 text-center border-white/60">
+          <AlertCircle className="w-16 h-16 text-rose-300 mx-auto mb-6" />
+          <h2 className="text-2xl font-black text-[#164E63] tracking-tight mb-3 uppercase">Inventory Empty</h2>
+          <p className="text-slate-400 font-bold text-sm uppercase tracking-tighter mb-10 leading-relaxed">No diagnostic protocols detected in your immediate workspace.</p>
+          <GlassButton onClick={() => navigate('/tests')}>INITIATE EXTRACTION</GlassButton>
+        </GlassCard>
+      </div>
+    );
+  }
 
-                {/* Form Step */}
-                {step === 'form' && (
-                    <div className="grid lg:grid-cols-3 gap-8">
-                        {/* Test Summary */}
-                        <div className="lg:col-span-1">
-                            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <Heart className="w-6 h-6 text-red-500" />
-                                    <h3 className="text-lg font-bold text-gray-900">Test Summary</h3>
-                                </div>
+  return (
+    <div className="max-w-[1400px] mx-auto px-6 py-12 min-h-screen pb-32">
+      <header className="mb-16">
+          <button 
+              onClick={() => navigate('/cart')}
+              className="group flex items-center gap-2 text-cyan-800/60 font-black text-[10px] uppercase tracking-[0.2em] mb-8 hover:text-cyan-600 transition-colors"
+          >
+              <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+              RETURN TO INVENTORY
+          </button>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+              <div>
+                  <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
+                          <ShieldCheck size={20} />
+                      </div>
+                      <span className="text-[12px] font-extrabold uppercase tracking-[0.2em] text-cyan-800/60">
+                          Terminal / Secure Booking
+                      </span>
+                  </div>
+                  <h1 className="text-4xl lg:text-5xl font-black text-[#164E63] tracking-tighter uppercase leading-none">
+                      {wizardStep === 'confirmation' ? 'Booking Secured' : `Securing: ${itemName}`}
+                  </h1>
+              </div>
 
-                                <div className="space-y-4">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Test Name</p>
-                                        <p className="font-semibold text-gray-900">{test.testName}</p>
-                                    </div>
+              {wizardStep !== 'confirmation' && (
+                  <div className="flex items-center gap-6 bg-cyan-950/5 backdrop-blur-xl px-8 py-5 rounded-[32px] border border-white/40 shadow-xl shadow-cyan-900/5">
+                      {[1, 2, 3, 4].map((step) => (
+                          <div key={step} className="flex items-center gap-4">
+                              <div className="relative">
+                                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-500 ${
+                                      (wizardStep === 'booking' && bookingStep === step) || (wizardStep === 'payment' && step === 4)
+                                      ? 'bg-[#164E63] text-white shadow-2xl shadow-cyan-900/40 scale-110 rotate-3'
+                                      : (wizardStep === 'booking' && bookingStep > step) || wizardStep === 'payment'
+                                      ? 'bg-emerald-500 text-white'
+                                      : 'bg-white/60 text-slate-300 border border-white/80'
+                                  }`}>
+                                      {((wizardStep === 'booking' && bookingStep > step) || wizardStep === 'payment') && step < 4 ? <CheckCircle2 size={20} /> : step}
+                                  </div>
+                                  {(wizardStep === 'booking' && bookingStep === step) && (
+                                      <div className="absolute -inset-1 bg-cyan-400/20 blur-lg rounded-2xl animate-pulse" />
+                                  )}
+                              </div>
+                              {step < 4 && <div className="w-8 h-px bg-gradient-to-r from-slate-200/50 to-transparent" />}
+                          </div>
+                      ))}
+                  </div>
+              )}
+          </div>
+      </header>
 
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Sample Type</p>
-                                        <p className="font-semibold text-gray-900">{test.sampleType}</p>
-                                    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          {/* Main Workspace */}
+          <main className="lg:col-span-8">
+              <AnimatePresence mode="wait">
+                  {wizardStep === 'booking' && (
+                      <motion.div key="booking" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                          <GlassCard className="p-10 border-white/40 min-h-[500px] flex flex-col">
+                              <div className="flex-1">
+                                  {bookingStep === 1 && (
+                                      <div className="space-y-10">
+                                          <div>
+                                              <h2 className="text-2xl font-black text-[#164E63] uppercase tracking-tight mb-2">Subject Selection</h2>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Identify target for biosample extraction</p>
+                                          </div>
+                                          
+                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                               <button 
+                                                   onClick={() => { setPersonType('self'); setFamilyMemberId(null); }}
+                                                   className={`group p-10 rounded-[48px] border-2 transition-all flex flex-col items-center gap-6 text-center glass-pane ${
+                                                       personType === 'self' 
+                                                       ? 'border-cyan-500 bg-cyan-500/5 text-[#164E63] shadow-2xl shadow-cyan-500/10' 
+                                                       : 'border-white bg-white/40 text-slate-400 hover:border-cyan-200'
+                                                   }`}
+                                               >
+                                                   <div className={`p-6 rounded-3xl transition-transform group-hover:scale-110 duration-500 ${personType === 'self' ? 'bg-cyan-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                                       <User size={48} />
+                                                   </div>
+                                                   <div>
+                                                       <span className="block text-2xl font-black uppercase tracking-tight mb-1">Personal Terminal</span>
+                                                       <span className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">{currentUser?.name}</span>
+                                                   </div>
+                                               </button>
 
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Report Time</p>
-                                        <p className="font-semibold text-gray-900">{test.reportTimeHours || 24} hours</p>
-                                    </div>
+                                               <button 
+                                                   onClick={() => setPersonType('family')}
+                                                   className={`group p-10 rounded-[48px] border-2 transition-all flex flex-col items-center gap-6 text-center glass-pane ${
+                                                       personType === 'family' 
+                                                       ? 'border-[#164E63] bg-[#164E63]/5 text-[#164E63] shadow-2xl shadow-cyan-900/10' 
+                                                       : 'border-white bg-white/40 text-slate-400 hover:border-cyan-200'
+                                                   }`}
+                                               >
+                                                   <div className={`p-6 rounded-3xl transition-transform group-hover:scale-110 duration-500 ${personType === 'family' ? 'bg-[#164E63] text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                                       <Users size={48} />
+                                                   </div>
+                                                   <div>
+                                                       <span className="block text-2xl font-black uppercase tracking-tight mb-1">Family Unit</span>
+                                                       <span className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">Managed Nodes</span>
+                                                   </div>
+                                               </button>
+                                           </div>
 
-                                    <div className="pt-4 border-t border-gray-200">
-                                        <p className="text-sm text-gray-600 mb-1">Test Price</p>
-                                        <p className="text-2xl font-bold text-blue-600">₹{test.price}</p>
-                                    </div>
+                                          <AnimatePresence>
+                                              {personType === 'family' && (
+                                                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
+                                                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block">Select Managed Member</label>
+                                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                          {familyMembers.map((member) => (
+                                                              <button 
+                                                                  key={member.id}
+                                                                  onClick={() => setFamilyMemberId(member.id)}
+                                                                  className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all ${
+                                                                      familyMemberId === member.id 
+                                                                      ? 'border-cyan-500 bg-white text-[#164E63] shadow-lg' 
+                                                                      : 'border-white bg-white/50 text-slate-500 hover:bg-white'
+                                                                  }`}
+                                                              >
+                                                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${familyMemberId === member.id ? 'bg-cyan-500 text-white' : 'bg-slate-100'}`}>
+                                                                      <User size={18} />
+                                                                  </div>
+                                                                  <div className="text-left">
+                                                                      <span className="block text-sm font-black uppercase tracking-tight leading-none mb-1">{member.name}</span>
+                                                                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{member.relation}</span>
+                                                                  </div>
+                                                              </button>
+                                                          ))}
+                                                      </div>
+                                                  </motion.div>
+                                              )}
+                                          </AnimatePresence>
+                                      </div>
+                                  )}
 
-                                    {formData.collectionType === 'HOME' && (
-                                        <div>
-                                            <p className="text-sm text-gray-600 mb-1">Collection Fee</p>
-                                            <p className="text-lg font-semibold text-gray-900">₹100</p>
-                                        </div>
-                                    )}
+                                  {bookingStep === 2 && (
+                                      <div className="space-y-10">
+                                          <div>
+                                              <h2 className="text-2xl font-black text-[#164E63] uppercase tracking-tight mb-2">Temporal Sync</h2>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Select extraction window from centralized grid</p>
+                                          </div>
 
-                                    <div className="pt-4 border-t border-gray-200">
-                                        <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-                                        <p className="text-3xl font-bold text-green-600">
-                                            ₹{(test.price || 0) + (formData.collectionType === 'HOME' ? 100 : 0)}
-                                        </p>
-                                    </div>
-                                </div>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                              <div>
+                                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block">Available Sequences (Date)</label>
+                                                  <GlassCard className="p-2 border-white bg-white/30">
+                                                      <input 
+                                                          type="date" 
+                                                          min={getMinDate()}
+                                                          value={scheduledDate}
+                                                          onChange={(e) => setScheduledDate(e.target.value)}
+                                                          className="w-full bg-transparent border-none p-4 text-xl font-black text-[#164E63] outline-none"
+                                                      />
+                                                  </GlassCard>
+                                              </div>
+
+                                              <div>
+                                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block">Operation Window (Slot)</label>
+                                                  <div className="grid grid-cols-2 gap-4">
+                                                      {TIME_SLOTS.map((slot) => (
+                                                          <button 
+                                                              key={slot}
+                                                              onClick={() => setScheduledTime(slot)}
+                                                              className={`p-4 rounded-2xl border-2 transition-all font-black text-xs uppercase tracking-widest ${
+                                                                  scheduledTime === slot
+                                                                  ? 'bg-[#164E63] text-white border-[#164E63] shadow-lg scale-[1.02]'
+                                                                  : 'bg-white/50 text-slate-400 border-white hover:border-cyan-200'
+                                                              }`}
+                                                          >
+                                                              {slot}
+                                                          </button>
+                                                      ))}
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {bookingStep === 3 && (
+                                      <div className="space-y-10">
+                                          <div className="flex justify-between items-start">
+                                              <div>
+                                                  <h2 className="text-2xl font-black text-[#164E63] uppercase tracking-tight mb-2">Coordinate Selection</h2>
+                                                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Identify landing coordinate for phlebotomy drone</p>
+                                              </div>
+                                              <GlassButton variant="secondary" className="text-[10px] py-3" onClick={() => setShowNewAddress(!showNewAddress)}>
+                                                  {showNewAddress ? 'SCAN SAVED' : 'ADD COORDINATE'}
+                                              </GlassButton>
+                                          </div>
+
+                                          <AnimatePresence mode="wait">
+                                              {showNewAddress ? (
+                                                  <motion.div key="new" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+                                                      <div className="grid grid-cols-2 gap-4">
+                                                          <input className="bg-white/50 border border-white rounded-2xl p-4 text-[11px] font-black uppercase text-[#164E63] outline-none placeholder:text-slate-300" placeholder="Label (Home/Work)" value={newAddress.label} onChange={(e) => setNewAddress(p => ({ ...p, label: e.target.value }))} />
+                                                          <input className="bg-white/50 border border-white rounded-2xl p-4 text-[11px] font-black uppercase text-[#164E63] outline-none placeholder:text-slate-300" placeholder="Street / Sector" value={newAddress.street} onChange={(e) => setNewAddress(p => ({ ...p, street: e.target.value }))} />
+                                                      </div>
+                                                      <div className="grid grid-cols-3 gap-4">
+                                                          <input className="bg-white/50 border border-white rounded-2xl p-4 text-[11px] font-black uppercase text-[#164E63] outline-none" placeholder="City" value={newAddress.city || ''} onChange={(e) => setNewAddress(p => ({ ...p, city: e.target.value }))} />
+                                                          <input className="bg-white/50 border border-white rounded-2xl p-4 text-[11px] font-black uppercase text-[#164E63] outline-none" placeholder="State" value={newAddress.state || ''} onChange={(e) => setNewAddress(p => ({ ...p, state: e.target.value }))} />
+                                                          <input className="bg-white/50 border border-white rounded-2xl p-4 text-[11px] font-black uppercase text-[#164E63] outline-none" placeholder="Postal Code" value={newAddress.postalCode || ''} onChange={(e) => setNewAddress(p => ({ ...p, postalCode: e.target.value }))} />
+                                                      </div>
+                                                      <GlassButton className="w-full py-5" onClick={handleSaveNewAddress}>ENCODE & SAVE</GlassButton>
+                                                  </motion.div>
+                                              ) : (
+                                                  <motion.div key="saved" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                      {addresses.map((addr) => (
+                                                          <button 
+                                                              key={addr.id}
+                                                              onClick={() => setAddressId(addr.id || null)}
+                                                              className={`flex items-start gap-4 p-6 rounded-[32px] border-2 transition-all text-left ${
+                                                                  addressId === addr.id 
+                                                                  ? 'border-emerald-500 bg-white text-[#164E63]' 
+                                                                  : 'border-white bg-white/20 text-slate-500 hover:bg-white'
+                                                              }`}
+                                                          >
+                                                              <div className={`p-3 rounded-xl shrink-0 ${addressId === addr.id ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                                                  <MapPin size={20} />
+                                                              </div>
+                                                              <div>
+                                                                  <div className="flex items-center gap-2 mb-1">
+                                                                       <span className="text-sm font-black uppercase tracking-tight">{addr.label}</span>
+                                                                       {addr.isDefault && <span className="text-[8px] font-black bg-cyan-100 text-cyan-600 px-1.5 py-0.5 rounded uppercase">Primary</span>}
+                                                                  </div>
+                                                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter line-clamp-2 leading-normal">
+                                                                      {addr.street}, {addr.city}, {addr.state} {addr.postalCode}
+                                                                  </p>
+                                                              </div>
+                                                          </button>
+                                                      ))}
+                                                  </motion.div>
+                                              )}
+                                          </AnimatePresence>
+                                      </div>
+                                  )}
+                              </div>
+
+                              <div className="mt-20 pt-10 border-t border-slate-100/50 flex flex-col md:flex-row justify-between gap-6">
+                                  <GlassButton 
+                                      variant="secondary" 
+                                      className="py-5 px-10 order-2 md:order-1" 
+                                      disabled={bookingStep === 1}
+                                      onClick={() => setBookingStep(s => Math.max(1, s - 1))}
+                                  >
+                                      PREVIOUS PHASE
+                                  </GlassButton>
+                                  <GlassButton 
+                                      className="py-5 px-20 order-1 md:order-2"
+                                      onClick={handleNextBookingStep}
+                                      icon={<ChevronRight size={18} />}
+                                  >
+                                      {bookingStep === 3 ? 'PROCEED TO SETTLEMENT' : 'VALIDATE & CONTINUE'}
+                                  </GlassButton>
+                              </div>
+                          </GlassCard>
+                      </motion.div>
+                  )}
+
+                  {wizardStep === 'payment' && (
+                      <motion.div key="payment" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                          <GlassCard className="p-10 border-white/40">
+                              <div className="mb-12">
+                                  <h2 className="text-3xl font-black text-[#164E63] uppercase tracking-tight mb-2 text-center">Settlement Protocol</h2>
+                                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">Confirm payload settlement via encrypted gateway</p>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+                                  {(['credit-card', 'debit-card', 'upi', 'wallet'] as PaymentMethodUi[]).map((m) => (
+                                      <button 
+                                          key={m}
+                                          onClick={() => setPaymentMethod(m)}
+                                          className={`flex items-center gap-4 p-6 rounded-3xl border-2 transition-all ${
+                                            paymentMethod === m
+                                            ? 'border-[#164E63] bg-white text-[#164E63] shadow-xl'
+                                            : 'border-white bg-white/20 text-slate-400 hover:bg-white'
+                                          }`}
+                                      >
+                                          <div className={`p-3 rounded-xl ${paymentMethod === m ? 'bg-[#164E63] text-white' : 'bg-slate-100'}`}>
+                                              <CreditCard size={20} />
+                                          </div>
+                                          <span className="text-sm font-black uppercase tracking-widest">{m.replace('-', ' ')}</span>
+                                          {paymentMethod === m && <CheckCircle2 size={18} className="ml-auto text-emerald-500" />}
+                                      </button>
+                                  ))}
+                              </div>
+
+                              <div className="p-8 bg-emerald-50 rounded-[32px] border border-emerald-100 flex items-center gap-6 mb-12">
+                                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-50 shrink-0">
+                                      <ShieldCheck size={32} />
+                                  </div>
+                                  <div>
+                                      <h4 className="text-sm font-black text-emerald-800 uppercase tracking-widest mb-1 leading-none">AIP-256 Encrypted</h4>
+                                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Your financial sequence is proxied through a 100% secure tactical layer.</p>
+                                  </div>
+                              </div>
+
+                              <div className="flex gap-4">
+                                  <GlassButton variant="secondary" className="flex-1 py-5" onClick={() => setWizardStep('booking')}>CANCEL</GlassButton>
+                                  <GlassButton 
+                                      className="flex-[2] py-5 text-lg" 
+                                      onClick={handlePayNow}
+                                      disabled={paying}
+                                      icon={paying ? <Loader2 size={24} className="animate-spin" /> : <Zap size={24} />}
+                                  >
+                                      {paying ? 'PROCESSING...' : `AUTHORIZE ₹${total}`}
+                                  </GlassButton>
+                              </div>
+                          </GlassCard>
+                      </motion.div>
+                  )}
+
+                  {wizardStep === 'confirmation' && (
+                      <motion.div key="confirmation" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                          <GlassCard className="p-16 border-white/80 bg-white/40 text-center flex flex-col items-center shadow-2xl shadow-emerald-900/10">
+                              <div className="w-24 h-24 bg-emerald-500 rounded-[40px] flex items-center justify-center text-white mb-8 shadow-xl shadow-emerald-500/30">
+                                  <CheckCircle2 size={48} />
+                              </div>
+                              <h2 className="text-4xl font-black text-[#164E63] tracking-tighter uppercase mb-4 leading-none">Protocol Confirmed</h2>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-12">SID: {confirmationNumber || '---'}</p>
+
+                              <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+                                  <div className="p-6 bg-white/60 rounded-[32px] border border-white text-left">
+                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Subject</span>
+                                      <p className="text-xl font-black text-[#164E63] tracking-tight uppercase leading-none">{confirmedBooking?.patientName || patientName}</p>
+                                  </div>
+                                  <div className="p-6 bg-white/60 rounded-[32px] border border-white text-left">
+                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Temporal Slot</span>
+                                      <p className="text-xl font-black text-[#164E63] tracking-tight uppercase leading-none">
+                                          {confirmedBooking?.bookingDate || confirmedBooking?.collectionDate || scheduledDate} / {confirmedBooking?.timeSlot || confirmedBooking?.scheduledTime || scheduledTime}
+                                      </p>
+                                  </div>
+                                  <div className="p-6 bg-white/60 rounded-[32px] border border-white text-left md:col-span-2">
+                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3">Landing Coordinate</span>
+                                      <p className="text-sm font-black text-[#164E63] tracking-tight uppercase leading-normal">
+                                          {confirmedBooking?.collectionAddress || (selectedAddress ? `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.postalCode}` : 'MANUAL INPUT COORDINATE')}
+                                      </p>
+                                  </div>
+                              </div>
+
+                              <div className="flex flex-wrap justify-center gap-4">
+                                  <GlassButton onClick={() => navigate('/bookings')} icon={<ShoppingCart size={18} />}>MY PROTOCOLS</GlassButton>
+                                  <GlassButton variant="secondary" onClick={() => window.print()} icon={<Printer size={18} />}>EXTRACT PDF</GlassButton>
+                                  <GlassButton variant="tertiary" onClick={() => navigate('/')} icon={<Home size={18} />}>HUB CENTRAL</GlassButton>
+                              </div>
+                          </GlassCard>
+                      </motion.div>
+                  )}
+              </AnimatePresence>
+          </main>
+
+          {/* Sidebar Area */}
+          <aside className="lg:col-span-4 space-y-8">
+              <GlassCard className="p-10 border-white/60 sticky top-12 bg-white/60 glass-pane shadow-2xl shadow-cyan-900/5">
+                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-10 border-b border-slate-100/50 pb-4">Payload Summary</h3>
+                    
+                    <div className="space-y-8 mb-12">
+                        <div className="flex items-start gap-4 p-6 bg-cyan-500/5 rounded-3xl border border-cyan-500/10">
+                            <div className="p-3 bg-cyan-500 text-white rounded-2xl shadow-lg shadow-cyan-900/10 shrink-0">
+                                <ShoppingCart size={20} />
+                            </div>
+                            <div>
+                                <span className="block text-[8px] font-black text-cyan-600/60 uppercase tracking-widest mb-1">Diagnostic Bundle</span>
+                                <p className="text-xl font-black text-[#164E63] tracking-tighter uppercase leading-tight">{itemName}</p>
                             </div>
                         </div>
-
-                        {/* Booking Form */}
-                        <form onSubmit={handleFormSubmit} className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-8 space-y-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-8">Booking Details</h2>
-
-                            {/* Collection Date */}
-                            <div>
-                                <label htmlFor="collectionDate" className="flex items-center gap-2 text-gray-900 font-semibold mb-3">
-                                    <Calendar className="w-5 h-5 text-blue-600" />
-                                    When do you want the sample collected?
-                                </label>
-                                <input
-                                    id="collectionDate"
-                                    type="date"
-                                    value={formData.collectionDate}
-                                    onChange={(e) => {
-                                        setFormData({ ...formData, collectionDate: e.target.value });
-                                        if (errors.collectionDate) setErrors({ ...errors, collectionDate: '' });
-                                    }}
-                                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.collectionDate ? 'border-red-500' : 'border-gray-300'}`}
-                                />
-                                {errors.collectionDate && <p className="text-red-600 text-sm mt-1">{errors.collectionDate}</p>}
+                        
+                        <div className="space-y-4 pt-10 border-t border-slate-100/50">
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                                <span className="text-slate-400">Net Payload</span>
+                                <span className="text-[#164E63] font-black">₹{originalPrice}</span>
                             </div>
-
-                            {/* Collection Location */}
-                            <div>
-                                <label className="flex items-center gap-2 text-gray-900 font-semibold mb-4">
-                                    <MapPin className="w-5 h-5 text-blue-600" />
-                                    Where should we collect the sample?
-                                </label>
-                                <div className="space-y-3">
-                                    {['CENTER', 'HOME'].map((type) => (
-                                        <label
-                                            key={type}
-                                            className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.collectionType === type ? 'border-blue-600 bg-blue-50' : 'border-gray-300'}`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="collectionType"
-                                                value={type}
-                                                checked={formData.collectionType === type as 'HOME' | 'CENTER'}
-                                                onChange={(e) => {
-                                                    setFormData({ ...formData, collectionType: e.target.value as 'HOME' | 'CENTER' });
-                                                    if (errors.address) setErrors({ ...errors, address: '' });
-                                                }}
-                                                className="w-5 h-5 text-blue-600"
-                                            />
-                                            <span className="ml-4">
-                                                <p className="font-semibold text-gray-900">{type === 'CENTER' ? 'Collection Center' : 'Home Collection'}</p>
-                                                <p className="text-sm text-gray-600">{type === 'CENTER' ? 'Visit our nearest lab location' : 'Phlebotomist will visit your home (+₹100)'}</p>
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                                <span>Tier Offset (40%)</span>
+                                <span className="font-black">-₹{baseDiscount}</span>
                             </div>
-
-                            {/* Mobile Number */}
-                            <div>
-                                <label className="flex items-center gap-2 text-gray-900 font-semibold mb-3">
-                                    <Phone className="w-5 h-5 text-blue-600" />
-                                    Mobile Number
-                                </label>
-                                <div className="flex">
-                                    <span className="px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-l-lg font-semibold text-gray-700">+91</span>
-                                    <input
-                                        type="tel"
-                                        placeholder="Enter 10-digit number"
-                                        value={formData.mobileNumber}
-                                        onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            setFormData({ ...formData, mobileNumber: val });
-                                            if (errors.mobileNumber) setErrors({ ...errors, mobileNumber: '' });
-                                        }}
-                                        className={`flex-1 px-4 py-3 border-2 border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.mobileNumber ? 'border-red-500' : ''}`}
-                                    />
-                                </div>
-                                {errors.mobileNumber && <p className="text-red-600 text-sm mt-1">{errors.mobileNumber}</p>}
-                            </div>
-
-                            {/* Pincode */}
-                            <div>
-                                <label className="flex items-center gap-2 text-gray-900 font-semibold mb-3">
-                                    <MapPinIcon className="w-5 h-5 text-blue-600" />
-                                    Pincode
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Enter 6-digit pincode"
-                                    value={formData.pincode}
-                                    onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                        setFormData({ ...formData, pincode: val });
-                                        if (errors.pincode) setErrors({ ...errors, pincode: '' });
-                                    }}
-                                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.pincode ? 'border-red-500' : 'border-gray-300'}`}
-                                />
-                                {errors.pincode && <p className="text-red-600 text-sm mt-1">{errors.pincode}</p>}
-                            </div>
-
-                            {/* Address (conditional) */}
-                            {formData.collectionType === 'HOME' && (
-                                <div>
-                                    <label className="text-gray-900 font-semibold mb-3 block">
-                                        Full Address (for home collection)
-                                    </label>
-                                    <textarea
-                                        placeholder="Enter your complete address"
-                                        value={formData.address}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, address: e.target.value });
-                                            if (errors.address) setErrors({ ...errors, address: '' });
-                                        }}
-                                        rows={3}
-                                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.address ? 'border-red-500' : 'border-gray-300'}`}
-                                    />
-                                    {errors.address && <p className="text-red-600 text-sm mt-1">{errors.address}</p>}
+                            {promo && (
+                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-cyan-600">
+                                    <span>Signature ({promo.code})</span>
+                                    <span className="font-black">-₹{promo.discount}</span>
                                 </div>
                             )}
-
-                            {/* Special Notes */}
-                            <div>
-                                <label className="flex items-center gap-2 text-gray-900 font-semibold mb-3">
-                                    <FileText className="w-5 h-5 text-blue-600" />
-                                    Special Instructions (Optional)
-                                </label>
-                                <textarea
-                                    placeholder="Any special instructions or medical conditions we should know about?"
-                                    value={formData.specialNotes}
-                                    onChange={(e) => setFormData({ ...formData, specialNotes: e.target.value })}
-                                    rows={2}
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                                <span className="text-slate-400">System Tax (10%)</span>
+                                <span className="text-[#164E63] font-black">₹{tax}</span>
                             </div>
-
-                            {/* Terms Checkbox */}
-                            <div>
-                                <label className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer ${errors.agreeToTerms ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.agreeToTerms}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, agreeToTerms: e.target.checked });
-                                            if (errors.agreeToTerms) setErrors({ ...errors, agreeToTerms: '' });
-                                        }}
-                                        className="w-5 h-5 text-blue-600 mt-1"
-                                    />
-                                    <span className="text-gray-700">
-                                        I agree to the terms & conditions and privacy policy
-                                    </span>
-                                </label>
-                                {errors.agreeToTerms && <p className="text-red-600 text-sm mt-1">{errors.agreeToTerms}</p>}
-                            </div>
-
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={submitting}
-                                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:bg-gray-400 flex items-center justify-center gap-3 text-lg"
-                            >
-                                <DollarSign className="w-6 h-6" />
-                                {submitting ? 'Processing...' : 'Proceed to Payment'}
-                            </button>
-                        </form>
-                    </div>
-                )}
-
-                {/* Payment Step */}
-                {step === 'payment' && booking && (
-                    <PaymentSection booking={booking} onConfirm={handlePayment} submitting={submitting} />
-                )}
-
-                {/* Confirmation Step */}
-                {step === 'confirmation' && booking && (
-                    <ConfirmationSection booking={booking} onDone={() => navigate('/my-bookings')} />
-                )}
-            </div>
-        </div>
-    );
-};
-
-// Payment Section Component
-const PaymentSection: React.FC<{ booking: BookingResponse; onConfirm: () => void; submitting: boolean }> = ({ booking, onConfirm, submitting }) => {
-    const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'UPI' | 'NETBANKING' | 'WALLET'>('CARD');
-
-    return (
-        <div className="grid lg:grid-cols-3 gap-8">
-            {/* Order Summary */}
-            <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">Order Summary</h3>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-sm text-gray-600">Test</p>
-                            <p className="font-semibold text-gray-900">{booking.testName}</p>
-                        </div>
-
-                        <div className="pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600 mb-1">Test Amount</p>
-                            <p className="text-xl font-bold text-gray-900">₹{booking.amount - (booking.collectionType === 'HOME' ? 100 : 0)}</p>
-                        </div>
-
-                        {booking.collectionType === 'HOME' && (
-                            <div>
-                                <p className="text-sm text-gray-600">Collection Fee</p>
-                                <p className="font-semibold text-gray-900">₹100</p>
-                            </div>
-                        )}
-
-                        <div className="pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-                            <p className="text-3xl font-bold text-green-600">₹{booking.amount}</p>
-                        </div>
-
-                        <div className="pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600 mb-1">Scheduled Date</p>
-                            <p className="font-semibold text-gray-900">{new Date(booking.scheduledDate).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Payment Methods */}
-            <form onSubmit={(e) => { e.preventDefault(); onConfirm(); }} className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-8 space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900">Payment Method</h2>
-
-                <div className="space-y-3">
-                    {[
-                        { id: 'CARD', label: 'Credit/Debit Card', desc: 'Visa, Mastercard, RuPay' },
-                        { id: 'UPI', label: 'UPI', desc: 'Google Pay, PhonePe, BHIM' },
-                        { id: 'NETBANKING', label: 'Net Banking', desc: 'All major banks' },
-                        { id: 'WALLET', label: 'Wallet', desc: 'Paytm, Amazon Pay' },
-                    ].map((method) => (
-                        <label
-                            key={method.id}
-                            className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentMethod === method.id ? 'border-blue-600 bg-blue-50' : 'border-gray-300'}`}
-                        >
-                            <input
-                                type="radio"
-                                name="paymentMethod"
-                                value={method.id}
-                                checked={paymentMethod === method.id as any}
-                                onChange={(e) => setPaymentMethod(e.target.value as any)}
-                                className="w-5 h-5 text-blue-600"
-                            />
-                            <span className="ml-4">
-                                <p className="font-semibold text-gray-900">{method.label}</p>
-                                <p className="text-sm text-gray-600">{method.desc}</p>
-                            </span>
-                        </label>
-                    ))}
-                </div>
-
-                {/* Security Notice */}
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 flex gap-3">
-                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                        <p className="font-semibold text-green-900">100% Secure Payment</p>
-                        <p className="text-sm text-green-700">Your payment is encrypted and secure</p>
-                    </div>
-                </div>
-
-                {/* Pay Button */}
-                <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:from-green-700 hover:to-green-800 transition-all disabled:bg-gray-400 flex items-center justify-center gap-3 text-lg"
-                >
-                    <DollarSign className="w-6 h-6" />
-                    {submitting ? 'Processing Payment...' : `Pay ₹${booking.amount}`}
-                </button>
-            </form>
-        </div>
-    );
-};
-
-// Confirmation Section Component
-const ConfirmationSection: React.FC<{ booking: BookingResponse; onDone: () => void }> = ({ booking, onDone }) => {
-    return (
-        <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                {/* Success Header */}
-                <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-12 text-center">
-                    <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                            <Check className="w-10 h-10 text-green-600" />
-                        </div>
-                    </div>
-                    <h1 className="text-3xl font-bold mb-2">Booking Confirmed!</h1>
-                    <p className="text-green-100 text-lg">Your test has been successfully booked</p>
-                </div>
-
-                <div className="p-8 space-y-8">
-                    {/* Booking Reference */}
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 text-center">
-                        <p className="text-sm text-gray-600 mb-2">Booking Reference</p>
-                        <p className="text-3xl font-bold text-blue-600 font-mono">{booking.bookingReference}</p>
-                    </div>
-
-                    {/* Booking Details */}
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Test Name</p>
-                                <p className="font-semibold text-gray-900 text-lg">{booking.testName}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Sample Type</p>
-                                <p className="font-semibold text-gray-900">{booking.sampleType}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Collection Type</p>
-                                <p className="font-semibold text-gray-900">{booking.collectionType === 'HOME' ? 'Home Collection' : 'Collection Center'}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Scheduled Date</p>
-                                <p className="font-semibold text-gray-900 text-lg">{new Date(booking.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Amount Paid</p>
-                                <p className="font-semibold text-green-600 text-lg">₹{booking.amount}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600 mb-1">Status</p>
-                                <p className="inline-block px-4 py-2 bg-yellow-100 text-yellow-800 font-semibold rounded-full text-sm">PENDING CONFIRMATION</p>
+                            <div className="pt-6 mt-6 border-t-2 border-slate-100 flex justify-between items-end">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-cyan-500 uppercase tracking-widest mb-1">Settlement Total</span>
+                                    <span className="text-[14px] font-black text-[#164E63] uppercase tracking-[0.1em]">Total Due</span>
+                                </div>
+                                <span className="text-5xl font-black text-[#164E63] tracking-tighter leading-none">₹{total}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Next Steps */}
-                    <div className="bg-gray-50 rounded-lg p-6">
-                        <h3 className="font-bold text-gray-900 mb-4 text-lg">Next Steps</h3>
-                        <ol className="space-y-3">
-                            <li className="flex gap-4">
-                                <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">1</span>
-                                <span className="text-gray-700">A certified phlebotomist will contact you 24 hours before collection</span>
-                            </li>
-                            <li className="flex gap-4">
-                                <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">2</span>
-                                <span className="text-gray-700">Safe sample collection will be done at your preferred location</span>
-                            </li>
-                            <li className="flex gap-4">
-                                <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">3</span>
-                                <span className="text-gray-700">Reports will be delivered in {booking.turnaroundTime} via email and WhatsApp</span>
-                            </li>
-                        </ol>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            onClick={() => {
-                                // TODO: Generate and download PDF receipt
-                                console.log('Downloading receipt for booking:', booking.id);
-                            }}
-                            className="flex-1 py-4 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all"
-                        >
-                            Download Receipt
-                        </button>
-                        <button
-                            onClick={onDone}
-                            className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all"
-                        >
-                            View My Bookings
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+                   {wizardStep !== 'confirmation' && (
+                       <div className="space-y-6">
+                           <div>
+                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Promotion Signature</label>
+                               <div className="flex gap-2">
+                                   <input 
+                                       value={promoInput}
+                                       onChange={(e) => setPromoInput(e.target.value)}
+                                       placeholder="PROMO20"
+                                       className="flex-1 bg-white/50 border border-white rounded-xl px-4 py-3 text-sm font-bold text-[#164E63] outline-none focus:border-cyan-400 transition-all placeholder:text-slate-200"
+                                   />
+                                   <GlassButton variant="secondary" className="px-6 py-3 text-[10px]" onClick={handleApplyPromo}>APPLY</GlassButton>
+                               </div>
+                           </div>
+                       </div>
+                   )}
+              </GlassCard>
+              
+              <div className="px-10">
+                  <div className="flex items-center gap-3 mb-4">
+                      <ShieldCheck size={16} className="text-emerald-500" />
+                      <span className="text-[10px] font-black text-[#164E63] uppercase tracking-widest">Security Override Active</span>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase leading-relaxed tracking-widest">All diagnostic bookings are processed through the HLTH-v3 encrypted neural gateway. Biometric data isolation is guaranteed.</p>
+              </div>
+          </aside>
+      </div>
+    </div>
+  );
 };
 
 export default BookingPage;
-

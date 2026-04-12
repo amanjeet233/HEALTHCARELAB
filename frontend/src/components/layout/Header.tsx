@@ -1,6 +1,6 @@
 import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight } from 'lucide-react';
+import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
@@ -21,6 +21,29 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+function toSafeString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  return fallback;
+}
+
+function toSafeNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  try {
+    const parsed = Number(value as number);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 const Header: React.FC = () => {
   const { isAuthenticated, currentUser, logout } = useAuth();
   const { cart, fetchCart, setIsCartOpen } = useCart();
@@ -29,6 +52,8 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [animateBadge, setAnimateBadge] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevCartCountRef = useRef(0);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +62,10 @@ const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const cartItemCount = toSafeNumber(cart?.itemCount, 0);
+  const userName = toSafeString(currentUser?.name, 'User');
+  const userEmail = toSafeString(currentUser?.email, '');
+  const userInitial = userName.charAt(0).toUpperCase() || 'U';
 
   // Load cart when authenticated
   useLayoutEffect(() => {
@@ -47,7 +76,7 @@ const Header: React.FC = () => {
 
   // Trigger badge animation when cart count changes
   useLayoutEffect(() => {
-    const currentCount = cart?.itemCount || 0;
+    const currentCount = cartItemCount;
     const prevCount = prevCartCountRef.current;
 
     // Animate on count increase (not on initial load)
@@ -63,7 +92,7 @@ const Header: React.FC = () => {
     }
 
     prevCartCountRef.current = currentCount;
-  }, [cart?.itemCount]);
+  }, [cartItemCount]);
 
   // Handle Autocomplete Fetch
   useEffect(() => {
@@ -78,7 +107,7 @@ const Header: React.FC = () => {
         // Use the new live search endpoint
         const res = await fetch(`/api/tests/search?q=${encodeURIComponent(debouncedSearch)}`);
         if (!res.ok) throw new Error('Search failed');
-        
+
         const data = await res.json();
         // ApiResponse<List<LabTestDTO>> structure
         const tests = data?.data || [];
@@ -126,6 +155,30 @@ const Header: React.FC = () => {
     { Icon: Pill, label: 'Packages', href: '/packages', color: 'text-[#0D7C7C]' },
     { Icon: Gift, label: 'Promos', href: '/promos', color: 'text-[#EC4899]' },
   ];
+
+  const profileMenuItems = [
+    { label: 'My Profile', icon: User, path: '/profile' },
+    { label: 'My Bookings', icon: Calendar, path: '/my-bookings' },
+    { label: 'My Reports', icon: FileText, path: '/reports' },
+    { label: 'Family Members', icon: Users, path: '/family-members' },
+    { label: 'My Addresses', icon: MapPin, path: '/my-addresses' },
+    { label: 'Health Insights', icon: Heart, path: '/health-insights' },
+    { label: 'Settings', icon: Settings, path: '/settings' },
+  ];
+
+  const handleProfileMouseEnter = () => {
+    if (profileMenuTimeoutRef.current) {
+      clearTimeout(profileMenuTimeoutRef.current);
+      profileMenuTimeoutRef.current = null;
+    }
+    setShowProfileMenu(true);
+  };
+
+  const handleProfileMouseLeave = () => {
+    profileMenuTimeoutRef.current = setTimeout(() => {
+      setShowProfileMenu(false);
+    }, 1500); // 1.5 seconds delay as requested
+  };
 
   return (
     <header className="sticky top-0 left-0 right-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm flex justify-center h-18">
@@ -189,15 +242,16 @@ const Header: React.FC = () => {
                   <div className="p-4 text-center text-xs font-semibold text-gray-500">No matching tests found.</div>
                 ) : (
                   <div className="flex flex-col">
-                    {suggestions.map((test) => (
+                    {suggestions.map((test, idx) => (
                       <button
-                        key={test?.id || Math.random()}
+                        key={toSafeString(test?.id, `search-result-${idx}`)}
                         onClick={() => {
                           setIsSearchOpen(false);
-                          if (test.slug) {
-                            navigate(`/test/${test.slug}`);
+                          const testSlug = toSafeString(test?.slug);
+                          if (testSlug) {
+                            navigate(`/test/${testSlug}`);
                           } else {
-                            const name = test?.testName || test?.name || '';
+                            const name = toSafeString(test?.testName, toSafeString(test?.name, ''));
                             setSearchQuery(name);
                             navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(name)}`);
                           }
@@ -205,10 +259,10 @@ const Header: React.FC = () => {
                         className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-gray-50 flex flex-col gap-1 transition-colors"
                       >
                         <div className="flex justify-between items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900 line-clamp-1">{test?.testName || 'Unknown Test'}</span>
-                          <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(test?.price || test?.discountedPrice || 0)}</span>
+                          <span className="text-sm font-bold text-gray-900 line-clamp-1">{toSafeString(test?.testName, 'Unknown Test')}</span>
+                          <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(toSafeNumber(test?.price, toSafeNumber(test?.discountedPrice, 0)))}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{test?.categoryName || 'General'}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{toSafeString(test?.categoryName, 'General')}</span>
                       </button>
                     ))}
                     <button
@@ -252,22 +306,22 @@ const Header: React.FC = () => {
             transition={{ duration: 0.4, ease: 'easeInOut' }}
             onClick={() => setIsCartOpen(true)}
             className="relative p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-            aria-label={`Shopping cart with ${cart?.itemCount || 0} items`}
+            aria-label={`Shopping cart with ${cartItemCount} items`}
           >
             <ShoppingCart className="w-5 h-5" strokeWidth={3} />
             {/* Badge - Only show when items exist */}
-            {(cart?.itemCount ?? 0) > 0 && (
+            {cartItemCount > 0 && (
               <motion.span
-                key={`badge-${cart?.itemCount}`}
+                key={`badge-${cartItemCount}`}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 10 }}
                 className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white"
                 role="status"
-                aria-label={`${cart?.itemCount} items in cart`}
+                aria-label={`${cartItemCount} items in cart`}
               >
-                {cart?.itemCount}
+                {cartItemCount}
               </motion.span>
             )}
           </motion.button>
@@ -275,27 +329,69 @@ const Header: React.FC = () => {
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
               <NotificationBell />
-              <div className="relative group">
-                <button className="flex items-center gap-1 p-1 hover:bg-gray-50 rounded-xl transition-all">
-                  <div className="w-9 h-9 bg-linear-to-br from-[#0D7C7C] to-ocean-blue text-white rounded-full font-black text-sm flex items-center justify-center shadow-md">
-                    {currentUser?.name?.charAt(0).toUpperCase()}
+              <div
+                className="relative"
+                onMouseEnter={handleProfileMouseEnter}
+                onMouseLeave={handleProfileMouseLeave}
+              >
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-1 p-1 hover:bg-gray-50 rounded-xl transition-all"
+                >
+                  <div className="w-9 h-9 bg-linear-to-br from-[#0D7C7C] to-ocean-blue text-white rounded-full font-black text-sm flex items-center justify-center shadow-md border-2 border-white">
+                    {userInitial}
                   </div>
                 </button>
+
                 {/* User Dropdown */}
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden z-50 hidden group-hover:block animate-in fade-in slide-in-from-top-2">
-                  <div className="bg-[#0D7C7C] px-4 py-3 text-white">
-                    <p className="font-bold text-sm leading-none mb-1">{currentUser?.name}</p>
-                    <p className="text-[10px] opacity-80">{currentUser?.email}</p>
-                  </div>
-                  <div className="py-1">
-                    <button onClick={() => navigate('/profile')} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-gray-50"><User size={14} /> My Profile</button>
-                    <button onClick={() => navigate('/my-bookings')} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-gray-50"><Calendar size={14} /> My Bookings</button>
-                    <button onClick={() => navigate('/reports')} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-gray-50"><FileText size={14} /> My Reports</button>
-                    <button onClick={() => navigate('/health-insights')} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-gray-50"><Heart size={14} /> Health Insights</button>
-                    <button onClick={() => navigate('/profile')} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-gray-50"><Settings size={14} /> Settings</button>
-                    <button onClick={logout} className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"><LogOut size={14} /> Logout</button>
-                  </div>
-                </div>
+                <AnimatePresence>
+                  {showProfileMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute top-full right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 ring-1 ring-black/5"
+                    >
+                      <div className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue px-4 py-3 text-white">
+                        <p className="font-extrabold text-[1.05rem] tracking-tight leading-none mb-1">{userName}</p>
+                        <p className="text-[10px] font-bold opacity-75 truncate">{userEmail}</p>
+                      </div>
+                      <div className="py-1.5">
+                        {profileMenuItems.map((item, idx) => {
+                          const Icon = item.icon;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setShowProfileMenu(false);
+                                navigate(item.path);
+                              }}
+                              className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                                <span className="uppercase tracking-tight">{item.label}</span>
+                              </div>
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          );
+                        })}
+                        <div className="h-px bg-gray-50 my-1 mx-2" />
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            logout();
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-[10.5px] font-extrabold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors uppercase tracking-tight"
+                        >
+                          <LogOut size={13} />
+                          Logout
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           ) : (

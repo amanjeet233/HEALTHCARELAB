@@ -18,5 +18,8 @@ public class FamilyMemberResponse {
     private LocalDate dateOfBirth;
     private Gender gender;
     private String bloodGroup;
+    private String phoneNumber;
+    private String email;
+    private String medicalHistory;
     private Long patientId;
 }

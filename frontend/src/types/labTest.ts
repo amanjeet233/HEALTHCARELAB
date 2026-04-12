@@ -48,6 +48,14 @@ export interface LabTestResponse {
     averageRating?: number;
     totalReviews?: number;
     isActive?: boolean;
+    isTopBooked?: boolean;
+    isTopDeal?: boolean;
+    parametersCount?: number;
+    recommendedFor?: string;
+    discountPercent?: number;
+    iconUrl?: string;
+    isPackage?: boolean;
+    isTrending?: boolean;
     createdAt?: string;
     updatedAt?: string;
     // Enhanced fields for detail page

@@ -2,6 +2,7 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.dto.HealthScoreResponse;
 import com.healthcare.labtestbooking.entity.Booking;
+import com.healthcare.labtestbooking.entity.LabTest;
 import com.healthcare.labtestbooking.entity.ReportResult;
 import com.healthcare.labtestbooking.entity.TestParameter;
 import com.healthcare.labtestbooking.entity.User;
@@ -180,13 +181,21 @@ class HealthScoreServiceTest {
     @Test
     void generateBodySystemScores_Success() {
         // Given
+        LabTest cardiovascularTest = new LabTest();
+        cardiovascularTest.setTestName("Cardiovascular");
+
+        LabTest metabolicTest = new LabTest();
+        metabolicTest.setTestName("Metabolic");
+
         TestParameter cardioParam = new TestParameter();
         cardioParam.setId(1L);
         cardioParam.setParameterName("Cholesterol");
+        cardioParam.setTest(cardiovascularTest);
 
         TestParameter metabolicParam = new TestParameter();
         metabolicParam.setId(2L);
         metabolicParam.setParameterName("Glucose");
+        metabolicParam.setTest(metabolicTest);
 
         ReportResult cardioNormal = new ReportResult();
         cardioNormal.setParameter(cardioParam);
@@ -346,14 +355,23 @@ class HealthScoreServiceTest {
     @Test
     void generateBodySystemScores_MixedCategories() {
         // Given
+        LabTest cardiovascularTest = new LabTest();
+        cardiovascularTest.setTestName("Cardiovascular");
+
+        LabTest metabolicTest = new LabTest();
+        metabolicTest.setTestName("Metabolic");
+
         TestParameter param1 = new TestParameter();
         param1.setParameterName("Test 1");
+        param1.setTest(cardiovascularTest);
 
         TestParameter param2 = new TestParameter();
         param2.setParameterName("Test 2");
+        param2.setTest(metabolicTest);
 
         TestParameter param3 = new TestParameter();
         param3.setParameterName("Test 3");
+        param3.setTest(cardiovascularTest);
 
         ReportResult result1 = new ReportResult();
         result1.setParameter(param1);

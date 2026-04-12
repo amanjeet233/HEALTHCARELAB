@@ -1,10 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTests } from '@/hooks/useTests';
 import { useCart } from '@/hooks/useCart';
+import LandingNav from '@/components/LandingNav';
+import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import TestCard from '@/components/TestCard';
 import './TestsPage.css';
 
 export default function TestsPage() {
+  const navigate = useNavigate();
   const {
     tests,
     loading,
@@ -22,6 +27,8 @@ export default function TestsPage() {
   } = useCart();
 
   const [category, setCategory] = useState('ALL');
+  // ... (rest of the component state and logic remains the same)
+  // Replacing only the grid content
   const [searchTerm, setSearchTerm] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -102,9 +109,8 @@ export default function TestsPage() {
     }
   };
 
-  // ✅ APPLY FILTERS (client-side filtering for now)
+  // ✅ APPLY FILTERS
   const applyFilters = async (cat: string, search: string, min: string, max: string, fasting: boolean) => {
-    // Load all tests first if needed
     if (search.length > 2) {
       await searchTests(search);
     } else {
@@ -141,227 +147,163 @@ export default function TestsPage() {
       await addTest(testId, 1);
       setCartSuccess('✅ Added to cart!');
       setTimeout(() => setCartSuccess(null), 2000);
-    } catch (err) {
-      // Error handled by useCart
-    }
+    } catch (err) { }
 
     setAddingToCart(null);
   };
 
-  // ✅ RESET CART ERROR
-  const resetCartError = () => {
-    // Cart error is managed by useCart hook
-  };
-
   return (
-    <div className="tests-page">
+    <div className="tests-page bg-[#F8FAFC]">
       {/* ✅ PAGE HEADER */}
-      <div className="page-header">
-        <h1 className="page-title">🧪 Explore Lab Tests</h1>
-        <p className="page-subtitle">Find and book your health tests</p>
+      <div className="bg-white border-b border-slate-100 py-10 px-4 text-center">
+        <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">🧪 Explore Lab Tests</h1>
+        <p className="text-slate-500 font-bold uppercase text-[11px] tracking-widest mt-2 opacity-70">Professional Diagnostic Marketplace</p>
       </div>
 
-      {/* ✅ ERROR ALERTS */}
-      {(testError || cartError) && (
-        <div className="error-alert">
-          ❌ {testError || cartError}
-          <button
-            className="close-btn"
-            onClick={() => {
-              resetTestError();
-              resetCartError();
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      <div className="content-wrapper max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8">
+        {/* ✅ FILTERS SIDEBAR */}
+        <aside className="w-full md:w-64 shrink-0 space-y-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Filters</h2>
+              {(searchTerm || category !== 'ALL' || minPrice || maxPrice || fastingRequired) && (
+                <button className="text-[10px] font-black text-red-500 uppercase tracking-tighter" onClick={handleClearFilters}>
+                  Clear All
+                </button>
+              )}
+            </div>
 
-      {/* ✅ SUCCESS MESSAGE */}
-      {cartSuccess && (
-        <div className="success-alert">
-          {cartSuccess}
-        </div>
-      )}
-
-      {/* ✅ FILTERS SIDEBAR */}
-      <div className="filters-wrapper">
-        <aside className="filters-sidebar">
-          <div className="filters-header">
-            <h2>Filters</h2>
-            {(searchTerm || category !== 'ALL' || minPrice || maxPrice || fastingRequired) && (
-              <button className="clear-filters-btn" onClick={handleClearFilters} title="Clear all filters">
-                ✕ Clear All
-              </button>
-            )}
-          </div>
-
-          {/* ✅ SEARCH FILTER */}
-          <div className="filter-group">
-            <h3 className="filter-group-title">Refine Search</h3>
-            <div className="search-container">
-              <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
+            {/* SEARCH */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Search</h3>
               <input
                 type="text"
                 placeholder="Filter results..."
                 value={searchTerm}
                 onChange={handleSearch}
-                className="filter-search-input"
-              />
-              {isSearching && <span className="search-loading">⏳</span>}
-            </div>
-          </div>
-
-          {/* ✅ CATEGORY FILTER */}
-          <div className="filter-group">
-            <h3 className="filter-group-title">Category</h3>
-            <div className="filter-options">
-              {['ALL', 'BLOOD', 'URINE', 'IMAGING', 'PATHOLOGY', 'GENERAL'].map(cat => (
-                <button
-                  key={cat}
-                  className={`filter-option ${category === cat ? 'active' : ''}`}
-                  onClick={() => handleCategoryChange(cat)}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ✅ PRICE RANGE FILTER */}
-          <div className="filter-group">
-            <h3 className="filter-group-title">Price Range ($)</h3>
-            <div className="price-inputs">
-              <input
-                type="number"
-                placeholder="Min"
-                value={minPrice}
-                onChange={(e) => handlePriceChange(e.target.value, maxPrice)}
-                className="price-input"
-                min="0"
-              />
-              <span className="price-divider">/</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={maxPrice}
-                onChange={(e) => handlePriceChange(minPrice, e.target.value)}
-                className="price-input"
-                min="0"
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-teal-500 transition-all"
               />
             </div>
-          </div>
 
-          {/* ✅ FASTING FILTER */}
-          <div className="filter-group">
-            <label className="filter-checkbox">
+            {/* CATEGORY */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</h3>
+              <div className="flex flex-wrap gap-2">
+                {['ALL', 'BLOOD', 'URINE', 'IMAGING', 'PATHOLOGY'].map(cat => (
+                  <button
+                    key={cat}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${category === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                    onClick={() => handleCategoryChange(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* PRICE */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Price Range</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={minPrice}
+                  onChange={(e) => handlePriceChange(e.target.value, maxPrice)}
+                  className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                />
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={maxPrice}
+                  onChange={(e) => handlePriceChange(minPrice, e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            {/* FASTING */}
+            <label className="flex items-center gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={fastingRequired}
                 onChange={(e) => handleFastingFilter(e.target.checked)}
-                className="checkbox-input"
+                className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-200"
               />
-              <span className="checkbox-label">Fasting Required</span>
+              <span className="text-[11px] font-black text-slate-600 uppercase tracking-tight group-hover:text-slate-900 transition-colors">Fasting Required</span>
             </label>
           </div>
         </aside>
 
         {/* ✅ MAIN CONTENT */}
-        <main className="filters-content">
-
-      {/* ✅ LOADING STATE */}
-      {loading && tests.length === 0 ? (
-        <LoadingSpinner />
-      ) : tests.length === 0 ? (
-        <div className="empty-state">
-          <p>📭 No tests found. Try a different search or category.</p>
-        </div>
-      ) : (
-        <>
-          {/* ✅ TESTS GRID */}
-          <div className="tests-grid">
-            {tests.map((test) => (
-              <div
-                key={test.id}
-                className="test-card"
-              >
-                {/* ✅ TEST INFO */}
-                <div className="card-header">
-                  <h3>{test.testName || test.name}</h3>
-                  <span className="category-badge">{test.categoryName || test.category}</span>
-                </div>
-
-                <p className="test-description">
-                  {test.methodology || test.description || `${test.testType || 'Lab'} test`}
-                </p>
-
-                {/* ✅ TEST DETAILS */}
-                <div className="test-details">
-                  {test.fastingRequired && (
-                    <span className="detail-badge fasting">
-                      ⏱️ Fasting: {test.fastingHours ? `${test.fastingHours}h` : 'Required'}
-                    </span>
-                  )}
-                  <span className="detail-badge">
-                    🧪 {test.testType || 'Blood'}
-                  </span>
-                  <span className="detail-badge">
-                    ⏳ {test.reportTimeHours || test.turnaroundTime || 24}h
-                  </span>
-                </div>
-
-                {/* ✅ CARD FOOTER */}
-                <div className="card-footer">
-                  <div className="price">₹{test.price}</div>
-                  <button
-                    className={`add-btn ${addingToCart === test.id ? 'loading' : ''}`}
-                    onClick={() => handleAddToCart(test.id)}
-                    disabled={addingToCart === test.id}
-                  >
-                    {addingToCart === test.id ? '⏳...' : '🛒 Add to Cart'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ✅ PAGINATION */}
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 0}
-                className="page-btn prev"
-              >
-                ← Previous
-              </button>
-
-              <div className="page-numbers">
-                {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => (
-                  <button
-                    key={i}
-                    className={`page-num ${currentPage === i ? 'active' : ''}`}
-                    onClick={() => handlePageChange(i)}
-                  >
-                    {i + 1}
-                  </button>
+        <main className="flex-1">
+          {loading && tests.length === 0 ? (
+            <div className="flex justify-center py-20"><LoadingSpinner /></div>
+          ) : tests.length === 0 ? (
+            <div className="bg-white rounded-2xl p-20 text-center border-2 border-dashed border-slate-100">
+              <p className="text-slate-400 font-black uppercase text-xs tracking-widest">No matching tests found</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {tests.map((test) => (
+                  <TestCard 
+                    key={test.id}
+                    test={{
+                      id: test.id,
+                      name: test.testName || test.name || 'Unknown',
+                      slug: test.testCode || test.slug || '',
+                      category: test.categoryName || test.category || 'General',
+                      price: test.price,
+                      originalPrice: test.originalPrice || Math.round(test.price * 1.3),
+                      shortDesc: test.shortDescription || test.description || '',
+                      sampleType: test.sampleType || 'Blood',
+                      fastingRequired: test.fastingRequired,
+                      turnaroundTime: test.turnaroundTime || (test.reportTimeHours ? `${test.reportTimeHours}h` : '24h'),
+                      rating: 4.8,
+                      parametersCount: test.parametersCount,
+                      isTopBooked: test.isTopBooked,
+                      isTopDeal: test.isTopDeal,
+                      isPackage: test.isPackage
+                    }}
+                    onViewDetails={(slug) => navigate(`/test/${slug}`)}
+                    onBook={() => navigate(`/checkout?testId=${test.id}`)}
+                  />
                 ))}
               </div>
 
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages - 1}
-                className="page-btn next"
-              >
-                Next →
-              </button>
+              {/* PAGINATION */}
+              {totalPages > 1 && (
+                <div className="flex justify-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className="p-2 rounded-xl bg-white border border-slate-100 disabled:opacity-30"
+                  >
+                    ←
+                  </button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
+                      <button
+                        key={i}
+                        className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${currentPage === i ? 'bg-slate-900 text-white shadow-lg scale-110' : 'bg-white border border-slate-100 text-slate-400 hover:bg-slate-50'}`}
+                        onClick={() => handlePageChange(i)}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages - 1}
+                    className="p-2 rounded-xl bg-white border border-slate-100 disabled:opacity-30"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </>
-      )}
         </main>
       </div>
     </div>

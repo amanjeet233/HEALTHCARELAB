@@ -1,12 +1,16 @@
 package com.healthcare.labtestbooking.controller;
 
+import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.EmailRequest;
+import com.healthcare.labtestbooking.service.BookingService;
 import com.healthcare.labtestbooking.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -17,7 +21,7 @@ import java.util.Map;
  * Handles email operations including sending PDFs with bookings and reports
  */
 @RestController
-@RequestMapping("/api/email")
+@RequestMapping({"/api/email", "/api/emails"})
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("isAuthenticated()")
@@ -25,6 +29,7 @@ import java.util.Map;
 public class EmailController {
 
     private final EmailService emailService;
+    private final BookingService bookingService;
 
     /**
      * ✅ SEND EMAIL WITH PDF ATTACHMENT
@@ -118,6 +123,78 @@ public class EmailController {
         }
     }
 
+    @PostMapping("/send-booking-confirmation")
+    public ResponseEntity<?> sendBookingConfirmation(@RequestBody BookingTriggerRequest request) {
+        try {
+            if (request.getBookingId() == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("bookingId is required"));
+            }
+
+            BookingResponse booking = bookingService.getBookingById(request.getBookingId());
+            String email = getCurrentUserEmail();
+            String bookingReference = booking.getBookingReference() != null ? booking.getBookingReference() : ("BK-" + booking.getId());
+            String itemName = booking.getPackageName() != null ? booking.getPackageName()
+                    : booking.getLabTestName() != null ? booking.getLabTestName() : "HealthcareLab Booking";
+            emailService.sendSimpleEmail(
+                    email,
+                    "Booking Confirmed - " + bookingReference,
+                    "Your booking for " + itemName + " is confirmed on " + booking.getBookingDate() + " at " + booking.getTimeSlot()
+                            + ". Amount paid: ₹" + (booking.getAmount() != null ? booking.getAmount() : booking.getFinalAmount()) + "."
+            );
+
+            return ResponseEntity.ok(createSuccessResponse("Booking confirmation email triggered"));
+        } catch (Exception e) {
+            log.error("❌ Failed to trigger booking confirmation email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Failed to trigger booking confirmation email: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/send-appointment-reminder")
+    public ResponseEntity<?> sendAppointmentReminder(@RequestBody BookingTriggerRequest request) {
+        try {
+            if (request.getBookingId() == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("bookingId is required"));
+            }
+
+            BookingResponse booking = bookingService.getBookingById(request.getBookingId());
+            String email = getCurrentUserEmail();
+            String bookingReference = booking.getBookingReference() != null ? booking.getBookingReference() : ("BK-" + booking.getId());
+            String testName = booking.getLabTestName() != null ? booking.getLabTestName() : "HealthcareLab Appointment";
+            emailService.sendSimpleEmail(
+                    email,
+                    "Appointment Reminder - " + bookingReference,
+                    "Reminder: Your appointment is scheduled on " + booking.getBookingDate() + " at " + booking.getTimeSlot()
+                            + " for " + testName + "."
+            );
+
+            return ResponseEntity.ok(createSuccessResponse("Appointment reminder email triggered"));
+        } catch (Exception e) {
+            log.error("❌ Failed to trigger appointment reminder email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Failed to trigger appointment reminder email: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/send-report-ready")
+    public ResponseEntity<?> sendReportReady(@RequestBody ReportTriggerRequest request) {
+        try {
+            if (request.getReportId() == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("reportId is required"));
+            }
+
+            String email = getCurrentUserEmail();
+            String reportReference = "RPT-" + request.getReportId();
+            emailService.sendLabReport(email, reportReference, "HealthcareLab Report");
+
+            return ResponseEntity.ok(createSuccessResponse("Report ready email triggered"));
+        } catch (Exception e) {
+            log.error("❌ Failed to trigger report ready email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Failed to trigger report ready email: " + e.getMessage()));
+        }
+    }
+
     /**
      * ✅ HELPER: CREATE SUCCESS RESPONSE
      */
@@ -136,5 +213,37 @@ public class EmailController {
         response.put("success", false);
         response.put("error", message);
         return response;
+    }
+
+    private String getCurrentUserEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            return "support@healthcarelab.com";
+        }
+        return authentication.getName();
+    }
+
+    public static class BookingTriggerRequest {
+        private Long bookingId;
+
+        public Long getBookingId() {
+            return bookingId;
+        }
+
+        public void setBookingId(Long bookingId) {
+            this.bookingId = bookingId;
+        }
+    }
+
+    public static class ReportTriggerRequest {
+        private Long reportId;
+
+        public Long getReportId() {
+            return reportId;
+        }
+
+        public void setReportId(Long reportId) {
+            this.reportId = reportId;
+        }
     }
 }

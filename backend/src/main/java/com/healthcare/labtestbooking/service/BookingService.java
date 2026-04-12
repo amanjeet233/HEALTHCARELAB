@@ -3,13 +3,17 @@ package com.healthcare.labtestbooking.service;
 import com.healthcare.labtestbooking.dto.BookingRequest;
 import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.entity.Booking;
+import com.healthcare.labtestbooking.entity.FamilyMember;
 import com.healthcare.labtestbooking.entity.LabTest;
+import com.healthcare.labtestbooking.entity.TestPackage;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.entity.enums.CollectionType;
 import com.healthcare.labtestbooking.entity.enums.UserRole;
 import com.healthcare.labtestbooking.repository.BookingRepository;
+import com.healthcare.labtestbooking.repository.FamilyMemberRepository;
 import com.healthcare.labtestbooking.repository.LabTestRepository;
+import com.healthcare.labtestbooking.repository.TestPackageRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +41,8 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final LabTestRepository labTestRepository;
+    private final TestPackageRepository testPackageRepository;
+    private final FamilyMemberRepository familyMemberRepository;
 
     private static final BigDecimal HOME_COLLECTION_CHARGE = new BigDecimal("150.00");
 
@@ -48,13 +54,6 @@ public class BookingService {
         User patient = getCurrentUser();
         log.info("Patient: {} (ID: {})", patient.getEmail(), patient.getId());
 
-        // Get testId from request (accepts labTestId in JSON due to @JsonProperty)
-        Long testId = request.getTestId();
-        if (testId == null) {
-            log.error("Test ID is null in request");
-            throw new RuntimeException("Test ID is required");
-        }
-
         // Validate patientId
         if (request.getPatientId() != null && !request.getPatientId().equals(patient.getId())
                 && patient.getRole() != UserRole.ADMIN) {
@@ -63,15 +62,56 @@ public class BookingService {
             throw new RuntimeException("Cannot create booking for another patient");
         }
 
-        log.info("Looking up test with ID: {}", testId);
+        Long testId = request.getTestId();
+        Long packageId = request.getPackageId();
+        if (testId == null && packageId == null) {
+            throw new RuntimeException("Either testId or packageId is required");
+        }
 
-        LabTest labTest = labTestRepository.findById(testId)
-                .orElseThrow(() -> new RuntimeException("Lab test not found with id: " + testId));
-        log.info("Found test: {} (Price: {})", labTest.getTestName(), labTest.getPrice());
+        LabTest labTest = null;
+        TestPackage testPackage = null;
+        BigDecimal sourcePrice;
+        String sourceName;
 
-        if (!labTest.getIsActive()) {
-            log.error("Test is not active: {}", labTest.getTestName());
-            throw new RuntimeException("Lab test is currently not available");
+        if (testId != null) {
+            log.info("Looking up test with ID: {}", testId);
+            labTest = labTestRepository.findById(testId)
+                    .orElseThrow(() -> new RuntimeException("Lab test not found with id: " + testId));
+
+            if (!labTest.getIsActive()) {
+                log.error("Test is not active: {}", labTest.getTestName());
+                throw new RuntimeException("Lab test is currently not available");
+            }
+
+            sourcePrice = labTest.getPrice();
+            sourceName = labTest.getTestName();
+        } else {
+            log.info("Looking up package with ID: {}", packageId);
+            testPackage = testPackageRepository.findById(packageId)
+                    .orElseThrow(() -> new RuntimeException("Package not found with id: " + packageId));
+
+            if (!Boolean.TRUE.equals(testPackage.getIsActive())) {
+                throw new RuntimeException("Test package is currently not available");
+            }
+
+            sourcePrice = testPackage.getEffectivePrice() != null ? testPackage.getEffectivePrice() : testPackage.getTotalPrice();
+            sourceName = testPackage.getPackageName();
+        }
+
+        log.info("Found booking source: {} (Price: {})", sourceName, sourcePrice);
+
+        String patientDisplayName = patient.getName();
+        Long familyMemberId = null;
+        if (request.getFamilyMemberId() != null) {
+            FamilyMember familyMember = familyMemberRepository.findById(request.getFamilyMemberId())
+                    .orElseThrow(() -> new RuntimeException("Family member not found with id: " + request.getFamilyMemberId()));
+
+            if (!familyMember.getPatient().getId().equals(patient.getId()) && patient.getRole() != UserRole.ADMIN) {
+                throw new RuntimeException("Cannot create booking for a family member outside your account");
+            }
+
+            familyMemberId = familyMember.getId();
+            patientDisplayName = familyMember.getName();
         }
 
         CollectionType collectionType = CollectionType.LAB;
@@ -82,21 +122,25 @@ public class BookingService {
             homeCharge = HOME_COLLECTION_CHARGE;
         }
 
-        BigDecimal totalAmount = labTest.getPrice().add(homeCharge);
+        BigDecimal totalAmount = sourcePrice.add(homeCharge);
         BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
         BigDecimal finalAmount = totalAmount.subtract(discount);
 
-        String bookingRef = "BK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String bookingRef = "HLTH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         Booking booking = Booking.builder()
                 .bookingReference(bookingRef)
                 .patient(patient)
                 .test(labTest)
+                .testPackage(testPackage)
                 .bookingDate(request.getBookingDate())
                 .timeSlot(request.getTimeSlot())
+                .familyMemberId(familyMemberId)
+                .patientDisplayName(patientDisplayName)
                 .status(BookingStatus.BOOKED)
                 .collectionType(collectionType)
                 .collectionAddress(request.getCollectionAddress())
+                .notes(request.getNotes())
                 .homeCollectionCharge(homeCharge)
                 .totalAmount(totalAmount)
                 .discount(discount)
@@ -313,9 +357,16 @@ public class BookingService {
                 .id(booking.getId())
                 .bookingReference(booking.getBookingReference())
                 .patientId(booking.getPatient().getId())
-                .patientName(booking.getPatient().getName())
-                .labTestId(booking.getTest().getId())
-                .labTestName(booking.getTest().getTestName())
+                .patientName(booking.getPatientDisplayName() != null ? booking.getPatientDisplayName() : booking.getPatient().getName())
+                .patientEmail(booking.getPatient().getEmail())
+                .patientPhone(booking.getPatient().getPhone())
+                .familyMemberId(booking.getFamilyMemberId())
+                .labTestId(booking.getTest() != null ? booking.getTest().getId() : null)
+                .labTestName(booking.getTest() != null ? booking.getTest().getTestName() : null)
+                .packageId(booking.getTestPackage() != null ? booking.getTestPackage().getId() : null)
+                .packageName(booking.getTestPackage() != null ? booking.getTestPackage().getPackageName() : null)
+                .testName(booking.getTest() != null ? booking.getTest().getTestName()
+                        : booking.getTestPackage() != null ? booking.getTestPackage().getPackageName() : null)
                 .bookingDate(booking.getBookingDate())
                 .timeSlot(booking.getTimeSlot())
                 .status(booking.getStatus().name())
@@ -323,8 +374,10 @@ public class BookingService {
                 .collectionAddress(booking.getCollectionAddress())
                 .homeCollectionCharge(booking.getHomeCollectionCharge())
                 .totalAmount(booking.getTotalAmount())
+                .amount(booking.getFinalAmount())
                 .discount(booking.getDiscount())
                 .finalAmount(booking.getFinalAmount())
+                .notes(booking.getNotes())
                 .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus().name() : "PENDING")
                 .createdAt(booking.getCreatedAt())
                 .build();
