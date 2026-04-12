@@ -1,12 +1,14 @@
 import api from './api';
 
 export interface SystemStats {
-    totalUsers: number;
-    totalBookings: number;
-    totalTests: number;
-    totalRevenue: number;
-    pendingBookings: number;
-    activeUsers: number;
+    totalUsers?: number;
+    totalBookings?: number;
+    totalTests?: number;
+    totalRevenue?: number;
+    pendingBookings?: number;
+    activeUsers?: number;
+    completedBookings?: number;
+    processingBookings?: number;
 }
 
 export interface User {
@@ -92,7 +94,7 @@ export const adminService = {
         return response.data?.data || response.data;
     },
 
-    toggleUserStatus: async (userId: string): Promise<User> => {
+    toggleUserStatus: async (userId: string | number): Promise<User> => {
         const response = await api.put(`/api/admin/users/${userId}/toggle-status`);
         return response.data?.data || response.data;
     },

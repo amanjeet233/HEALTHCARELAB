@@ -48,9 +48,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
 
     // Role validation
     if (allowedRoles && allowedRoles.length > 0) {
-        if (!allowedRoles.includes(currentUser.role)) {
-            // User is authenticated but doesn't have required role
-            // Just redirect to home instead of broken dashboard routes
+        if (!allowedRoles.includes(currentUser.role as any)) {
+            const role = currentUser.role;
+            if (role === 'ADMIN') return <Navigate to="/admin" replace />;
+            if (role === 'TECHNICIAN') return <Navigate to="/technician" replace />;
+            if (role === 'MEDICAL_OFFICER') return <Navigate to="/medical-officer" replace />;
             return <Navigate to="/" replace />;
         }
     }

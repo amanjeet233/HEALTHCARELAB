@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useModal } from '../../context/ModalContext';
@@ -11,6 +12,20 @@ const AuthModal: React.FC = () => {
     const { activeModal, closeModal, authModalTab, setAuthModalTab } = useModal();
     const isOpen = activeModal === 'AUTH';
     const isRegisterTab = authModalTab === 'register';
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const handleLoginSuccess = (e: Event) => {
+            const role = (e as CustomEvent).detail?.role;
+            if (role === 'ADMIN') navigate('/admin');
+            else if (role === 'TECHNICIAN') navigate('/technician');
+            else if (role === 'MEDICAL_OFFICER') navigate('/medical-officer');
+            else navigate('/');
+            closeModal();
+        };
+        window.addEventListener('auth:login:success', handleLoginSuccess);
+        return () => window.removeEventListener('auth:login:success', handleLoginSuccess);
+    }, [navigate, closeModal]);
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {

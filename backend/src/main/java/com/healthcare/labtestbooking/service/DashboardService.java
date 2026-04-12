@@ -5,6 +5,7 @@ import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.repository.LabTestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,6 +19,7 @@ public class DashboardService {
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
+    private final LabTestRepository labTestRepository;
 
     public Map<String, Object> getPatientDashboardStats() {
         User patient = getCurrentUser();
@@ -90,6 +92,14 @@ public class DashboardService {
         stats.put("activeUsers", activeUsers);
         stats.put("pendingBookings", bookingRepository.countByStatus(BookingStatus.BOOKED));
         stats.put("processingBookings", bookingRepository.countByStatus(BookingStatus.PROCESSING));
+        
+        List<Booking> completedList = bookingRepository.findByStatus(BookingStatus.COMPLETED);
+        java.math.BigDecimal revenue = completedList.stream()
+            .map(b -> b.getFinalAmount() != null ? b.getFinalAmount() : java.math.BigDecimal.ZERO)
+            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        
+        stats.put("totalRevenue", revenue.doubleValue());
+        stats.put("totalTests", labTestRepository.count());
         
         return stats;
     }

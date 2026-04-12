@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSearch, FaMapMarkerAlt, FaLocationArrow, FaPhoneAlt, FaClipboardCheck, FaWhatsapp, FaUserAlt, FaRadiation, FaTint, FaSyringe, FaPills } from 'react-icons/fa';
 import { motion } from 'framer-motion';
@@ -31,8 +31,18 @@ const SkeletonFallback = () => (
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, currentUser } = useAuth();
     const { openAuthModal } = useModal();
+
+    // Auto-redirect staff users to their dedicated dashboards
+    useEffect(() => {
+        if (!isAuthenticated || !currentUser?.role) return;
+        const role = currentUser.role;
+        if (role === 'ADMIN') navigate('/admin', { replace: true });
+        else if (role === 'TECHNICIAN') navigate('/technician', { replace: true });
+        else if (role === 'MEDICAL_OFFICER') navigate('/medical-officer', { replace: true });
+        // PATIENT stays on landing page
+    }, [isAuthenticated, currentUser, navigate]);
 
     return (
         <div className="w-full bg-[#F0F9F9] flex flex-col">

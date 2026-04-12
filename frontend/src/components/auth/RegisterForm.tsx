@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { FaLock, FaEnvelope, FaMapMarkerAlt, FaChevronRight, FaPhone, FaUser, FaBirthdayCake } from 'react-icons/fa';
-import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useModal } from '../../context/ModalContext';
 import type { RegisterRequest } from '../../types/auth';
@@ -25,17 +24,9 @@ const registerSchema = yup.object().shape({
     confirmPassword: yup.string()
         .oneOf([yup.ref('password')], 'Passwords match failure')
         .required('Confirm required'),
-    role: yup.string().oneOf(['PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN']).required('Role required'),
-    address: yup.string().when('role', {
-        is: 'PATIENT',
-        then: (schema) => schema.required('Address required'),
-        otherwise: (schema) => schema.notRequired(),
-    }),
-    dateOfBirth: yup.string().when('role', {
-        is: 'PATIENT',
-        then: (schema) => schema.required('DOB required'),
-        otherwise: (schema) => schema.notRequired(),
-    })
+    role: yup.string().oneOf(['PATIENT']).required(),
+    address: yup.string().required('Address required'),
+    dateOfBirth: yup.string().required('DOB required'),
 });
 
 type RegisterInputs = yup.InferType<typeof registerSchema>;
@@ -48,7 +39,6 @@ const RegisterForm: React.FC = () => {
     const {
         register: registerFields,
         handleSubmit: handleRegisterSubmit,
-        watch: watchRegister,
         formState: { errors: registerErrors },
         reset: resetRegister
     } = useForm<RegisterInputs | any>({
@@ -56,12 +46,26 @@ const RegisterForm: React.FC = () => {
         defaultValues: { role: 'PATIENT' } as RegisterInputs
     });
 
-    const selectedRole = watchRegister('role');
-
     const onRegisterSubmit = async (data: RegisterInputs) => {
         setIsSubmitting(true);
         try {
-            await registerUser(data as unknown as RegisterRequest);
+            let firstName = 'User';
+            let lastName = '';
+            
+            if (data.name) {
+                const parts = data.name.trim().split(' ');
+                firstName = parts[0];
+                lastName = parts.length > 1 ? parts.slice(1).join(' ') : (firstName.length >= 2 ? firstName : 'User');
+            }
+
+            const payload = {
+                ...data,
+                firstName,
+                lastName,
+                phoneNumber: data.phone,
+            };
+
+            await registerUser(payload as unknown as RegisterRequest);
             closeModal();
             resetRegister();
         } catch (error) {
@@ -73,6 +77,9 @@ const RegisterForm: React.FC = () => {
 
     return (
         <form onSubmit={handleRegisterSubmit(onRegisterSubmit as any)} className="space-y-3">
+            {/* Hidden role — always PATIENT for self-registration */}
+            <input type="hidden" value="PATIENT" {...registerFields('role')} />
+
             <div className="grid grid-cols-2 max-[520px]:grid-cols-1 gap-3">
                 <AuthInput label="Full Name" icon={<FaUser />} error={registerErrors.name} {...registerFields('name')} placeholder="YOUR NAME" />
                 <AuthInput label="Email" icon={<FaEnvelope />} error={registerErrors.email} {...registerFields('email')} placeholder="YOU@EXAMPLE.COM" type="email" />
@@ -81,31 +88,17 @@ const RegisterForm: React.FC = () => {
                 <AuthInput label="Confirm Password" icon={<FaLock />} error={registerErrors.confirmPassword} {...registerFields('confirmPassword')} placeholder="••••••••" type="password" />
 
                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1 block">Role</label>
-                    <div className="relative">
-                        <select
-                            {...registerFields('role')}
-                            className="w-full h-11 bg-white border border-slate-200 focus:border-[#008080] focus:ring-2 focus:ring-[#008080]/10 rounded-xl py-2.5 px-3 text-[13px] font-semibold text-slate-700 outline-none transition-all uppercase tracking-[0.08em] appearance-none cursor-pointer"
-                        >
-                            <option value="PATIENT">Patient</option>
-                            <option value="MEDICAL_OFFICER">Medical Officer</option>
-                            <option value="TECHNICIAN">Technician</option>
-                        </select>
-                        <FaChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 rotate-90 pointer-events-none" />
+                    <div className="text-xs text-slate-500 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 h-full flex items-center">
+                        Creating a <span className="font-bold text-slate-700 mx-1">Patient</span> account.
+                        Staff accounts are created by the Admin.
                     </div>
                 </div>
             </div>
 
-            {selectedRole === 'PATIENT' && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="grid grid-cols-2 max-[520px]:grid-cols-1 gap-3"
-                >
-                    <AuthInput label="Address" icon={<FaMapMarkerAlt />} error={registerErrors.address} {...registerFields('address')} placeholder="CITY, COUNTRY" />
-                    <AuthInput label="Date Of Birth" icon={<FaBirthdayCake />} error={registerErrors.dateOfBirth} {...registerFields('dateOfBirth')} type="date" />
-                </motion.div>
-            )}
+            <div className="grid grid-cols-2 max-[520px]:grid-cols-1 gap-3">
+                <AuthInput label="Address" icon={<FaMapMarkerAlt />} error={registerErrors.address} {...registerFields('address')} placeholder="CITY, COUNTRY" />
+                <AuthInput label="Date Of Birth" icon={<FaBirthdayCake />} error={registerErrors.dateOfBirth} {...registerFields('dateOfBirth')} type="date" />
+            </div>
 
             <button
                 type="submit"

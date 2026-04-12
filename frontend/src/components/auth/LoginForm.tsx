@@ -12,7 +12,6 @@ import AuthInput from './AuthInput';
 const loginSchema = yup.object({
     email: yup.string().email('Valid email required').required('Email required'),
     password: yup.string().required('Password required'),
-    role: yup.string().oneOf(['PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN', 'ADMIN']).required(),
 }).required();
 
 interface LoginFormProps {
@@ -31,7 +30,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
         reset: resetLogin
     } = useForm<LoginRequest>({
         resolver: yupResolver(loginSchema) as any,
-        defaultValues: { role: 'PATIENT' } as LoginRequest
+        defaultValues: {} as LoginRequest
     });
 
     const onLoginSubmit = async (data: LoginRequest) => {
@@ -65,22 +64,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
                 placeholder="••••••••"
                 type="password"
             />
-
-            <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1 block">Role</label>
-                <div className="relative">
-                    <select
-                        {...loginFields('role')}
-                        className="w-full h-10 bg-white border border-slate-200 focus:border-[#008080] focus:ring-2 focus:ring-[#008080]/10 rounded-xl py-2 px-3 text-[12px] font-semibold text-slate-700 outline-none transition-all uppercase tracking-[0.08em] appearance-none cursor-pointer"
-                    >
-                        <option value="PATIENT">Patient</option>
-                        <option value="MEDICAL_OFFICER">Medical Officer</option>
-                        <option value="TECHNICIAN">Technician</option>
-                        <option value="ADMIN">System Administrator</option>
-                    </select>
-                    <FaChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 rotate-90 pointer-events-none" />
-                </div>
-            </div>
 
             <div className="flex justify-end pr-1">
                 <button type="button" onClick={onForgotPassword} className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#008080] hover:opacity-80 transition-all">

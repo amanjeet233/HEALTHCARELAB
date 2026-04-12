@@ -22,6 +22,19 @@ VALUES ('Medical Officer User', 'doctor@test.com', '$2a$10$slYQmyNdGziq3wjgkkAL.
 
 -- ========== NOTES ==========
 -- Password hash is for "password123" using BCrypt
--- Roles: PATIENT, TECHNICIAN, MEDICAL_OFFICER
+-- Admin password hash is for "admin" using BCrypt
+-- Roles: PATIENT, TECHNICIAN, MEDICAL_OFFICER, ADMIN
 -- All users have is_active=true
 -- All lab tests are loaded from V10 (create tests table) and V11 (insert 500+ tests)
+
+-- ========== ADMIN USER ==========
+-- Admin user for system administration (password: admin)
+INSERT INTO users (name, email, password, role, phone, address, gender, blood_group, date_of_birth, is_active, is_verified, created_at, updated_at)
+SELECT 'System Admin', 'admin@healthcarelab.com',
+       '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhXe',
+       'ADMIN', '9000000000', 'Admin HQ', 'MALE', 'O+', '1990-01-01',
+       true, true, NOW(), NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'admin@healthcarelab.com'
+);
+

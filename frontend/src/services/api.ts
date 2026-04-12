@@ -43,6 +43,13 @@ const handleGlobalLogout = (showToast = true) => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    
+    // Also clear all healthlab.* cached data so users don't share carts/bookings
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('healthlab.')) {
+            localStorage.removeItem(key);
+        }
+    });
 
     // ✅ Dispatch custom event so React components can sync state
     window.dispatchEvent(new CustomEvent('auth:logout'));

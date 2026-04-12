@@ -11,7 +11,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
     const cards = [
         {
             label: 'Network Nodes (Users)',
-            value: stats.activeUsers.toLocaleString(),
+            value: stats.activeUsers?.toLocaleString() ?? '0',
             icon: Users,
             trend: '+12%',
             isPositive: true,
@@ -19,7 +19,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Total Bookings',
-            value: stats.totalBookings.toLocaleString(),
+            value: stats.totalBookings?.toLocaleString() ?? '0',
             icon: Activity,
             trend: '+5.2%',
             isPositive: true,
@@ -27,7 +27,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Neural Revenue',
-            value: `₹${(stats.totalRevenue / 1000).toFixed(1)}k`,
+            value: `₹${((stats.totalRevenue ?? 0) / 1000).toFixed(1)}k`,
             icon: Banknote,
             trend: '+8.1%',
             isPositive: true,
@@ -35,7 +35,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Pending Bookings',
-            value: stats.pendingBookings.toString(),
+            value: stats.pendingBookings?.toString() ?? '0',
             icon: ShieldAlert,
             trend: '-2.4%',
             isPositive: false,

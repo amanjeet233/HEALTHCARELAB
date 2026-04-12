@@ -110,16 +110,31 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Initialize from LocalStorage
+  // Initialize from LocalStorage — only if a valid token exists
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      return;
+    }
     const cachedCart = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (cachedCart) {
       try {
         setCart(normalizeCart(JSON.parse(cachedCart)));
       } catch (e) {
-        console.error("Failed to parse cached cart", e);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
       }
     }
+  }, []);
+
+  // Clear cart when user logs out
+  useEffect(() => {
+    const handleLogout = () => {
+      setCart(null);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    };
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
 
   const syncToLocalStorage = (cartData: CartResponse | null) => {

@@ -2,7 +2,7 @@ import React from 'react';
 import { FaCalendarAlt, FaMapMarkerAlt, FaBuilding, FaHome, FaChevronRight } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { UseFormRegister, FieldErrors, UseFormWatch, UseFormHandleSubmit } from 'react-hook-form';
-import type { BookingFormData } from '../../pages/BookingPage';
+import type { BookingFormData } from '../../pages/patient/BookingPage';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 interface BookingFormProps {

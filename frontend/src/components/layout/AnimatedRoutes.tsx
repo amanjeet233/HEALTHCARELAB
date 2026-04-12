@@ -37,27 +37,29 @@ const TestDetailPage = lazy(() => import('../../pages/TestDetailPage'));
 const CartPage = lazy(() => import('../../pages/CartPage'));
 const PackagesListingPage = lazy(() => import('../../pages/packages/PackagesListingPage'));
 const PackageDetailPage = lazy(() => import('../../pages/packages/PackageDetailPage'));
-const BookingPage = lazyWithRetry(() => import('../../pages/BookingPage'));
-const MyBookingsPage = lazyWithRetry(() => import('../../pages/MyBookingsPage'));
-const ReportsPage = lazy(() => import('../../pages/ReportsPage'));
-const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
+const BookingPage = lazyWithRetry(() => import('../../pages/patient/BookingPage'));
+const MyBookingsPage = lazyWithRetry(() => import('../../pages/patient/MyBookingsPage'));
+const ReportsPage = lazy(() => import('../../pages/patient/ReportsPage'));
+const SettingsPage = lazy(() => import('../../pages/patient/SettingsPage'));
 const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
-const ProfilePage = lazy(() => import('../../pages/ProfilePage'));
-const NotificationCenter = lazy(() => import('../../pages/NotificationCenter'));
+const ProfilePage = lazy(() => import('../../pages/patient/ProfilePage'));
+const NotificationCenter = lazy(() => import('../../pages/patient/NotificationCenter'));
 const AdminDashboard = lazy(() => import('../../pages/admin/AdminDashboard'));
-const BookConsultationPage = lazy(() => import('../../pages/BookConsultationPage'));
-const FamilyMembersPage = lazy(() => import('../../pages/FamilyMembersPage'));
-const AddressBookPage = lazy(() => import('../../pages/AddressBookPage'));
-const SmartReportsPage = lazy(() => import('../../pages/SmartReportsPage'));
-const HealthInsightsPage = lazy(() => import('../../pages/HealthInsightsPage'));
+const BookConsultationPage = lazy(() => import('../../pages/patient/BookConsultationPage'));
+const FamilyMembersPage = lazy(() => import('../../pages/patient/FamilyMembersPage'));
+const AddressBookPage = lazy(() => import('../../pages/patient/AddressBookPage'));
+const SmartReportsPage = lazy(() => import('../../pages/patient/SmartReportsPage'));
+const HealthInsightsPage = lazy(() => import('../../pages/patient/HealthInsightsPage'));
 const LabPartnerPage = lazy(() => import('../../pages/LabPartnerPage'));
-const AuditLogsPage = lazy(() => import('../../pages/AuditLogsPage'));
-const PromoCodesPage = lazy(() => import('../../pages/PromoCodesPage'));
+const AuditLogsPage = lazy(() => import('../../pages/admin/AuditLogsPage'));
+const PromoCodesPage = lazy(() => import('../../pages/admin/PromoCodesPage'));
 const CategoryListingPage = lazy(() => import('../../pages/CategoryListingPage'));
 const TestListingBySlugPage = lazy(() => import('../../pages/TestListingBySlugPage'));
 const WomenWellnessPage = lazy(() => import('../../pages/WomenWellnessPage'));
 const ScreeningsPage = lazy(() => import('../../pages/ScreeningsPage'));
 const LoginPage = lazy(() => import('../../pages/LoginPage'));
+const TechnicianDashboardPage = lazy(() => import('../../pages/technician/TechnicianDashboardPage'));
+const MedicalOfficerDashboardPage = lazy(() => import('../../pages/medical/MedicalOfficerDashboardPage'));
 
 import MainLayout from './MainLayout';
 
@@ -102,6 +104,23 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
 
                         {/* Protected Unified Pages */}
+                        {/* Admin only */}
+                        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                            <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+                            <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
+                        </Route>
+
+                        {/* Technician only */}
+                        <Route element={<ProtectedRoute allowedRoles={['TECHNICIAN']} />}>
+                            <Route path="/technician" element={<PageTransition><TechnicianDashboardPage /></PageTransition>} />
+                        </Route>
+
+                        {/* Medical Officer only */}
+                        <Route element={<ProtectedRoute allowedRoles={['MEDICAL_OFFICER']} />}>
+                            <Route path="/medical-officer" element={<PageTransition><MedicalOfficerDashboardPage /></PageTransition>} />
+                        </Route>
+
+                        {/* Patient + Admin (shared protected routes) */}
                         <Route element={<ProtectedRoute />}>
                             <Route path="/booking" element={<PageTransition><BookingPage /></PageTransition>} />
                             <Route path="/booking/:id" element={<PageTransition><BookingPage /></PageTransition>} />
@@ -115,8 +134,6 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/promotions" element={<PageTransition><PromotionsPage /></PageTransition>} />
                             <Route path="/lab-partners" element={<PageTransition><LabPartnerPage /></PageTransition>} />
                             <Route path="/notifications" element={<PageTransition><NotificationCenter /></PageTransition>} />
-                            <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
-                            <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
                             <Route path="/book-consultation" element={<PageTransition><BookConsultationPage /></PageTransition>} />
                             <Route path="/reports" element={<PageTransition><ReportsPage /></PageTransition>} />
                             <Route path="/smart-reports" element={<PageTransition><SmartReportsPage /></PageTransition>} />

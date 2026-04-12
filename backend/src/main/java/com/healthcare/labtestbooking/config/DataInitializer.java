@@ -273,6 +273,47 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
+        // ── Admin user ────────────────────────────────────────────────
+        if (!userRepository.existsByEmail("admin@healthcarelab.com")) {
+            log.info("Creating admin@healthcarelab.com with ADMIN role");
+            String phone = allocateAvailablePhone("9000000000");
+            userRepository.save(User.builder()
+                    .email("admin@healthcarelab.com")
+                    .name("System Admin")
+                    .password(passwordEncoder.encode("admin"))
+                    .role(UserRole.ADMIN)
+                    .phone(phone)
+                    .isActive(true)
+                    .isVerified(true)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+            log.info("✓ Admin user created — email: admin@healthcarelab.com  password: admin");
+        } else {
+            // Ensure existing admin has correct role AND password
+            userRepository.findByEmail("admin@healthcarelab.com").ifPresent(u -> {
+                boolean updated = false;
+                if (u.getRole() != UserRole.ADMIN) {
+                    u.setRole(UserRole.ADMIN);
+                    updated = true;
+                    log.info("✓ Fixed admin role for admin@healthcarelab.com");
+                }
+                // Always ensure password matches "admin"
+                if (!u.getPassword().startsWith("$2a$")
+                        || !passwordEncoder.matches("admin", u.getPassword())) {
+                    log.warn("Admin password incorrect. Resetting to 'admin'...");
+                    u.setPassword(passwordEncoder.encode("admin"));
+                    updated = true;
+                    log.info("✓ Admin password reset successfully");
+                }
+                if (updated) {
+                    userRepository.save(u);
+                } else {
+                    log.info("✓ Admin user already exists with correct role and password");
+                }
+            });
+        }
+
         log.info("✓ All users initialized successfully with correct roles");
     }
 }

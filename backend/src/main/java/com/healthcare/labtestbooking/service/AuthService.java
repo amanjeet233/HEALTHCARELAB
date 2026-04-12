@@ -77,7 +77,7 @@ public class AuthService {
                         user.setAddress(request.getAddress());
                         user.setDateOfBirth(request.getDateOfBirth());
                         user.setBloodGroup(request.getBloodGroup());
-                        user.setRole(UserRole.PATIENT);
+                        user.setRole(UserRole.PATIENT); // Self-registration is ALWAYS Patient. Staff accounts created by Admin only.
                         user.setIsActive(true);
                         user.setIsVerified(false);
                         user.setCreatedAt(LocalDateTime.now());

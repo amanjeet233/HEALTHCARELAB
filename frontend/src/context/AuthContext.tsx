@@ -21,40 +21,60 @@ export interface AuthContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Helper: wipe every user-specific key from localStorage.
+ * Prevents data leaking between sessions / users on the same browser.
+ */
+const clearAllUserData = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('medsync_cart_cache');
+    localStorage.removeItem('healthlab_promo_seen');
+    // Clear all healthlab.* keys (pending bookings, etc.)
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('healthlab.')) {
+            localStorage.removeItem(key);
+        }
+    });
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    // ✅ Hydrate persistence across page reloads with error handling
+    // ✅ FIX 2: Hydrate by re-validating token against backend (not stale localStorage)
     useEffect(() => {
         let isMounted = true;
 
         const hydrateContext = async () => {
             try {
                 const storedToken = localStorage.getItem('token');
-                const storedUser = localStorage.getItem('user');
+                if (!storedToken) {
+                    // No token = no session, clear everything
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('medsync_cart_cache');
+                    if (isMounted) setIsLoading(false);
+                    return;
+                }
 
-                if (storedToken && storedUser) {
-                    try {
-                        const parsedUser = JSON.parse(storedUser);
-                        if (isMounted) {
-                            setCurrentUser(parsedUser);
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse stored user", e);
-                        // Clear corrupted data
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('refreshToken');
-                        localStorage.removeItem('user');
+                // Always re-fetch profile from backend to verify token is valid
+                // and get FRESH user data (prevents stale data from previous session)
+                try {
+                    const freshUser = await userService.getProfile();
+                    if (isMounted) {
+                        localStorage.setItem('user', JSON.stringify(freshUser));
+                        setCurrentUser(freshUser);
                     }
+                } catch (profileError: any) {
+                    // Token invalid/expired — clear everything
+                    clearAllUserData();
+                    if (isMounted) setCurrentUser(null);
                 }
             } catch (error) {
-                console.error("Error during auth hydration:", error);
+                console.error('Auth hydration error:', error);
             } finally {
-                // ✅ ALWAYS set loading to false, even if errors occur
-                if (isMounted) {
-                    setIsLoading(false);
-                }
+                if (isMounted) setIsLoading(false);
             }
         };
 
@@ -66,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.warn("Auth hydration timeout - forcing loading to false");
                 setIsLoading(false);
             }
-        }, 3000);
+        }, 5000);
 
         return () => {
             isMounted = false;
@@ -95,26 +115,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 throw new Error(message || 'Authentication failed');
             }
 
+            // Clear ALL previous user data before storing new session
+            clearAllUserData();
+            setCurrentUser(null);
+
             const token = data.accessToken;
             const refreshToken = data.refreshToken;
+            // The role is always available directly from the auth response
+            const authRole = data.role;
+
             localStorage.setItem('token', token);
             if (refreshToken) {
                 localStorage.setItem('refreshToken', refreshToken);
             }
 
-            // Fetch profile if user data is not bundled in the response
-            let user = data.user;
-            if (!user) {
-                try {
-                    user = await userService.getProfile();
-                } catch (profileError) {
-                    console.error("Failed to fetch user profile after login", profileError);
-                    throw new Error("Login successful, but failed to retrieve user profile.");
-                }
+            // Try to fetch full profile, fall back to auth response data
+            let user: any;
+            try {
+                user = await userService.getProfile();
+            } catch (profileError) {
+                console.warn("Profile fetch failed, using auth response data", profileError);
+                // Build a minimal user from auth response fields
+                user = {
+                    id: data.userId,
+                    name: data.name || data.email,
+                    email: data.email,
+                    role: authRole,
+                };
+            }
+
+            // Ensure role is always set (profile endpoint might not return it correctly)
+            if (!user.role && authRole) {
+                user.role = authRole;
             }
 
             localStorage.setItem('user', JSON.stringify(user));
             setCurrentUser(user);
+            
+            // Fire redirect event — use authRole from login response (most reliable source)
+            window.dispatchEvent(new CustomEvent('auth:login:success', {
+                detail: { role: authRole || user.role }
+            }));
+            
             toast.success(message || `Welcome back, ${user.name}!`);
         } catch (error: unknown) {
             const errorMsg = axios.isAxiosError(error)
@@ -137,6 +179,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 throw new Error(message || 'Registration failed');
             }
 
+            // Clear previous session data before storing new
+            clearAllUserData();
+            setCurrentUser(null);
+
             const token = data.accessToken;
             const refreshToken = data.refreshToken;
             localStorage.setItem('token', token);
@@ -152,6 +198,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             localStorage.setItem('user', JSON.stringify(user));
             setCurrentUser(user);
+            
+            // Fire a custom event so any listener can redirect based on role
+            window.dispatchEvent(new CustomEvent('auth:login:success', {
+                detail: { role: user.role }
+            }));
+            
             toast.success(message || 'Registration successful. Welcome!');
         } catch (error: unknown) {
             const errorMsg = axios.isAxiosError(error)
@@ -164,11 +216,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    // ✅ FIX 3: Clear ALL user-specific data — prevents data leaking to next user
     const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
+        clearAllUserData();
+        sessionStorage.clear();
         setCurrentUser(null);
+        // Fire event so CartContext (and other listeners) reset
+        window.dispatchEvent(new Event('auth:logout'));
         toast.success('Logged out successfully');
     };
 
@@ -239,4 +293,3 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         </AuthContext.Provider>
     );
 };
-

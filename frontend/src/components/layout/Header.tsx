@@ -66,6 +66,7 @@ const Header: React.FC = () => {
   const userName = toSafeString(currentUser?.name, 'User');
   const userEmail = toSafeString(currentUser?.email, '');
   const userInitial = userName.charAt(0).toUpperCase() || 'U';
+  const role = currentUser?.role;
 
   // Load cart when authenticated
   useLayoutEffect(() => {
@@ -283,9 +284,9 @@ const Header: React.FC = () => {
 
         {/* 3. QUICK ACTIONS - Bold Icons (Fixed Visibility to show on md and above) */}
         <div className="hidden md:flex items-center gap-3 lg:gap-6 shrink-0 border-r border-slate-100 pr-4 lg:pr-6">
-          {quickActions.map((action, idx) => (
+          {(!isAuthenticated || role === 'PATIENT' || !role) && quickActions.map((action, idx) => (
             <button
-              key={idx}
+              key={`action-${idx}`}
               onClick={action.action || (() => navigate(action.href!))}
               className="flex flex-col items-center group transition-all active:scale-90"
             >
@@ -295,6 +296,33 @@ const Header: React.FC = () => {
               </span>
             </button>
           ))}
+
+          {isAuthenticated && role === 'ADMIN' && (
+            <>
+              <button onClick={() => navigate('/admin')} className="flex flex-col items-center group transition-all active:scale-90">
+                <Settings className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-all" strokeWidth={3} />
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Dashboard</span>
+              </button>
+              <button onClick={() => navigate('/admin/audit-logs')} className="flex flex-col items-center group transition-all active:scale-90">
+                <FileText className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-all" strokeWidth={3} />
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Audit Logs</span>
+              </button>
+            </>
+          )}
+
+          {isAuthenticated && role === 'TECHNICIAN' && (
+            <button onClick={() => navigate('/technician')} className="flex flex-col items-center group transition-all active:scale-90">
+              <Plus className="w-5 h-5 text-[#0D7C7C] group-hover:scale-110 transition-all" strokeWidth={3} />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">My Collections</span>
+            </button>
+          )}
+
+          {isAuthenticated && role === 'MEDICAL_OFFICER' && (
+            <button onClick={() => navigate('/medical-officer')} className="flex flex-col items-center group transition-all active:scale-90">
+              <ClipboardList className="w-5 h-5 text-[#D97706] group-hover:scale-110 transition-all" strokeWidth={3} />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Review Queue</span>
+            </button>
+          )}
         </div>
 
         {/* 4. CART & AUTH - Right */}
@@ -355,14 +383,26 @@ const Header: React.FC = () => {
                     >
                       <div className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue px-4 py-3 text-white">
                         <p className="font-extrabold text-[1.05rem] tracking-tight leading-none mb-1">{userName}</p>
-                        <p className="text-[10px] font-bold opacity-75 truncate">{userEmail}</p>
+                        <div className="text-[10px] font-semibold px-2 py-0.5 rounded mt-1 w-fit"
+                          style={{
+                            background: role === 'ADMIN' ? '#FEF2F2' :
+                                        role === 'TECHNICIAN' ? '#EFF6FF' :
+                                        role === 'MEDICAL_OFFICER' ? '#F0FDF4' : '#E0F2FE',
+                            color: role === 'ADMIN' ? '#DC2626' :
+                                   role === 'TECHNICIAN' ? '#1D4ED8' :
+                                   role === 'MEDICAL_OFFICER' ? '#15803D' : '#0369A1',
+                          }}>
+                          {role === 'MEDICAL_OFFICER' ? 'Medical Officer' : 
+                           role === 'TECHNICIAN' ? 'Technician' :
+                           role === 'ADMIN' ? 'Admin' : 'Patient'}
+                        </div>
                       </div>
                       <div className="py-1.5">
-                        {profileMenuItems.map((item, idx) => {
+                        {(!role || role === 'PATIENT') && profileMenuItems.map((item, idx) => {
                           const Icon = item.icon;
                           return (
                             <button
-                              key={idx}
+                              key={`pmenu-${idx}`}
                               onClick={() => {
                                 setShowProfileMenu(false);
                                 navigate(item.path);
@@ -377,6 +417,45 @@ const Header: React.FC = () => {
                             </button>
                           );
                         })}
+
+                        {role === 'ADMIN' && (
+                          <>
+                            <button onClick={() => { setShowProfileMenu(false); navigate('/admin') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                              <div className="flex items-center gap-3">
+                                <Settings size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                                <span className="uppercase tracking-tight">Dashboard</span>
+                              </div>
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                            <button onClick={() => { setShowProfileMenu(false); navigate('/admin/audit-logs') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                              <div className="flex items-center gap-3">
+                                <FileText size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                                <span className="uppercase tracking-tight">Audit Logs</span>
+                              </div>
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          </>
+                        )}
+
+                        {role === 'TECHNICIAN' && (
+                          <button onClick={() => { setShowProfileMenu(false); navigate('/technician') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                            <div className="flex items-center gap-3">
+                              <Plus size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                              <span className="uppercase tracking-tight">My Collections</span>
+                            </div>
+                            <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        )}
+
+                        {role === 'MEDICAL_OFFICER' && (
+                          <button onClick={() => { setShowProfileMenu(false); navigate('/medical-officer') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                            <div className="flex items-center gap-3">
+                              <ClipboardList size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                              <span className="uppercase tracking-tight">Review Queue</span>
+                            </div>
+                            <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        )}
                         <div className="h-px bg-gray-50 my-1 mx-2" />
                         <button
                           onClick={() => {

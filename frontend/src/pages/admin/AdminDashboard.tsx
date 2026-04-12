@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Users, Activity, Settings, Bell } from 'lucide-react';
+import { Shield, Users, Activity, Settings, Bell, UserPlus, Trash2 } from 'lucide-react';
 import SystemStatsCards from '../../components/admin/SystemStatsCards';
 import UserManagementTable from '../../components/admin/UserManagementTable';
 import GrowthChart from '../../components/admin/charts/GrowthChart';
 import RevenueChart from '../../components/admin/charts/RevenueChart';
 import BookingTrendChart from '../../components/admin/charts/BookingTrendChart';
 import { adminService, type SystemStats, type User, type ChartDataPoint, type AuditLog } from '../../services/adminService';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 import { notify } from '../../utils/toast';
 
 const AdminDashboard: React.FC = () => {
@@ -18,6 +20,12 @@ const AdminDashboard: React.FC = () => {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [staff, setStaff] = useState<any[]>([]);
+    const [showAddStaff, setShowAddStaff] = useState(false);
+    const [newStaff, setNewStaff] = useState({
+        name: '', email: '', password: 'password123',
+        role: 'TECHNICIAN', phone: ''
+    });
 
     useEffect(() => {
         loadData();
@@ -41,6 +49,12 @@ const AdminDashboard: React.FC = () => {
             setRevenueData(revenue);
             setBookingData(bookings);
             setAuditLogs(logs);
+
+            // Fetch staff list
+            try {
+                const staffRes = await api.get('/api/admin/staff');
+                setStaff(staffRes.data?.data || []);
+            } catch { setStaff([]); }
         } catch (error) {
             setHasError(true);
             notify.error('Admin telemetry acquisition failed.');
@@ -150,6 +164,147 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         <UserManagementTable users={users} />
+                    </section>
+
+                    {/* ── Staff Management ─────────────────────── */}
+                    <section className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <UserPlus className="w-6 h-6 text-primary" />
+                                <h2 className="text-xl font-black text-text uppercase italic">Staff <span className="text-primary italic">Management</span></h2>
+                            </div>
+                            <button
+                                onClick={() => setShowAddStaff(true)}
+                                className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                            >
+                                <UserPlus className="w-4 h-4" /> Add Staff
+                            </button>
+                        </div>
+
+                        {/* Add Staff Form */}
+                        {showAddStaff && (
+                            <div className="bg-white/60 backdrop-blur-xl border border-primary/10 rounded-[2rem] p-8 shadow-sm">
+                                <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-text/60 mb-6">Create Staff Account</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Full Name</label>
+                                        <input value={newStaff.name}
+                                            onChange={e => setNewStaff(p => ({...p, name: e.target.value}))}
+                                            placeholder="Dr. Sharma"
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Email</label>
+                                        <input value={newStaff.email}
+                                            onChange={e => setNewStaff(p => ({...p, email: e.target.value}))}
+                                            placeholder="doctor@hospital.com"
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Phone</label>
+                                        <input value={newStaff.phone}
+                                            onChange={e => setNewStaff(p => ({...p, phone: e.target.value}))}
+                                            placeholder="9876543210"
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Password</label>
+                                        <input value={newStaff.password}
+                                            onChange={e => setNewStaff(p => ({...p, password: e.target.value}))}
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Role</label>
+                                        <select value={newStaff.role}
+                                            onChange={e => setNewStaff(p => ({...p, role: e.target.value}))}
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+                                            <option value="TECHNICIAN">Technician</option>
+                                            <option value="MEDICAL_OFFICER">Medical Officer</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={async () => {
+                                        try {
+                                            await api.post('/api/admin/staff', newStaff);
+                                            toast.success('Staff account created!');
+                                            setShowAddStaff(false);
+                                            setNewStaff({ name:'', email:'', password:'password123', role:'TECHNICIAN', phone:'' });
+                                            loadData();
+                                        } catch (err: any) {
+                                            toast.error(err.response?.data?.message || 'Failed to create staff');
+                                        }
+                                    }}
+                                        className="px-6 py-3 bg-primary text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all shadow-lg shadow-primary/20">
+                                        Create Account
+                                    </button>
+                                    <button onClick={() => setShowAddStaff(false)}
+                                        className="px-6 py-3 bg-primary/5 text-text rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Staff List Table */}
+                        <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-primary/5">
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Name</th>
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Email</th>
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Role</th>
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Status</th>
+                                        <th className="text-right px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {staff.map((s: any) => (
+                                        <tr key={s.id} className="border-b border-primary/5 hover:bg-primary/5 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-text">{s.name}</td>
+                                            <td className="px-6 py-4 text-text/60">{s.email}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                                                    s.role === 'MEDICAL_OFFICER' ? 'bg-teal-500/10 text-teal-600' :
+                                                    s.role === 'TECHNICIAN' ? 'bg-blue-500/10 text-blue-600' :
+                                                    'bg-red-500/10 text-red-600'}`}>
+                                                    {s.role === 'MEDICAL_OFFICER' ? 'Medical Officer' :
+                                                     s.role === 'TECHNICIAN' ? 'Technician' : s.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                                                    s.isActive ? 'bg-cta/10 text-cta' : 'bg-red-500/10 text-red-500'}`}>
+                                                    {s.isActive ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                {s.role !== 'ADMIN' && (
+                                                    <button onClick={async () => {
+                                                        if (!confirm(`Remove ${s.name} (${s.role})?`)) return;
+                                                        try {
+                                                            await api.delete(`/api/admin/staff/${s.id}`);
+                                                            toast.success('Staff removed');
+                                                            loadData();
+                                                        } catch {
+                                                            toast.error('Failed to remove staff');
+                                                        }
+                                                    }}
+                                                        className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded-lg transition-colors ml-auto">
+                                                        <Trash2 className="w-3 h-3" /> Remove
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {staff.length === 0 && (
+                                        <tr><td colSpan={5} className="px-6 py-12 text-center text-text/30 text-sm font-medium">
+                                            No staff accounts yet. Click "Add Staff" to create one.
+                                        </td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
                 </div>
 

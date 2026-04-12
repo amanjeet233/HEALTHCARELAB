@@ -11,11 +11,11 @@ interface Props {
 const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
     const [users, setUsers] = useState<User[]>(initialUsers);
     const [searchTerm, setSearchTerm] = useState('');
-    const [roleFilter, setRoleFilter] = useState<'all' | 'patient' | 'doctor' | 'admin'>('all');
+    const [roleFilter, setRoleFilter] = useState<string>('all');
 
     const filteredUsers = users.filter(user =>
         (user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (roleFilter === 'all' || user.role === roleFilter)
+        (roleFilter === 'all' || user.role?.toString().toUpperCase() === roleFilter.toUpperCase())
     );
 
     const handleRoleChange = async (userId: number, newRole: string) => {
@@ -39,11 +39,11 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
     };
 
     const getRoleColor = (role: string) => {
-        switch (role) {
-            case 'admin': return 'text-red-500 bg-red-50 border-red-100';
-            case 'doctor': return 'text-primary bg-primary/5 border-primary/10';
-            default: return 'text-text/60 bg-primary/5 border-primary/10';
-        }
+        const r = (role || '').toUpperCase();
+        if (r === 'ADMIN') return 'text-red-600 bg-red-50 border-red-100';
+        if (r === 'MEDICAL_OFFICER') return 'text-teal-700 bg-teal-50 border-teal-100';
+        if (r === 'TECHNICIAN') return 'text-blue-700 bg-blue-50 border-blue-100';
+        return 'text-slate-600 bg-slate-50 border-slate-100';
     };
 
     return (
@@ -65,13 +65,14 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
                         <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30" />
                         <select
                             value={roleFilter}
-                            onChange={(e) => setRoleFilter(e.target.value as any)}
+                            onChange={(e) => setRoleFilter(e.target.value)}
                             className="w-full bg-white/40 border border-primary/5 rounded-2xl pl-12 pr-10 py-4 text-[10px] font-black text-text uppercase tracking-[0.2em] outline-none appearance-none cursor-pointer hover:bg-white/60 transition-all"
                         >
-                            <option value="all">Global Filter</option>
-                            <option value="patient">Patients Only</option>
-                            <option value="doctor">Doctors Only</option>
-                            <option value="admin">Admin Nodes</option>
+                            <option value="all">All Roles</option>
+                            <option value="PATIENT">Patients</option>
+                            <option value="TECHNICIAN">Technicians</option>
+                            <option value="MEDICAL_OFFICER">Medical Officers</option>
+                            <option value="ADMIN">Admins</option>
                         </select>
                     </div>
                 </div>
