@@ -19,11 +19,11 @@ import {
     ShieldCheck,
     Zap
 } from 'lucide-react';
-import { healthScoreService, type HealthScore, type HealthMetric, type HealthTrend, type HealthRecommendation } from '../services/healthScoreService';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { notify } from '../utils/toast';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import { healthScoreService, type HealthScore, type HealthMetric, type HealthTrend, type HealthRecommendation } from '../../services/healthScoreService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { notify } from '../../utils/toast';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 
 const HealthInsightsPage: React.FC = () => {
     const navigate = useNavigate();

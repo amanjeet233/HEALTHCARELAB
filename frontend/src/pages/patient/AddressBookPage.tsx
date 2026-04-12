@@ -10,12 +10,12 @@ import {
     Compass
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { addressService, AddressDTO } from '../services/addressService';
-import { notify } from '../utils/toast';
-import AddressCard from '../components/profile/AddressCard';
-import AddressModal from '../components/profile/AddressModal';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import { addressService, AddressDTO } from '../../services/addressService';
+import { notify } from '../../utils/toast';
+import AddressCard from '../../components/profile/AddressCard';
+import AddressModal from '../../components/profile/AddressModal';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 
 const LOCAL_ADDRESSES_KEY = 'healthlab.localAddresses';
 

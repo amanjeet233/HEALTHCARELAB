@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bookingService } from '../services/booking';
-import type { BookingResponse, BookingStatus } from '../types/booking';
+import { bookingService } from '../../services/booking';
+import type { BookingResponse, BookingStatus } from '../../types/booking';
 import { 
     Calendar, 
     FlaskConical, 
@@ -18,11 +18,11 @@ import {
     Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import StatusBadge from '../components/common/StatusBadge';
-import ConfirmationModal from '../components/common/ConfirmationModal';
-import { notify } from '../utils/toast';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import StatusBadge from '../../components/common/StatusBadge';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
+import { notify } from '../../utils/toast';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 import './MyBookingsPage.css';
 
 const LOCAL_PENDING_BOOKINGS_KEY = 'healthlab.pendingBookings';

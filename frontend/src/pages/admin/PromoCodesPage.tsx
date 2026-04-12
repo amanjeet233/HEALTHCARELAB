@@ -19,10 +19,10 @@ import {
     Ticket
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { promoCodeService } from '../services/PromoCodeService';
-import type { PromoCode } from '../types/promo';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import { promoCodeService } from '../../services/PromoCodeService';
+import type { PromoCode } from '../../types/promo';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 
 interface FilterOptions {
   type: 'all' | 'percentage' | 'flat';

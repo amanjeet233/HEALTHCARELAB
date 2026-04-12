@@ -1,5 +1,5 @@
 import React from 'react';
-import DoctorAvailabilitySection from '../components/doctor/DoctorAvailabilitySection';
+import DoctorAvailabilitySection from '../../components/doctor/DoctorAvailabilitySection';
 import './BookConsultationPage.css';
 
 const BookConsultationPage: React.FC = () => {

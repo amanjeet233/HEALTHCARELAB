@@ -36,10 +36,10 @@ import {
     LockIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { userService } from '../services/userService';
-import { notify } from '../utils/toast';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import { userService } from '../../services/userService';
+import { notify } from '../../utils/toast';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();

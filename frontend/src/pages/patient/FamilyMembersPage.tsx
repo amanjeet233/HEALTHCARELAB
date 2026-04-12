@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus } from 'react-icons/fa';
-import { familyMemberService, type FamilyMemberRequest, type FamilyMemberResponse } from '../services/familyMemberService';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import FamilyMemberCard from '../components/family/FamilyMemberCard';
-import FamilyMemberForm from '../components/family/FamilyMemberForm';
-import { notify } from '../utils/toast';
+import { familyMemberService, type FamilyMemberRequest, type FamilyMemberResponse } from '../../services/familyMemberService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import FamilyMemberCard from '../../components/family/FamilyMemberCard';
+import FamilyMemberForm from '../../components/family/FamilyMemberForm';
+import { notify } from '../../utils/toast';
 
 const FamilyMembersPage: React.FC = () => {
   const [members, setMembers] = useState<FamilyMemberResponse[]>([]);

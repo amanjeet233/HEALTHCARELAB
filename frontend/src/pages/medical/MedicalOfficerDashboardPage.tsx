@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, CheckCircle2, XCircle, AlertTriangle,
   Clock, Eye, RefreshCw, User, ChevronDown, ChevronUp } from 'lucide-react';
-import api from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import api from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const MedicalOfficerDashboardPage: React.FC = () => {

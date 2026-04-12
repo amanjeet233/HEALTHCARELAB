@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { User, HeartPulse, Activity } from 'lucide-react';
-import { userService } from '../services/userService';
-import type { User as UserType } from '../types/auth';
-import { notify } from '../utils/toast';
-import PersonalInfoTab from '../components/profile/tabs/PersonalInfoTab';
-import HealthcareTab from '../components/profile/tabs/HealthcareTab';
-import GlassCard from '../components/common/GlassCard';
+import { userService } from '../../services/userService';
+import type { User as UserType } from '../../types/auth';
+import { notify } from '../../utils/toast';
+import PersonalInfoTab from '../../components/profile/tabs/PersonalInfoTab';
+import HealthcareTab from '../../components/profile/tabs/HealthcareTab';
+import GlassCard from '../../components/common/GlassCard';
 import '../styles/SecondaryPages.css';
 
 type ProfileTab = 'personal' | 'medical';

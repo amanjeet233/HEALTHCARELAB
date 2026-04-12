@@ -21,14 +21,14 @@ import {
     RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { reportService, type ReportDisplay } from '../services/reportService';
-import ReportViewerModal from '../components/reports/ReportViewerModal';
-import ReportUploadModal from '../components/reports/ReportUploadModal';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { notify } from '../utils/toast';
-import { useAuth } from '../hooks/useAuth';
-import GlassCard from '../components/common/GlassCard';
-import GlassButton from '../components/common/GlassButton';
+import { reportService, type ReportDisplay } from '../../services/reportService';
+import ReportViewerModal from '../../components/reports/ReportViewerModal';
+import ReportUploadModal from '../../components/reports/ReportUploadModal';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { notify } from '../../utils/toast';
+import { useAuth } from '../../hooks/useAuth';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
 
 type SortOption = 'date_desc' | 'date_asc' | 'name' | 'status';
 type FilterStatus = 'all' | 'ready' | 'pending' | 'processing';

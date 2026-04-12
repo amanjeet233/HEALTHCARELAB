@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Inbox, Trash2, CheckCircle, Search, Filter, Settings, ShieldAlert, ArrowRight, Activity, Calendar, Lock } from 'lucide-react';
-import { useNotifications } from '../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import type { Notification } from '../services/notificationService';
+import type { Notification } from '../../services/notificationService';
 
 const NotificationCenter: React.FC = () => {
     const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotifications();

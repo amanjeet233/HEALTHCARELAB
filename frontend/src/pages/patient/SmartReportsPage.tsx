@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa';
-import { smartReportService, type SmartAnalysis, type ParameterTrend, type CriticalValue } from '../services/smartReportService';
-import { reportService } from '../services/reportService';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import SmartReportViewer from '../components/reports/SmartReportViewer';
-import ParameterTrends from '../components/reports/ParameterTrends';
-import { notify } from '../utils/toast';
+import { smartReportService, type SmartAnalysis, type ParameterTrend, type CriticalValue } from '../../services/smartReportService';
+import { reportService } from '../../services/reportService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import SmartReportViewer from '../../components/reports/SmartReportViewer';
+import ParameterTrends from '../../components/reports/ParameterTrends';
+import { notify } from '../../utils/toast';
 
 interface ReportSummary {
   id: number;

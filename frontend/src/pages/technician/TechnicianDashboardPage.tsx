@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Clock, CheckCircle2, Truck, Upload,
   AlertCircle, User, Phone, ChevronRight, RefreshCw } from 'lucide-react';
-import { technicianService, getTechnicianBookings } from '../services/technicianService';
-import { useAuth } from '../hooks/useAuth';
+import { technicianService, getTechnicianBookings } from '../../services/technicianService';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaFilter } from 'react-icons/fa';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { notify } from '../utils/toast';
-import api from '../services/api';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { notify } from '../../utils/toast';
+import api from '../../services/api';
 
 interface AuditLog {
   id: number;
