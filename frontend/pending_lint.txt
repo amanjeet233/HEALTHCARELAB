@@ -1,6 +1,0 @@
-
-D:\CU\SEM 6\EPAM\PROJECT\frontend\src\pages\dashboard\doctor\PendingApprovals.tsx
-  74:18  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
-
-Ô£û 1 problem (1 error, 0 warnings)
-

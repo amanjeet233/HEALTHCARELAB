@@ -1,3 +1,0 @@
-src/components/layout/Sidebar.tsx(33,92): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Object literal may only specify known properties, and 'className' does not exist in type 'Partial<unknown> & Attributes'.
