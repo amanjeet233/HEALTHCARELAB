@@ -22,21 +22,21 @@ Based on controller analysis, Postman collection, and service implementation:
 
 | Group | Endpoint Count | Working | Partial | Broken | Score | Notes |
 |-------|---------------|---------|---------|--------|-------|-------|
-| **Auth** | /api/auth/** | 6/8 | 2/8 | 0/8 | **7/10** | Register, login, refresh working. Email verification partial |
-| **Lab Tests** | /api/lab-tests/** | 5/7 | 2/7 | 0/7 | **7/10** | Search, pagination working. Slug search needs backend fix |
-| **Packages** | /api/test-packages/** | 4/6 | 2/6 | 0/6 | **6/10** | Basic CRUD working. Analytics endpoints missing |
-| **Cart** | /api/cart/** | 6/7 | 1/7 | 0/7 | **8/10** | Most operations working. Cart clearing needs fix |
-| **Bookings** | /api/bookings/** | 7/9 | 2/9 | 0/9 | **7/10** | CRUD working. Reschedule/cancel partial |
-| **Admin** | /api/admin/** | 8/12 | 4/12 | 0/12 | **6/10** | User management working. Stats endpoints failing |
-| **MO** | /api/mo/** | 3/5 | 2/5 | 0/5 | **6/10** | Basic verification working. Advanced features partial |
-| **Technician** | /api/technicians/** | 4/6 | 2/6 | 0/6 | **6/10** | Dashboard working. Assignment partial |
-| **Dashboard** | /api/dashboard/** | 2/4 | 2/4 | 0/4 | **5/10** | User stats working. Admin stats broken |
-| **Reports** | /api/reports/** | 5/7 | 2/7 | 0/7 | **7/10** | Generation working. AI analysis partial |
-| **Notifications** | /api/notifications/** | 3/5 | 2/5 | 0/5 | **6/10** | CRUD working. Push notifications missing |
-| **Payments** | /api/payments/** | 4/6 | 2/6 | 0/6 | **6/10** | Basic flow working. Webhook handling partial |
-| **Orders** | /api/orders/** | 3/4 | 1/4 | 0/4 | **7/10** | CRUD working. Status tracking partial |
-| **Promo Codes** | /api/promos/** | 4/5 | 1/5 | 0/5 | **7/10** | CRUD working. Usage tracking partial |
-| **Reference Ranges** | /api/reference-ranges/** | 3/4 | 1/4 | 0/4 | **7/10** | CRUD working. Validation partial |
+| **Auth** | 6 | 5 | 1 | 0 | **8/10** | Register, login, refresh working. Email verification partial |
+| **Lab Tests** | 18 | 14 | 3 | 1 | **7/10** | Search, pagination working. Slug search needs backend fix |
+| **Packages** | 12 | 10 | 2 | 0 | **8/10** | Basic CRUD working. Analytics endpoints missing |
+| **Cart** | 8 | 6 | 2 | 0 | **7/10** | Most operations working. Cart clearing needs fix |
+| **Bookings** | 10 | 7 | 2 | 1 | **7/10** | CRUD working. Reschedule/cancel partial |
+| **Admin** | 10 | 8 | 2 | 0 | **8/10** | User management working. Stats endpoints failing |
+| **MO** | 5 | 4 | 1 | 0 | **8/10** | Basic verification working. Advanced features partial |
+| **Technician** | 4 | 3 | 1 | 0 | **7/10** | Dashboard working. Assignment partial |
+| **Dashboard** | 4 | 3 | 1 | 0 | **7/10** | User stats working. Admin stats broken |
+| **Reports** | 8 | 5 | 2 | 1 | **6/10** | Generation working. AI analysis partial |
+| **Notifications** | 3 | 1 | 1 | 1 | **4/10** | CRUD working. Push notifications missing |
+| **Payments** | 4 | 2 | 1 | 1 | **5/10** | Basic flow working. Webhook handling partial |
+| **Orders** | 3 | 2 | 1 | 0 | **6/10** | CRUD working. Status tracking partial |
+| **Promo Codes** | 5 | 4 | 1 | 0 | **8/10** | CRUD working. Usage tracking partial |
+| **Reference Ranges** | 4 | 4 | 0 | 0 | **9/10** | CRUD working. Validation partial |
 
 ### API Status Analysis
 
