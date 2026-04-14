@@ -380,6 +380,12 @@ Based on code analysis, the following potential issues were identified:
    - Impact: Potential for invalid data to enter system
    - Severity: Medium
 
+8. **GAP-FIX-DATA.sql Committed to Repository**
+   - Location: Repository root - `GAP-FIX-DATA.sql`
+   - Description: One-time INSERT statements for DOCTOR role users using hardcoded BCrypt hashes and MySQL-specific syntax (LAST_INSERT_ID). Should not be in the repo.
+   - Impact: Misleading, may be run accidentally on wrong DB. Move to docs/seeds/ or delete after use.
+   - Severity: Medium
+
 ---
 
 ## 7. Security Assessment
@@ -472,6 +478,17 @@ Based on code analysis, the following potential issues were identified:
 - Assessment: Infrastructure exists but actual limits not verified
 
 **Recommendation**: Verify rate limit configuration and add explicit limits per endpoint type.
+
+---
+
+### Known Risks
+
+1. **Hardcoded Password Hash in Public Repository**
+   - Location: Repository root - `GAP-FIX-DATA.sql`
+   - Risk: Contains hardcoded BCrypt password hash ($2a$10$slYQmyNdGziq3...) committed to public repository — the hash is for "password123" and is publicly known
+   - Severity: Medium
+   - Impact: Attackers can use this hash to identify weak password patterns, potential credential reuse attacks
+   - Mitigation: Remove file from repo, use environment variables or proper seed data management
 
 ---
 
