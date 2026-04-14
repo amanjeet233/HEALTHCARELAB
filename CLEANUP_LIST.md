@@ -1,7 +1,7 @@
 # HEALTHCARELAB - Workspace Cleanup List
 
 **Date:** 2026-04-14  
-**Total Files for Deletion:** 56 files  
+**Total Files for Deletion:** 60 files  
 **Estimated Size to Free:** ~22MB  
 **Previously Cleaned:** 53MB in commit f8137b1  
 
@@ -62,8 +62,10 @@
 
 **Other Files:**
 - `push_error.txt` - Error log, should not be committed
+- `kill-port.bat` - Developer utility, not needed in repo
+- `GAP-FIX-DATA.sql` - One-time seed script, inserts DOCTOR role users not referenced in any migration chain
 
-**Count:** 6 files, ~5KB
+**Count:** 8 files, ~5KB
 
 ---
 
@@ -97,13 +99,14 @@
 - `backend/fix_repos1.ps1`
 - `backend/restore_repos.ps1`
 
-**Developer Utility (should not be in repo):**
-- `backend/kill-port.bat` (developer utility)
+**Developer Utilities (should not be in repo):**
+- `backend/kill-port.bat` - Duplicate of root kill-port.bat
+- `backend/start-backend.bat` - Developer utility, duplicated at root
 
 **Duplicate Database Files:**
 - ~~`backend/database/1000_tests_seed.sql`~~ (replaced by V17) - **DELETED in commit f8137b1**
 
-**Count:** 16 files, ~16MB
+**Count:** 18 files, ~16MB
 
 ---
 
@@ -229,8 +232,8 @@
 | Category | Files/Folders | Size |
 |----------|---------------|------|
 | 1. Root .md files | 3 | ~78KB |
-| 2. Root scripts | 6 | ~5KB |
-| 3. Backend junk | 16 | ~16MB |
+| 2. Root scripts | 8 | ~5KB |
+| 3. Backend junk | 18 | ~16MB |
 | 4. Frontend debug | 13 | ~2MB |
 | 5. Frontend scripts | 16 | ~1MB |
 | 6. Test results | 0 folders | 0MB |
@@ -239,7 +242,7 @@
 | 9. Duplicate migrations | 0 folder | 0MB |
 | 10. Postman duplicates | 2 | ~1MB |
 
-**TOTAL:** 56 files + 0 folders = **56 items**
+**TOTAL:** 60 files + 0 folders = **60 items**
 **ESTIMATED SIZE:** **~22MB**
 
 ---
@@ -255,8 +258,7 @@
 - `pom.xml` - Maven configuration
 - `vite.config.ts` - Vite configuration
 - `vercel.json` - Deployment config
-- `start-*.bat` - Startup scripts
-- `kill-port.bat` (root) - Developer utility
+- `start-*.bat` - Startup scripts (except backend/start-backend.bat which is duplicate)
 
 ### Essential Folders:
 - `/backend/src/` - Source code
