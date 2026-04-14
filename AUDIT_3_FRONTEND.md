@@ -1,4 +1,4 @@
-# Frontend Architecture Audit Report
+# HEALTHCARELAB - Frontend Architecture Audit Report
 
 **Date:** 2026-04-14  
 **Project:** HEALTHCARELAB - Lab Test Booking System  

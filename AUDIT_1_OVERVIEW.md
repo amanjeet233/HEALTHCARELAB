@@ -1,4 +1,4 @@
-# HEALTHCARELAB — Architecture Overview Audit
+# HEALTHCARELAB - Architecture Overview Audit
 
 **Date:** 2026-04-14
 

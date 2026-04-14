@@ -532,7 +532,17 @@ mvn spring-boot:run
 
 ---
 
-## 6. Postman Collection Audit
+## 6. Infrastructure and Documentation Folder Audit
+
+### docs/ Folder Audit
+Contains: CHANGELOG.md, PLAN.md, and subdirs api/, architecture/, config/, db/, domain/, guide/, ops/, overview/. None of these documentation files are imported by application code. They are reference documentation. VERDICT: Keep — useful for onboarding. No deletion required.
+
+### load-test/ Folder Audit
+Contains: LabTestAPI.jmx, config.json, run-load-test.py, README.md, INDEX.md, FILE_REFERENCE.md, QUICK_START.md. The JMX file references /api/lab-tests paths — verify these match current controller mappings. VERDICT: Keep but update JMX if API paths have changed since last edit.
+
+---
+
+## 7. Postman Collection Audit
 
 ### Collection Analysis
 
@@ -604,7 +614,7 @@ mvn spring-boot:run
 
 ---
 
-## 7. Design System Folder Audit
+## 8. Design System Folder Audit
 
 ### Folder Structure Analysis
 
@@ -626,7 +636,7 @@ mvn spring-boot:run
 
 ---
 
-## 8. Load Test Configuration
+## 9. Load Test Configuration
 
 ### JMeter Configuration Analysis
 
@@ -695,7 +705,7 @@ mvn spring-boot:run
 
 ---
 
-## 9. Missing Features by Priority
+## 10. Missing Features by Priority
 
 ### Feature Plan Analysis
 
@@ -746,7 +756,7 @@ mvn spring-boot:run
 
 ---
 
-## 10. Overall Project Scores
+## 11. Overall Project Scores
 
 ### Area Scores (1-10)
 
@@ -779,7 +789,7 @@ mvn spring-boot:run
 
 ---
 
-## 11. Top 10 Critical Fixes Before Production
+## 12. Top 10 Critical Fixes Before Production
 
 ### 1. Fix Database Table Name Conflicts
 **Priority:** CRITICAL  
@@ -833,7 +843,7 @@ mvn spring-boot:run
 
 ---
 
-## 12. Final Verdict
+## 13. Final Verdict
 
 ### Production Readiness: **NOT READY**
 
