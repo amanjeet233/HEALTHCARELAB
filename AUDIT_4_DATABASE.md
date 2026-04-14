@@ -12,7 +12,7 @@
 
 This comprehensive database audit reveals critical issues with table name conflicts, duplicate migration sets, data quality problems, and missing indexes. The database has evolved through multiple migration paths with inconsistent naming conventions and data seeding approaches. While the schema covers all necessary entities, there are significant issues that need immediate attention before production deployment.
 
-### Database Score: **4/10**
+### Database Score: **5/10**
 
 **Verdict:** The database architecture is functionally complete but suffers from critical naming conflicts, poor data quality, duplicate migrations, and performance issues. Immediate cleanup required.
 
@@ -489,20 +489,20 @@ CREATE INDEX idx_tests_active_top_booked ON tests(is_active, is_top_booked);
 
 ---
 
-## 8. Database Score: 4/10
+## 8. Database Score: 5/10
 
 ### Scoring Breakdown
 
 | Category | Score | Weight | Weighted Score | Issues |
 |----------|-------|--------|---------------|---------|
-| **Schema Design** | 7/10 | 20% | 1.4 | Good entity coverage, table name conflict |
-| **Data Quality** | 2/10 | 20% | 0.4 | Fake pricing, duplicates, wrong table names |
-| **Migration Management** | 3/10 | 20% | 0.6 | Duplicate migration sets, inactive migrations |
-| **Index Coverage** | 5/10 | 15% | 0.75 | Good basic indexes, missing performance indexes |
-| **Referential Integrity** | 8/10 | 15% | 1.2 | Proper FK constraints defined |
-| **Seed Data Quality** | 1/10 | 10% | 0.1 | 1000_tests_seed.sql has major issues |
+| **Schema Design** | 7/10 | 20% | 1.4 | Well-structured entities, good coverage |
+| **Data Quality** | 3/10 | 20% | 0.6 | 391 duplicate test names, fake 60% discounts |
+| **Migration Management** | 4/10 | 20% | 0.8 | Duplicate folder, conflicting versions |
+| **Index Coverage** | 6/10 | 15% | 0.9 | Basic indexes present, missing some performance indexes |
+| **Referential Integrity** | 7/10 | 15% | 1.05 | FK constraints mostly present |
+| **Seed Data Quality** | 2/10 | 10% | 0.2 | Wrong table names, unrealistic prices |
 
-### **Total Score: 4/10**
+### **Total Score: 5/10**
 
 ### Verdict
 
