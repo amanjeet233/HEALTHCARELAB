@@ -159,8 +159,9 @@ CREATE TABLE IF NOT EXISTS bookings (
     package_id              BIGINT,
     booking_date            DATE            NOT NULL,
     time_slot               VARCHAR(20),
-    status                  ENUM('BOOKED','SAMPLE_COLLECTED','PROCESSING','PENDING_VERIFICATION','VERIFIED','COMPLETED','CANCELLED')
+    status                  ENUM('BOOKED','SAMPLE_COLLECTED','PROCESSING','REFLEX_PENDING','PENDING_VERIFICATION','VERIFIED','COMPLETED','CANCELLED','CONFIRMED')
                                             NOT NULL DEFAULT 'BOOKED',
+    parent_booking_id       BIGINT          NULL,
     technician_id           BIGINT,
     medical_officer_id      BIGINT,
     collection_type         ENUM('HOME','LAB') NOT NULL DEFAULT 'LAB',
@@ -170,6 +171,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     discount                DECIMAL(10,2)   DEFAULT 0.00,
     final_amount            DECIMAL(10,2)   NOT NULL,
     payment_status          ENUM('PENDING','PAID','REFUNDED','FAILED') NOT NULL DEFAULT 'PENDING',
+    report_available        BOOLEAN         NOT NULL DEFAULT FALSE,
+    critical_flag           BOOLEAN         NOT NULL DEFAULT FALSE,
+    rejection_reason        VARCHAR(255),
+    rejected_at             TIMESTAMP       NULL,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_booking_patient       FOREIGN KEY (patient_id)         REFERENCES users(id),
@@ -177,6 +182,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     CONSTRAINT fk_booking_package       FOREIGN KEY (package_id)         REFERENCES test_packages(id) ON DELETE SET NULL,
     CONSTRAINT fk_booking_technician    FOREIGN KEY (technician_id)      REFERENCES users(id),
     CONSTRAINT fk_booking_officer       FOREIGN KEY (medical_officer_id) REFERENCES users(id),
+    CONSTRAINT fk_booking_parent        FOREIGN KEY (parent_booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
 
     INDEX idx_bookings_patient (patient_id),
     INDEX idx_bookings_patient_status (patient_id, status),
@@ -187,6 +193,50 @@ CREATE TABLE IF NOT EXISTS bookings (
     INDEX idx_bookings_date (booking_date),
     INDEX idx_bookings_technician (technician_id),
     INDEX idx_bookings_officer (medical_officer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ===================================================================
+-- 17. REFLEX RULES
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS reflex_rules (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    trigger_test_name   VARCHAR(200)    NOT NULL,
+    trigger_condition   VARCHAR(40)     NOT NULL,
+    trigger_value       DECIMAL(14,4)   NULL,
+    reflex_test_name    VARCHAR(200)    NOT NULL,
+    reflex_test_slug    VARCHAR(200)    NOT NULL,
+    priority            VARCHAR(20)     NOT NULL,
+    is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_by          BIGINT          NULL,
+
+    INDEX idx_reflex_rule_trigger (trigger_test_name),
+    INDEX idx_reflex_rule_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ===================================================================
+-- 18. REFLEX SUGGESTIONS
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS reflex_suggestions (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    booking_id          BIGINT          NOT NULL,
+    reflex_rule_id      BIGINT          NOT NULL,
+    triggered_by        VARCHAR(300)    NOT NULL,
+    suggested_test      VARCHAR(200)    NOT NULL,
+    suggested_test_slug VARCHAR(200)    NOT NULL,
+    priority            VARCHAR(20)     NOT NULL,
+    status              VARCHAR(20)     NOT NULL,
+    auto_ordered        BOOLEAN         NOT NULL DEFAULT FALSE,
+    reflex_booking_id   BIGINT          NULL,
+    action_reason       VARCHAR(500)    NULL,
+    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP       NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_reflex_suggestion_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reflex_suggestion_rule FOREIGN KEY (reflex_rule_id) REFERENCES reflex_rules(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reflex_suggestion_reflex_booking FOREIGN KEY (reflex_booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+    UNIQUE KEY uk_reflex_suggestion_booking_rule (booking_id, reflex_rule_id),
+    INDEX idx_reflex_suggestion_booking (booking_id),
+    INDEX idx_reflex_suggestion_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ===================================================================
@@ -347,5 +397,25 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_login_attempts_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ===================================================================
+-- 16. NOTIFICATION LOG (Delivery status for email/SMS)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS notification_log (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id         BIGINT          NULL,
+    booking_id      BIGINT          NOT NULL,
+    type            VARCHAR(50)     NOT NULL,
+    status          VARCHAR(50)     NOT NULL,
+    message         TEXT            NOT NULL,
+    sent_at         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_notification_log_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_notification_log_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+
+    INDEX idx_notification_log_booking_id (booking_id),
+    INDEX idx_notification_log_user_id (user_id),
+    INDEX idx_notification_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

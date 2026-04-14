@@ -33,4 +33,26 @@ public class TestParameterController {
                 .map(p -> ResponseEntity.ok(ApiResponse.success("Parameter found", p)))
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping
+    @Operation(summary = "Create a new test parameter")
+    public ResponseEntity<ApiResponse<TestParameter>> create(@RequestBody TestParameter parameter) {
+        return ResponseEntity.ok(ApiResponse.success("Parameter created successfully",
+                testParameterService.saveParameter(parameter)));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Update an existing test parameter")
+    public ResponseEntity<ApiResponse<TestParameter>> update(@PathVariable Long id, @RequestBody TestParameter parameter) {
+        parameter.setId(id);
+        return ResponseEntity.ok(ApiResponse.success("Parameter updated successfully",
+                testParameterService.saveParameter(parameter)));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a test parameter")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        testParameterService.deleteParameter(id);
+        return ResponseEntity.ok(ApiResponse.success("Parameter deleted successfully", null));
+    }
 }

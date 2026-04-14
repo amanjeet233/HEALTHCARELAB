@@ -49,16 +49,19 @@ public class DashboardService {
         Map<String, Object> stats = new HashMap<>();
         
         List<Booking> bookings = bookingRepository.findByTechnicianId(technician.getId());
+        java.time.LocalDate today = java.time.LocalDate.now();
         
         stats.put("totalAssignedBookings", bookings.size());
+        stats.put("totalAssigned", bookings.size());
         stats.put("todayBookings", bookings.stream()
-                .filter(b -> b.getBookingDate().equals(java.time.LocalDate.now()))
+                .filter(b -> today.equals(b.getBookingDate()))
                 .count());
         stats.put("completedToday", bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.SAMPLE_COLLECTED)
+                .filter(b -> b.getStatus() == BookingStatus.SAMPLE_COLLECTED
+                             && today.equals(b.getBookingDate()))
                 .count());
         stats.put("pendingCollection", bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.BOOKED)
+                .filter(b -> b.getStatus() == BookingStatus.BOOKED || b.getStatus() == BookingStatus.CONFIRMED)
                 .count());
         
         return stats;
@@ -92,11 +95,10 @@ public class DashboardService {
         stats.put("activeUsers", activeUsers);
         stats.put("pendingBookings", bookingRepository.countByStatus(BookingStatus.BOOKED));
         stats.put("processingBookings", bookingRepository.countByStatus(BookingStatus.PROCESSING));
+        stats.put("todayBookings", bookingRepository.countByBookingDate(java.time.LocalDate.now()));
+        stats.put("criticalCount", bookingRepository.countByCriticalFlagTrueAndStatusNot(BookingStatus.COMPLETED));
         
-        List<Booking> completedList = bookingRepository.findByStatus(BookingStatus.COMPLETED);
-        java.math.BigDecimal revenue = completedList.stream()
-            .map(b -> b.getFinalAmount() != null ? b.getFinalAmount() : java.math.BigDecimal.ZERO)
-            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.math.BigDecimal revenue = bookingRepository.sumTotalRevenue();
         
         stats.put("totalRevenue", revenue.doubleValue());
         stats.put("totalTests", labTestRepository.count());

@@ -4,6 +4,11 @@ import com.healthcare.labtestbooking.dto.ReportResultDTO;
 import com.healthcare.labtestbooking.dto.ReportResultRequest;
 import com.healthcare.labtestbooking.entity.*;
 import com.healthcare.labtestbooking.entity.enums.AbnormalStatus;
+import com.healthcare.labtestbooking.entity.enums.BookingStatus;
+import com.healthcare.labtestbooking.entity.enums.UserRole;
+import com.healthcare.labtestbooking.entity.enums.VerificationStatus;
+import com.healthcare.labtestbooking.exception.BadRequestException;
+import com.healthcare.labtestbooking.exception.ResourceNotFoundException;
 import com.healthcare.labtestbooking.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +24,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -26,6 +32,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
@@ -47,6 +54,18 @@ class ReportServiceTest {
 
     @Mock
     private RecommendationRepository recommendationRepository;
+
+    @Mock
+    private ReportRepository reportRepository;
+
+    @Mock
+    private ReportShareRepository reportShareRepository;
+
+    @Mock
+    private BookingService bookingService;
+
+    @Mock
+    private ReportVerificationRepository reportVerificationRepository;
 
     @InjectMocks
     private ReportService reportService;
@@ -72,6 +91,7 @@ class ReportServiceTest {
         booking.setId(1L);
         booking.setPatient(patient);
         booking.setTechnician(technician);
+        booking.setStatus(BookingStatus.PROCESSING);
 
         parameter = new TestParameter();
         parameter.setId(1L);
@@ -187,5 +207,153 @@ class ReportServiceTest {
         assertThrows(RuntimeException.class, () -> {
             reportService.getReportByBookingId(1L);
         });
+    }
+
+    @Test
+    void uploadReport_Success_ProcessingBooking() {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "report.pdf", "application/pdf", "dummy-pdf-content".getBytes());
+        Report saved = new Report();
+        saved.setId(11L);
+        saved.setBooking(booking);
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(reportRepository.findByBookingId(1L)).thenReturn(Optional.empty());
+        when(reportRepository.save(any(Report.class))).thenReturn(saved);
+
+        // When
+        Report result = reportService.uploadReport(1L, file);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(11L);
+        verify(bookingService).updateBookingStatus(1L, BookingStatus.PENDING_VERIFICATION);
+        verify(reportVerificationRepository).save(argThat(rv ->
+                rv.getBooking() != null
+                        && rv.getBooking().getId().equals(1L)
+                        && rv.getStatus() == VerificationStatus.PENDING));
+    }
+
+    @Test
+    void uploadReport_Fails_WhenStatusNotProcessing() {
+        // Given
+        booking.setStatus(BookingStatus.BOOKED);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "report.pdf", "application/pdf", "dummy".getBytes());
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(reportRepository.findByBookingId(1L)).thenReturn(Optional.empty());
+
+        // When / Then
+        assertThrows(BadRequestException.class, () -> reportService.uploadReport(1L, file));
+        verify(reportRepository, never()).save(any(Report.class));
+    }
+
+    @Test
+    void uploadReport_Fails_WhenFileTypeInvalid() {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "report.txt", "text/plain", "dummy".getBytes());
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(reportRepository.findByBookingId(1L)).thenReturn(Optional.empty());
+
+        // When / Then
+        assertThrows(BadRequestException.class, () -> reportService.uploadReport(1L, file));
+        verify(reportRepository, never()).save(any(Report.class));
+    }
+
+    @Test
+    void uploadReport_Fails_WhenReportAlreadyExists() {
+        // Given
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "report.pdf", "application/pdf", "dummy".getBytes());
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(reportRepository.findByBookingId(1L)).thenReturn(Optional.of(new Report()));
+
+        // When / Then
+        assertThrows(BadRequestException.class, () -> reportService.uploadReport(1L, file));
+        verify(reportRepository, never()).save(any(Report.class));
+    }
+
+    @Test
+    void getMyPatientReports_ReturnsOnlyVisibleStatuses() {
+        // Given
+        patient.setEmail("patient@test.com");
+        patient.setRole(UserRole.PATIENT);
+
+        Booking visibleBooking = new Booking();
+        visibleBooking.setId(11L);
+        visibleBooking.setStatus(BookingStatus.VERIFIED);
+        visibleBooking.setPatient(patient);
+        visibleBooking.setBookingDate(java.time.LocalDate.now());
+
+        Booking hiddenBooking = new Booking();
+        hiddenBooking.setId(12L);
+        hiddenBooking.setStatus(BookingStatus.PROCESSING);
+        hiddenBooking.setPatient(patient);
+        hiddenBooking.setBookingDate(java.time.LocalDate.now());
+
+        Report visibleReport = new Report();
+        visibleReport.setBooking(visibleBooking);
+        visibleReport.setVerifiedBy("Dr. A");
+        visibleReport.setVerifiedAt(LocalDateTime.now());
+
+        Report hiddenReport = new Report();
+        hiddenReport.setBooking(hiddenBooking);
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("patient@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        when(userRepository.findByEmail("patient@test.com")).thenReturn(Optional.of(patient));
+        when(reportRepository.findByBookingPatientId(1L)).thenReturn(List.of(visibleReport, hiddenReport));
+
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+
+            // When
+            var items = reportService.getMyPatientReports();
+
+            // Then
+            assertEquals(1, items.size());
+            assertEquals(11L, items.get(0).getBookingId());
+            assertEquals("VERIFIED", items.get(0).getStatus());
+        }
+    }
+
+    @Test
+    void getDownloadableReportByBooking_ThrowsWhenPatientDoesNotOwnBooking() {
+        // Given
+        User anotherPatient = new User();
+        anotherPatient.setId(99L);
+
+        Booking otherBooking = new Booking();
+        otherBooking.setId(2L);
+        otherBooking.setPatient(anotherPatient);
+
+        Report report = new Report();
+        report.setBooking(otherBooking);
+        report.setReportPdf("file".getBytes());
+
+        patient.setEmail("patient@test.com");
+        patient.setRole(UserRole.PATIENT);
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("patient@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        when(userRepository.findByEmail("patient@test.com")).thenReturn(Optional.of(patient));
+        when(reportRepository.findByBookingId(2L)).thenReturn(Optional.of(report));
+
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+            assertThrows(ResourceNotFoundException.class, () -> reportService.getDownloadableReportByBooking(2L));
+        }
     }
 }

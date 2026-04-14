@@ -29,7 +29,7 @@ public class ReportVerification {
     private Booking booking;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medical_officer_id", nullable = false)
+    @JoinColumn(name = "medical_officer_id", nullable = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private User medicalOfficer;
@@ -60,6 +60,10 @@ public class ReportVerification {
 
     @Column
     private String specialistType;
+
+    @Column(name = "previously_rejected")
+    @Builder.Default
+    private Boolean previouslyRejected = false;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

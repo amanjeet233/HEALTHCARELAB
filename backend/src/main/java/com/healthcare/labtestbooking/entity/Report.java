@@ -79,10 +79,19 @@ public class Report {
     @Column(name = "verified_by", length = 120)
     private String verifiedBy;
 
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private ReportStatus status = ReportStatus.DRAFT;
+
+    @Column(name = "share_token", unique = true)
+    private String shareToken;
+
+    @Column(name = "share_expiry")
+    private LocalDateTime shareExpiry;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -91,6 +100,23 @@ public class Report {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "digital_fingerprint", length = 512)
+    private String digitalFingerprint;
+
+    @Column(name = "parent_report_id")
+    private Long parentReportId;
+
+    @Column(name = "version")
+    @Builder.Default
+    private Integer version = 1;
+
+    @Column(name = "is_amended")
+    @Builder.Default
+    private Boolean isAmended = false;
+
+    @Column(name = "amendment_reason", columnDefinition = "TEXT")
+    private String amendmentReason;
 
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonIgnore

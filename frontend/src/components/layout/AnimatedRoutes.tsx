@@ -60,6 +60,7 @@ const ScreeningsPage = lazy(() => import('../../pages/ScreeningsPage'));
 const LoginPage = lazy(() => import('../../pages/LoginPage'));
 const TechnicianDashboardPage = lazy(() => import('../../pages/technician/TechnicianDashboardPage'));
 const MedicalOfficerDashboardPage = lazy(() => import('../../pages/medical/MedicalOfficerDashboardPage'));
+const PublicReportView = lazy(() => import('../../pages/public/PublicReportView'));
 
 import MainLayout from './MainLayout';
 
@@ -143,6 +144,7 @@ const AnimatedRoutes: React.FC = () => {
 
                     {/* All legacy /dashboard routes are now integrated into the Landing Page SPA experience */}
                     <Route path="/dashboard/*" element={<Navigate to="/" replace />} />
+                    <Route path="/public/view-report/:token" element={<PageTransition><PublicReportView /></PageTransition>} />
 
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

@@ -3,6 +3,8 @@ package com.healthcare.labtestbooking.controller;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.entity.Notification;
+import com.healthcare.labtestbooking.entity.NotificationLog;
+import com.healthcare.labtestbooking.repository.NotificationLogRepository;
 import com.healthcare.labtestbooking.service.NotificationInboxService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -26,6 +28,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationInboxService notificationInboxService;
+    private final NotificationLogRepository notificationLogRepository;
 
     @GetMapping
     @Operation(summary = "Get all notifications", description = "Retrieve all notifications for the authenticated user")
@@ -67,6 +70,18 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
         notificationInboxService.deleteNotification(id);
         return ResponseEntity.ok(ApiResponse.success("Notification deleted", null));
+    }
+
+    /**
+     * Admin endpoint: returns notification delivery logs for a specific booking.
+     * Useful for verifying that the patient received their preparation instructions.
+     */
+    @GetMapping("/booking/{bookingId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Notification log for booking", description = "Returns notification delivery log entries for a specific booking (Admin only)")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getNotificationLogForBooking(@PathVariable Long bookingId) {
+        List<NotificationLog> logs = notificationLogRepository.findByBookingIdOrderBySentAtDesc(bookingId);
+        return ResponseEntity.ok(ApiResponse.success(logs));
     }
 }
 

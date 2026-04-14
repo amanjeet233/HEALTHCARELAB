@@ -7,6 +7,11 @@ export interface SmartAnalysis {
   recommendations: string[];
   summary: string;
   lastUpdated: string;
+  organScores?: Record<string, number>;
+  hasCriticalResults?: boolean;
+  version?: number;
+  isAmended?: boolean;
+  amendmentReason?: string;
 }
 
 export interface ParameterTrend {

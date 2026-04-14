@@ -195,10 +195,9 @@ export const AuditLogViewer: React.FC = () => {
       </div>
 
       {/* Logs Table */}
-      {filteredLogs.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
           <Filter className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600">No audit logs found</p>
+          <p className="text-gray-600">No activity records found</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
@@ -275,7 +274,7 @@ export const AuditLogViewer: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-          <p className="text-xs text-gray-600">Total Logs</p>
+          <p className="text-xs text-gray-600">Total Records</p>
           <p className="text-lg font-bold text-blue-900">{logs.length}</p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200">

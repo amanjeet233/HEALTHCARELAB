@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -156,5 +157,36 @@ public class TechnicianAssignmentService {
         loc.put("lat", tech.getCurrentLat());
         loc.put("lng", tech.getCurrentLng());
         return loc;
+    }
+
+    /**
+     * Returns all active technicians with their booking count for a given date,
+     * so Medical Officers can make load-balanced assignment decisions.
+     */
+    public List<Map<String, Object>> getTechniciansWithLoadForDate(LocalDate date) {
+        log.info("Getting technicians with load for date: {}", date);
+
+        Map<Long, Long> countByTechUserId = bookingRepository
+                .countBookingsByTechnicianForDate(date)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
+
+        return technicianRepository.findByIsActiveTrue().stream().map(tech -> {
+            Long userId = tech.getUser() != null ? tech.getUser().getId() : null;
+            long count = userId != null ? countByTechUserId.getOrDefault(userId, 0L) : 0L;
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("technicianId", tech.getId());
+            info.put("userId", userId);
+            info.put("name", tech.getFullName());
+            info.put("phone", tech.getPhone());
+            info.put("email", tech.getEmail());
+            info.put("qualifications", tech.getQualifications());
+            info.put("workingHours", formatWorkingHours(tech));
+            info.put("bookingCountForDate", count);
+            return info;
+        }).collect(Collectors.toList());
     }
 }

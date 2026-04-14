@@ -2,6 +2,8 @@ package com.healthcare.labtestbooking.repository;
 
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.UserRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,13 +32,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRole(UserRole role);
 
+    Page<User> findByRole(UserRole role, Pageable pageable);
+
     List<User> findByIsActiveTrue();
 
     List<User> findByRoleAndIsActiveTrue(UserRole role);
 
-    // Custom query without loading relationships - for initialization checks only
-    @Query("select u from User u where u.email = :email")
+    @Query("SELECT u FROM User u WHERE u.email = :email")
     Optional<User> findByEmailWithoutRelationships(@Param("email") String email);
+
+    long countByIsActiveTrue();
 
     @Query("select function('date', u.createdAt), count(u) "
             + "from User u "

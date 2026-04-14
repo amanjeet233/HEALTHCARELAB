@@ -1,6 +1,8 @@
 package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.*;
+import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.service.AuditService;
 import com.healthcare.labtestbooking.service.AuthService;
 import com.healthcare.labtestbooking.service.EmailVerificationService;
 import com.healthcare.labtestbooking.service.TokenBlacklistService;
@@ -27,6 +29,8 @@ public class AuthController {
         private final AuthService authService;
         private final EmailVerificationService emailVerificationService;
         private final TokenBlacklistService tokenBlacklistService;
+        private final AuditService auditService;
+        private final UserRepository userRepository;
 
         @PostMapping("/register")
         @Operation(summary = "Register a new user", description = "Create a new user account with email and password")
@@ -165,7 +169,21 @@ public class AuthController {
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                         String token = authHeader.substring(7);
                         tokenBlacklistService.blacklistToken(token);
+                        String email = authService.extractEmailFromToken(token);
                         log.info("User logged out, token blacklisted");
+                        Long userId = null;
+                        String role = null;
+                        if (email != null) {
+                                var user = userRepository.findByEmail(email).orElse(null);
+                                if (user != null) {
+                                        userId = user.getId();
+                                        role = user.getRole() != null ? user.getRole().name() : null;
+                                }
+                        }
+                        auditService.logAction(
+                                userId, email, role,
+                                "USER_LOGOUT", "AUTH", email != null ? email : "N/A",
+                                "User logged out", request.getRemoteAddr());
                 }
                 return ResponseEntity.ok(ApiResponse.success("Logged out successfully",
                                 "Your session has been terminated"));
@@ -191,5 +209,4 @@ public class AuthController {
                                 "All your sessions have been terminated"));
         }
 }
-
 

@@ -10,7 +10,7 @@ interface Props {
 const SystemStatsCards: React.FC<Props> = ({ stats }) => {
     const cards = [
         {
-            label: 'Network Nodes (Users)',
+            label: 'Registered Users',
             value: stats.activeUsers?.toLocaleString() ?? '0',
             icon: Users,
             trend: '+12%',
@@ -26,7 +26,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
             color: 'cta'
         },
         {
-            label: 'Neural Revenue',
+            label: 'Total Revenue',
             value: `₹${((stats.totalRevenue ?? 0) / 1000).toFixed(1)}k`,
             icon: Banknote,
             trend: '+8.1%',
@@ -34,7 +34,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
             color: 'secondary'
         },
         {
-            label: 'Pending Bookings',
+            label: 'Action Required',
             value: stats.pendingBookings?.toString() ?? '0',
             icon: ShieldAlert,
             trend: '-2.4%',

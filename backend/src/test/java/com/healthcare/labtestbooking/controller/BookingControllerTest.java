@@ -19,11 +19,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Map;
 import java.time.LocalDate;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BookingController.class)
@@ -71,5 +74,30 @@ class BookingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void assignTechnician_Success() throws Exception {
+        BookingResponse response = new BookingResponse();
+        response.setId(1L);
+        response.setTechnicianId(7L);
+        response.setTechnicianName("Tech One");
+
+        when(bookingService.assignTechnician(eq(1L), eq(7L))).thenReturn(response);
+
+        mockMvc.perform(put("/api/bookings/1/technician")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("technicianId", 7L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void assignTechnician_BadRequest_WhenMissingTechnicianId() throws Exception {
+        mockMvc.perform(put("/api/bookings/1/technician")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of())))
+                .andExpect(status().isBadRequest());
     }
 }

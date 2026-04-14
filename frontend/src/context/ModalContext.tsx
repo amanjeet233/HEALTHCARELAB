@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, type ReactNode } from 'reac
 
 export type AuthModalTab = 'login' | 'register' | 'forgot-password';
 
-export type ModalType = 'AUTH' | 'BOOKING_DETAILS' | 'PROFILE_EDIT' | 'REPORT_VIEWER' | 'DOCTOR_APPROVAL' | 'COLLECTION_DETAILS';
+export type ModalType = 'AUTH' | 'BOOKING_DETAILS' | 'PROFILE_EDIT' | 'REPORT_VIEWER' | 'DOCTOR_APPROVAL' | 'COLLECTION_DETAILS' | 'CLINICAL_VERIFICATION';
 
 export interface ModalContextType {
     activeModal: ModalType | null;

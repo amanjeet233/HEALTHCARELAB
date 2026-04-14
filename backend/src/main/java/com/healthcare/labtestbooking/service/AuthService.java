@@ -41,6 +41,7 @@ public class AuthService {
         private final NotificationService notificationService;
         private final LoginAttemptService loginAttemptService;
         private final EmailVerificationService emailVerificationService;
+        private final AuditService auditService;
 
         public AuthResponse register(RegisterRequest request) {
                 return registerUser(request);
@@ -246,6 +247,12 @@ public class AuthService {
                 // 9. Update last login timestamp
                 user.setLastLoginAt(LocalDateTime.now());
                 userRepository.save(user);
+
+                // 10. Audit trail
+                auditService.logAction(
+                        user.getId(), user.getEmail(), roleName,
+                        "USER_LOGIN", "AUTH", String.valueOf(user.getId()),
+                        "User logged in successfully");
 
                 log.info("========== LOGIN SUCCESS ==========");
 

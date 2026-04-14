@@ -1,42 +1,42 @@
 import api from './api';
 
-export interface ReportResultItem {
-    id: number;
-    parameterId: number;
-    parameterName: string;
-    resultValue: string;
-    unit: string;
-    normalRange: string;
-    abnormalStatus: string;
-    isAbnormal: boolean;
-    isCritical: boolean;
-}
-
-export interface ReportResult {
-    id: number;
-    bookingId: number;
-    technicianId: number;
-    submittedAt: string;
-    results: ReportResultItem[];
-}
-
 export interface ReportDisplay {
-    id: number;
     bookingId: number;
     testName: string;
     bookingDate: string;
+    reportDate: string;
     status: string;
-    report: ReportResult | null;
-    hasReport: boolean;
+    downloadUrl: string;
+    verifiedByName: string | null;
+    hasReport?: boolean;
+    report?: {
+        id: number;
+        results?: Array<{ isAbnormal?: boolean; isCritical?: boolean }>;
+    } | null;
 }
 
-export interface ReportSubmitItem {
-    parameterId: number;
-    resultValue: string;
-    unit: string;
-    normalRange: string;
-    notes?: string;
-    status?: string;
+export interface AIAnalysisFlag {
+    testName: string;
+    value: string;
+    severity: 'NORMAL' | 'MILD' | 'MODERATE' | 'CRITICAL' | string;
+    clinicalNote: string;
+}
+
+export interface AIAnalysisRecommendation {
+    category: 'DIET' | 'LIFESTYLE' | 'FOLLOWUP' | 'CONSULT' | string;
+    text: string;
+}
+
+export interface AIAnalysis {
+    bookingId: number;
+    status: 'PENDING' | 'COMPLETED' | 'FAILED' | string;
+    healthScore: number;
+    summary: string;
+    flags: AIAnalysisFlag[];
+    patterns: string[];
+    recommendations: AIAnalysisRecommendation[];
+    disclaimer: string;
+    generatedAt: string | null;
 }
 
 const unwrap = <T>(response: any): T => {
@@ -45,101 +45,86 @@ const unwrap = <T>(response: any): T => {
     return response as T;
 };
 
-const mapSummaryToDisplay = (item: any, index: number): ReportDisplay => {
-    const hasReport = !!item?.reportId;
+const mapApiReportToDisplay = (item: any): ReportDisplay => {
     return {
-        id: item?.reportId || item?.bookingId || index,
-        bookingId: item?.bookingId || 0,
-        testName: item?.testName || item?.packageName || 'Lab Report',
-        bookingDate: item?.generatedAt || item?.estimatedReadyAt || new Date().toISOString(),
-        status: (item?.status || (hasReport ? 'READY' : 'PENDING')).toUpperCase(),
-        report: hasReport
-            ? {
-                  id: item.reportId,
-                  bookingId: item.bookingId,
-                  technicianId: 0,
-                  submittedAt: item.generatedAt || new Date().toISOString(),
-                  results: []
-              }
-            : null,
-        hasReport
+        bookingId: item?.bookingId ?? 0,
+        testName: item?.testName ?? 'Lab Report',
+        bookingDate: item?.bookingDate ?? '',
+        reportDate: item?.reportDate ?? '',
+        status: (item?.status ?? 'PENDING_VERIFICATION').toUpperCase(),
+        downloadUrl: item?.downloadUrl ?? `/api/reports/${item?.bookingId}/download`,
+        verifiedByName: item?.verifiedByName ?? null,
+        hasReport: item?.status === 'VERIFIED' || item?.status === 'COMPLETED',
+        report: null
     };
 };
 
+const mapAiAnalysis = (item: any): AIAnalysis => ({
+    bookingId: item?.bookingId ?? 0,
+    status: item?.status ?? 'PENDING',
+    healthScore: item?.healthScore ?? 0,
+    summary: item?.summary ?? '',
+    flags: Array.isArray(item?.flags) ? item.flags : [],
+    patterns: Array.isArray(item?.patterns) ? item.patterns : [],
+    recommendations: Array.isArray(item?.recommendations) ? item.recommendations : [],
+    disclaimer: item?.disclaimer ?? 'AI-generated insights are for informational purposes only and do not replace medical advice.',
+    generatedAt: item?.generatedAt ?? null
+});
+
 export const reportService = {
-    getReportsByUser: async (): Promise<ReportDisplay[]> => {
-        const response = await api.get('/api/users/reports', { params: { limit: 100, offset: 0 } });
-        const list = unwrap<any[]>(response) || [];
-        return Array.isArray(list) ? list.map(mapSummaryToDisplay) : [];
-    },
-
     getMyReports: async (): Promise<ReportDisplay[]> => {
-        return reportService.getReportsByUser();
+        const response = await api.get('/api/reports/my');
+        const list = unwrap<any[]>(response) || [];
+        return Array.isArray(list) ? list.map(mapApiReportToDisplay) : [];
     },
 
-    getReportByBooking: async (bookingId: number): Promise<ReportResult> => {
-        const reports = await reportService.getMyReports();
-        const found = reports.find((r) => r.bookingId === bookingId && r.report);
-        if (!found?.report) throw new Error('Report not found for booking');
-        return found.report;
+    getAIAnalysis: async (bookingId: number): Promise<AIAnalysis | null> => {
+        try {
+            const response = await api.get(`/api/reports/${bookingId}/ai-analysis`);
+            return mapAiAnalysis(unwrap<any>(response));
+        } catch (error: any) {
+            const status = error?.response?.status;
+            if (status === 404) {
+                return null;
+            }
+            throw error;
+        }
     },
 
-    downloadReport: async (reportId: number): Promise<void> => {
-        const response = await api.get(`/api/users/reports/${reportId}/pdf`, { responseType: 'blob' });
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+    downloadReport: async (bookingId: number): Promise<void> => {
+        const response = await api.get(`/api/reports/${bookingId}/download`, { responseType: 'blob' });
+        const contentType = response.headers['content-type'] || 'application/octet-stream';
+        const blob = new Blob([response.data], { type: contentType });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `report-${reportId}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
+        const contentDisposition = response.headers['content-disposition'] as string | undefined;
+        const match = contentDisposition?.match(/filename="?([^"]+)"?/i);
+        const filename = match?.[1] || `report-booking-${bookingId}.pdf`;
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
     },
 
-    getReportPdfUrl: async (reportId: number): Promise<string> => {
-        const response = await api.get(`/api/users/reports/${reportId}/pdf`, { responseType: 'blob' });
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        return URL.createObjectURL(blob);
-    },
-
-    uploadReport: async (bookingId: number, results: ReportSubmitItem[], technicianId?: number): Promise<ReportResult> => {
-        const response = await api.post('/api/reports/results', {
-            bookingId,
-            technicianId,
-            results
-        });
-        return unwrap<ReportResult>(response);
-    },
-
-    uploadReportFile: async (bookingId: number, file: File): Promise<void> => {
-        const formData = new FormData();
-        formData.append('bookingId', bookingId.toString());
-        formData.append('file', file);
-        await api.post('/api/reports/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
-
+    // Legacy methods retained for existing consumers
     verifyReport: async (reportId: number): Promise<void> => {
         await api.post(`/api/reports/verify/${reportId}`);
     },
 
-    getReportByStaff: async (reportId: number): Promise<ReportResult> => {
-        const response = await api.get(`/api/reports/${reportId}/staff`);
-        return unwrap<ReportResult>(response);
-    },
-
-    shareReportWithStaff: async (reportId: number, staffIds: number[]): Promise<void> => {
-        await api.post(`/api/reports/${reportId}/share`, { staffIds });
-    },
-
-    getSharedReports: async (): Promise<ReportDisplay[]> => {
-        const response = await api.get('/api/reports/shared');
-        const list = unwrap<any[]>(response) || [];
-        return Array.isArray(list) ? list.map(mapSummaryToDisplay) : [];
+    getReportResults: async (bookingId: number): Promise<any> => {
+        const response = await api.get(`/api/reports/booking/${bookingId}`);
+        return unwrap<any>(response);
     },
 
     shareUserReport: async (reportId: number, email: string, accessType: 'view' | 'download' = 'view'): Promise<void> => {
         await api.post(`/api/users/reports/${reportId}/share`, { email, accessType });
+    },
+    
+    getTrends: async (): Promise<any[]> => {
+        const response = await api.get('/api/users/reports/trends');
+        return unwrap<any[]>(response) || [];
     }
 };
-

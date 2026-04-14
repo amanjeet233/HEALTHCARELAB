@@ -85,7 +85,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                         type="button"
                         onClick={(event) => {
                             event.stopPropagation();
-                            onVerify(booking.id);
+                            onVerify(booking.id, booking.testName || 'Lab Test');
                         }}
                         className="h-10 px-4 rounded-xl bg-green-500 text-white text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >

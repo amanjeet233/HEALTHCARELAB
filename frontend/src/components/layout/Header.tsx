@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
@@ -48,6 +48,7 @@ const Header: React.FC = () => {
   const { isAuthenticated, currentUser, logout } = useAuth();
   const { cart, fetchCart, setIsCartOpen } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const { openAuthModal, openModal } = useModal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +68,8 @@ const Header: React.FC = () => {
   const userEmail = toSafeString(currentUser?.email, '');
   const userInitial = userName.charAt(0).toUpperCase() || 'U';
   const role = currentUser?.role;
+
+  const isAdminDashboard = role === 'ADMIN' && location.pathname.startsWith('/admin');
 
   // Load cart when authenticated
   useLayoutEffect(() => {
@@ -98,7 +101,7 @@ const Header: React.FC = () => {
   // Handle Autocomplete Fetch
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (debouncedSearch.trim().length < 2) {
+      if (debouncedSearch.trim().length < 2 || isAdminDashboard) {
         setSuggestions([]);
         setIsSearchOpen(false);
         return;
@@ -110,7 +113,6 @@ const Header: React.FC = () => {
         if (!res.ok) throw new Error('Search failed');
 
         const data = await res.json();
-        // ApiResponse<List<LabTestDTO>> structure
         const tests = data?.data || [];
         setSuggestions(tests);
         setIsSearchOpen(true);
@@ -122,7 +124,7 @@ const Header: React.FC = () => {
       }
     };
     fetchSuggestions();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, isAdminDashboard]);
 
   // Handle click outside to close search dropdown
   useEffect(() => {
@@ -139,7 +141,14 @@ const Header: React.FC = () => {
     e.preventDefault();
     if (searchQuery.trim().length > 0) {
       setIsSearchOpen(false);
-      navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(searchQuery.trim())}`);
+      if (isAdminDashboard) {
+        // For now, redirect to search in admin bookings
+        // We set the query in the URL and let AdminDashboard handle it (if it does)
+        // Or just navigate to bookings management with the search param
+        navigate(`/admin?search=${encodeURIComponent(searchQuery.trim())}`);
+      } else {
+        navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(searchQuery.trim())}`);
+      }
     }
   };
 
@@ -178,14 +187,12 @@ const Header: React.FC = () => {
   const handleProfileMouseLeave = () => {
     profileMenuTimeoutRef.current = setTimeout(() => {
       setShowProfileMenu(false);
-    }, 1500); // 1.5 seconds delay as requested
+    }, 1500); 
   };
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm flex justify-center h-18">
-      {/* 🚀 Master Centered Container - Locked at 1210px */}
-      <div className="w-full max-w-[1210px] px-4 md:px-6 flex items-center justify-between gap-4 h-full relative">
-        {/* 1. LOGO SECTION - Left */}
+    <header className="sticky top-0 left-0 right-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm flex justify-center h-[72px]">
+      <div className="w-full max-w-[1210px] px-4 md:px-6 flex items-center justify-between gap-6 h-full relative">
         <Link to="/" className="flex items-center gap-2.5 shrink-0 z-20 group">
           <motion.div
             whileHover={{ scale: 1.08 }}
@@ -203,34 +210,30 @@ const Header: React.FC = () => {
           </div>
         </Link>
 
-        {/* 2. SEARCH BAR - Centered & Flexible (Prevents Overlap) */}
-        <div className="hidden md:flex lg:flex flex-1 max-w-md min-w-37.5 relative z-10 mx-2 shrink" ref={searchWrapperRef}>
-          <form className="relative w-full group" onSubmit={handleSearchSubmit}>
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#0D7C7C]" strokeWidth={3} />
+        <div className="hidden md:flex lg:flex flex-1 max-w-md min-w-37.5 relative z-10 mx-2 shrink items-center" ref={searchWrapperRef}>
+          <form className="relative w-full group flex items-center" onSubmit={handleSearchSubmit}>
+            <Search className="absolute left-4 w-4 h-4 text-slate-400 group-focus-within:text-[#0D7C7C]" strokeWidth={3} />
             <input
               type="text"
-              placeholder="SEARCH TESTS OR PACKAGES..."
+              placeholder={isAdminDashboard ? "SEARCH SYSTEM REGISTRY..." : "SEARCH TESTS OR PACKAGES..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => { if (suggestions.length > 0) setIsSearchOpen(true) }}
               className="w-full pl-11 pr-9 py-2.5 bg-slate-50 border border-slate-100 rounded-full focus:outline-none focus:border-[#0D7C7C] focus:bg-white transition-all text-[11px] font-bold placeholder:font-bold tracking-widest text-slate-700 shadow-inner"
             />
-            {/* X clear button */}
             {searchQuery.length > 0 && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                aria-label="Clear search"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                className="absolute right-4 text-slate-400 hover:text-slate-700 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </form>
 
-          {/* Autocomplete Dropdown */}
           <AnimatePresence>
-            {isSearchOpen && searchQuery.trim().length >= 2 && (
+            {isSearchOpen && searchQuery.trim().length >= 2 && suggestions.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -239,8 +242,6 @@ const Header: React.FC = () => {
               >
                 {isSearching ? (
                   <div className="p-4 text-center text-xs font-semibold text-gray-400">Searching...</div>
-                ) : suggestions.length === 0 ? (
-                  <div className="p-4 text-center text-xs font-semibold text-gray-500">No matching tests found.</div>
                 ) : (
                   <div className="flex flex-col">
                     {suggestions.map((test, idx) => (
@@ -261,20 +262,11 @@ const Header: React.FC = () => {
                       >
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-sm font-bold text-gray-900 line-clamp-1">{toSafeString(test?.testName, 'Unknown Test')}</span>
-                          <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(toSafeNumber(test?.price, toSafeNumber(test?.discountedPrice, 0)))}</span>
+                          <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(toSafeNumber(test?.price, 0))}</span>
                         </div>
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{toSafeString(test?.categoryName, 'General')}</span>
                       </button>
                     ))}
-                    <button
-                      onClick={() => {
-                        setIsSearchOpen(false);
-                        navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(searchQuery)}`);
-                      }}
-                      className="w-full px-4 py-3 bg-slate-50 text-xs font-bold text-[#0D7C7C] hover:bg-slate-100 text-center uppercase tracking-widest transition-colors"
-                    >
-                      View all results for "{searchQuery}"
-                    </button>
                   </div>
                 )}
               </motion.div>
@@ -282,7 +274,6 @@ const Header: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* 3. QUICK ACTIONS - Bold Icons (Fixed Visibility to show on md and above) */}
         <div className="hidden md:flex items-center gap-3 lg:gap-6 shrink-0 border-r border-slate-100 pr-4 lg:pr-6">
           {(!isAuthenticated || role === 'PATIENT' || !role) && quickActions.map((action, idx) => (
             <button
@@ -325,32 +316,17 @@ const Header: React.FC = () => {
           )}
         </div>
 
-        {/* 4. CART & AUTH - Right */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Cart Icon with Badge */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            animate={animateBadge ? { scale: [1, 0.95, 1.05, 1] } : {}}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
             onClick={() => setIsCartOpen(true)}
             className="relative p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-            aria-label={`Shopping cart with ${cartItemCount} items`}
           >
             <ShoppingCart className="w-5 h-5" strokeWidth={3} />
-            {/* Badge - Only show when items exist */}
             {cartItemCount > 0 && (
-              <motion.span
-                key={`badge-${cartItemCount}`}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 10 }}
-                className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white"
-                role="status"
-                aria-label={`${cartItemCount} items in cart`}
-              >
+              <span className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white">
                 {cartItemCount}
-              </motion.span>
+              </span>
             )}
           </motion.button>
 
@@ -371,15 +347,13 @@ const Header: React.FC = () => {
                   </div>
                 </button>
 
-                {/* User Dropdown */}
                 <AnimatePresence>
                   {showProfileMenu && (
                     <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="absolute top-full right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 ring-1 ring-black/5"
+                      className="absolute top-full right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50"
                     >
                       <div className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue px-4 py-3 text-white">
                         <p className="font-extrabold text-[1.05rem] tracking-tight leading-none mb-1">{userName}</p>
@@ -413,7 +387,7 @@ const Header: React.FC = () => {
                                 <Icon size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
                             </button>
                           );
                         })}
@@ -425,36 +399,16 @@ const Header: React.FC = () => {
                                 <Settings size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
                                 <span className="uppercase tracking-tight">Dashboard</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
                             </button>
                             <button onClick={() => { setShowProfileMenu(false); navigate('/admin/audit-logs') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
                               <div className="flex items-center gap-3">
                                 <FileText size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
                                 <span className="uppercase tracking-tight">Audit Logs</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
                             </button>
                           </>
-                        )}
-
-                        {role === 'TECHNICIAN' && (
-                          <button onClick={() => { setShowProfileMenu(false); navigate('/technician') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
-                            <div className="flex items-center gap-3">
-                              <Plus size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
-                              <span className="uppercase tracking-tight">My Collections</span>
-                            </div>
-                            <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </button>
-                        )}
-
-                        {role === 'MEDICAL_OFFICER' && (
-                          <button onClick={() => { setShowProfileMenu(false); navigate('/medical-officer') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
-                            <div className="flex items-center gap-3">
-                              <ClipboardList size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
-                              <span className="uppercase tracking-tight">Review Queue</span>
-                            </div>
-                            <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </button>
                         )}
                         <div className="h-px bg-gray-50 my-1 mx-2" />
                         <button
@@ -489,8 +443,6 @@ const Header: React.FC = () => {
               </button>
             </div>
           )}
-
-          {/* Mobile Menu Burger */}
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-slate-600">
             {isMobileMenuOpen ? <X strokeWidth={3} /> : <Menu strokeWidth={3} />}
           </button>

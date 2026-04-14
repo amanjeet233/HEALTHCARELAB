@@ -9,6 +9,7 @@ export interface SystemStats {
     activeUsers?: number;
     completedBookings?: number;
     processingBookings?: number;
+    criticalCount?: number;
 }
 
 export interface User {
@@ -40,6 +41,20 @@ export interface AuditLog {
     status?: string;
 }
 
+export interface CriticalBooking {
+    id: number;
+    bookingReference: string;
+    patientName: string;
+    testName: string;
+    flaggedDate: string;
+    status: string;
+    bookingDate?: string;
+    timeSlot?: string;
+    technicianName?: string;
+    collectionType?: string;
+    collectionAddress?: string;
+}
+
 export interface RevenueData {
     date: string;
     amount: number;
@@ -67,6 +82,25 @@ export interface DoctorTestAssignment {
     status: string;
 }
 
+export interface PaginatedData<T> {
+    content: T[];
+    totalPages: number;
+    totalElements: number;
+    number: number;
+    size: number;
+}
+
+const unwrapPage = <T>(response: any): PaginatedData<T> => {
+    const page = response?.data?.data || response?.data || {};
+    return {
+        content: page.content || [],
+        totalPages: page.totalPages || 0,
+        totalElements: page.totalElements || 0,
+        number: page.number || 0,
+        size: page.size || 20
+    };
+};
+
 export const adminService = {
     getSystemStats: async (): Promise<SystemStats> => {
         const response = await api.get('/api/admin/stats');
@@ -75,10 +109,18 @@ export const adminService = {
         };
     },
 
-    getAllUsers: async (params?: { page?: number; size?: number; role?: string }): Promise<User[]> => {
+    getUsersPage: async (params?: { page?: number; size?: number; role?: string }): Promise<PaginatedData<User>> => {
         const response = await api.get('/api/admin/users', { params });
-        const data = response.data?.content || response.data?.data || [];
-        return data.map((u: any) => ({ ...u, joinDate: u.joinDate || u.createdAt }));
+        const page = unwrapPage<User>(response);
+        return {
+            ...page,
+            content: page.content.map((u: any) => ({ ...u, joinDate: u.joinDate || u.createdAt }))
+        };
+    },
+
+    getAllUsers: async (params?: { page?: number; size?: number; role?: string }): Promise<User[]> => {
+        const page = await adminService.getUsersPage(params);
+        return page.content;
     },
 
     getUsers: async (params?: { page?: number; size?: number; role?: string }): Promise<{ users: User[]; totalPages: number }> => {
@@ -114,9 +156,21 @@ export const adminService = {
         return response.data?.data || response.data || [];
     },
 
+    getAuditLogsPage: async (params?: {
+        page?: number;
+        size?: number;
+        action?: string;
+        userRole?: string;
+        from?: string;
+        to?: string;
+    }): Promise<PaginatedData<AuditLog>> => {
+        const response = await api.get('/api/admin/audit-logs', { params });
+        return unwrapPage<AuditLog>(response);
+    },
+
     getAuditLogs: async (): Promise<AuditLog[]> => {
-        const response = await api.get('/api/admin/audit-logs');
-        return response.data?.data || response.data || [];
+        const page = await adminService.getAuditLogsPage({ page: 0, size: 20 });
+        return page.content;
     },
 
     // ============ REFERENCE RANGE MANAGEMENT ============
@@ -126,6 +180,51 @@ export const adminService = {
      */
     getReferenceRanges: async (params?: { testId?: number; parameterId?: number }): Promise<ReferenceRange[]> => {
         const response = await api.get('/api/reference-ranges', { params });
+        return response.data?.data || response.data || [];
+    },
+
+    // ============ BOOKING MANAGEMENT ============
+
+    /**
+     * Get all bookings for admin with filters
+     */
+    getAllBookingsPage: async (params?: { 
+        page?: number; 
+        size?: number; 
+        patientName?: string; 
+        status?: string 
+    }): Promise<PaginatedData<any>> => {
+        const response = await api.get('/api/bookings/admin/all', { params });
+        return unwrapPage<any>(response);
+    },
+
+    getAllBookings: async (params?: { 
+        page?: number; 
+        size?: number; 
+        patientName?: string; 
+        status?: string 
+    }): Promise<any[]> => {
+        const page = await adminService.getAllBookingsPage(params);
+        return page.content;
+    },
+
+    assignTechnician: async (bookingId: number, technicianId: number): Promise<any> => {
+        const response = await api.put(`/api/bookings/${bookingId}/technician`, { technicianId });
+        return response.data?.data || response.data;
+    },
+
+    adminUpdateBookingStatus: async (id: number, status: string, cancellationReason?: string): Promise<any> => {
+        const response = await api.put(`/api/bookings/admin/${id}/status`, { status, cancellationReason });
+        return response.data?.data || response.data;
+    },
+
+    getTechniciansOnly: async (): Promise<any[]> => {
+        const response = await api.get('/api/admin/staff/technicians-only');
+        return response.data?.data || response.data || [];
+    },
+
+    getCriticalBookings: async (): Promise<CriticalBooking[]> => {
+        const response = await api.get('/api/admin/bookings/critical');
         return response.data?.data || response.data || [];
     },
 

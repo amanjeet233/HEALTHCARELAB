@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -25,4 +26,18 @@ public class ReportVerificationResponse {
     private String specialistType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // New info fields
+    private String patientName;
+    private Long patientId;
+    private String testName;
+    private String bookingDate;
+    private Boolean criticalFlag;
+    private Boolean anyResultAbnormal;
+    private Boolean previouslyRejected;
+    private List<DeltaCheckEntry> previousResults;
+    private String digitalFingerprint;
+    private Integer version;
+    private Boolean isAmended;
+    private String amendmentReason;
 }

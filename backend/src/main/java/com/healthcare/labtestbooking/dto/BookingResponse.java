@@ -22,6 +22,7 @@ public class BookingResponse {
     private String patientEmail;
     private String patientPhone;
     private Long familyMemberId;
+    private Long parentBookingId;
     private Long labTestId;
     private String labTestName;
     private Long packageId;
@@ -39,5 +40,12 @@ public class BookingResponse {
     private BigDecimal finalAmount;
     private String notes;
     private String paymentStatus;
+    private Boolean reportAvailable;
     private LocalDateTime createdAt;
+    private Long technicianId;
+    private String technicianName;
+    private String assignmentType;
+    private String cancellationReason;
+    private String rejectionReason;
+    private LocalDateTime rejectedAt;
 }

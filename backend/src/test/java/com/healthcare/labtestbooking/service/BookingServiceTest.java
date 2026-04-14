@@ -31,6 +31,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +46,12 @@ class BookingServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @Mock
     private Authentication authentication;
@@ -139,6 +147,7 @@ class BookingServiceTest {
         verify(labTestRepository, times(1)).findById(1L);
         verify(userRepository, times(1)).findByEmail("patient@test.com");
         verify(bookingRepository, times(1)).save(any(Booking.class));
+        verify(notificationService, times(1)).sendBookingConfirmation(any(Booking.class));
     }
 
     @Test
@@ -174,6 +183,7 @@ class BookingServiceTest {
         verify(labTestRepository, times(1)).findById(1L);
         verify(userRepository, times(1)).findByEmail("patient@test.com");
         verify(bookingRepository, times(1)).save(any(Booking.class));
+        verify(notificationService, times(1)).sendBookingConfirmation(any(Booking.class));
     }
 
     @Test
@@ -243,6 +253,33 @@ class BookingServiceTest {
         assertThat(availableSlots).isNotNull();
         assertThat(availableSlots).doesNotContain("09:00 AM");
         verify(bookingRepository, times(1)).findByBookingDate(any(LocalDate.class));
+    }
+
+    @Test
+    void assignTechnician_Success_LogsAudit() {
+        User admin = new User();
+        admin.setId(9L);
+        admin.setEmail("admin@test.com");
+        admin.setRole(UserRole.ADMIN);
+
+        when(userDetails.getUsername()).thenReturn("admin@test.com");
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(admin));
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        BookingResponse response = bookingService.assignTechnician(1L, 2L);
+
+        assertThat(response.getTechnicianId()).isEqualTo(2L);
+        assertThat(response.getTechnicianName()).isEqualTo("Test Technician");
+        verify(auditService).logAction(
+                eq(9L),
+                eq("admin@test.com"),
+                eq("ADMIN"),
+                eq("TECHNICIAN_ASSIGNED"),
+                eq("BOOKING"),
+                eq("1"),
+                contains("bookingId=1 technicianId=2"));
     }
 }
 

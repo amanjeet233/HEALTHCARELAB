@@ -236,6 +236,87 @@ const LandingPage: React.FC = () => {
                     <UserDashboard />
                 </Suspense>
 
+                {/* AI DIAGNOSTIC HUB PROMO */}
+                <section className="py-12 bg-white">
+                    <div className="content-wrapper">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div className="space-y-6">
+                                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-teal-50 rounded-full border border-teal-100">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#0D7C7C]">Advanced Intelligence</span>
+                                </div>
+                                <h2 className="text-3xl lg:text-4xl font-black text-slate-800 leading-tight uppercase italic underline decoration-teal-500/20">
+                                    NOT JUST DATA. <br />
+                                    <span className="text-[#0D7C7C]">VITALITY INSIGHTS.</span>
+                                </h2>
+                                <p className="text-sm font-bold text-slate-500 max-w-md leading-relaxed">
+                                    Our proprietary AI engine processes your lab results into an easy-to-understand vitality matrix. 
+                                    See your organ health, monitor trends, and take control of your wellness.
+                                </p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="text-2xl font-black text-slate-800 mb-1">98%</div>
+                                        <div className="text-[10px] uppercase font-bold text-slate-400">Diagnostic Clarity</div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="text-2xl font-black text-slate-800 mb-1">Instant</div>
+                                        <div className="text-[10px] uppercase font-bold text-slate-400">Smart Translation</div>
+                                    </div>
+                                </div>
+                                <button onClick={() => navigate('/lab-tests/all-lab-tests')} className="px-8 py-3 bg-[#0D7C7C] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-teal-600/20">
+                                    Explore Health Hub
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <div className="absolute -inset-4 bg-teal-500/10 blur-3xl rounded-full animate-pulse" />
+                                <div className="bg-slate-900 rounded-3xl p-6 shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500 border border-slate-800">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
+                                        <div className="flex gap-1">
+                                            <div className="w-2 h-2 rounded-full bg-red-400" />
+                                            <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                                            <div className="w-2 h-2 rounded-full bg-green-400" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-slate-800 rounded-xl border border-slate-700">
+                                            <div className="flex justify-between text-white text-[10px] font-black uppercase mb-2">
+                                                <span>Liver Vitality</span>
+                                                <span className="text-green-400">92/100</span>
+                                            </div>
+                                            <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                                <div className="bg-green-400 h-full w-[92%]" />
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-slate-800 rounded-xl border border-slate-700">
+                                            <div className="flex justify-between text-white text-[10px] font-black uppercase mb-2">
+                                                <span>Kidney Function</span>
+                                                <span className="text-yellow-400">76/100</span>
+                                            </div>
+                                            <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                                <div className="bg-yellow-400 h-full w-[76%]" />
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-slate-800 rounded-xl border border-slate-700">
+                                            <div className="flex justify-between text-white text-[10px] font-black uppercase mb-2">
+                                                <span>Metabolism</span>
+                                                <span className="text-red-400">42/100</span>
+                                            </div>
+                                            <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                                <div className="bg-red-400 h-full w-[42%]" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex justify-center">
+                                        <div className="px-4 py-2 bg-slate-700/50 rounded-full text-[9px] font-bold text-slate-400">
+                                            SECURE OFFICIAL AI ANALYSIS
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <CategoryBar />
 
                 <Suspense fallback={<SkeletonFallback />}>

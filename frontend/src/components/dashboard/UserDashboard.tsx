@@ -11,6 +11,7 @@ import ReportUploadModal from '../reports/ReportUploadModal';
 import { notify } from '../../utils/toast';
 import DashboardStatCard from './DashboardStatCard';
 import ActivityCard from './ActivityCard';
+import HealthTrendsCard from './HealthTrendsCard';
 
 const UserDashboard: React.FC = () => {
     const { openModal } = useModal();
@@ -42,7 +43,7 @@ const UserDashboard: React.FC = () => {
                         doctorService.getPendingRequests()
                     ]);
                     setStats(statsData);
-                    const bookingsData = pendingResponse.data?.content || pendingResponse.data || [];
+                    const bookingsData = pendingResponse.data?.data?.content || pendingResponse.data?.content || pendingResponse.data || [];
                     setBookings(Array.isArray(bookingsData) ? bookingsData : []);
                 } catch (error) {
                     console.error("Failed to fetch pending requests:", error);
@@ -85,15 +86,8 @@ const UserDashboard: React.FC = () => {
         }
     };
 
-    const handleVerifyReport = async (bookingId: number) => {
-        try {
-            await doctorService.verifyReport(bookingId);
-            notify.success('Report verified successfully!');
-            await fetchData();
-        } catch (error) {
-            console.error('Error verifying report:', error);
-            notify.error('Failed to verify report.');
-        }
+    const handleVerifyReport = (bookingId: number, testName: string) => {
+        openModal('CLINICAL_VERIFICATION', { bookingId, testName });
     };
 
     const handleUploadSuccess = async () => {
@@ -219,6 +213,8 @@ const UserDashboard: React.FC = () => {
                         <button className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-teal hover:text-ever-green transition-colors">History &rarr;</button>
                     </div>
 
+                    {currentUser?.role === 'PATIENT' && <HealthTrendsCard />}
+
                     <div className="grid grid-cols-1 gap-4">
                         {bookings.length > 0 ? (
                             bookings.map((booking) => (
@@ -322,4 +318,3 @@ const UserDashboard: React.FC = () => {
 };
 
 export default UserDashboard;
-

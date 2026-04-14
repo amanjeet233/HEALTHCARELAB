@@ -33,4 +33,26 @@ public class ReferenceRangeController {
                 .map(r -> ResponseEntity.ok(ApiResponse.success("Reference range found", r)))
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping
+    @Operation(summary = "Create a new reference range")
+    public ResponseEntity<ApiResponse<ReferenceRange>> create(@RequestBody ReferenceRange range) {
+        return ResponseEntity.ok(ApiResponse.success("Reference range created successfully",
+                referenceRangeService.saveReferenceRange(range)));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Update an existing reference range")
+    public ResponseEntity<ApiResponse<ReferenceRange>> update(@PathVariable Long id, @RequestBody ReferenceRange range) {
+        range.setId(id);
+        return ResponseEntity.ok(ApiResponse.success("Reference range updated successfully",
+                referenceRangeService.saveReferenceRange(range)));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a reference range")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        referenceRangeService.deleteReferenceRange(id);
+        return ResponseEntity.ok(ApiResponse.success("Reference range deleted successfully", null));
+    }
 }

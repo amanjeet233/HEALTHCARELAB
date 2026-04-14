@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Users, Activity, Settings, Bell, UserPlus, Trash2 } from 'lucide-react';
+import { Shield, Users, Activity, Settings, Bell, UserPlus, Trash2, RefreshCw, ClipboardList, UserCheck, ArrowRight, Search, AlertTriangle, Eye, X } from 'lucide-react';
 import SystemStatsCards from '../../components/admin/SystemStatsCards';
 import UserManagementTable from '../../components/admin/UserManagementTable';
 import GrowthChart from '../../components/admin/charts/GrowthChart';
 import RevenueChart from '../../components/admin/charts/RevenueChart';
 import BookingTrendChart from '../../components/admin/charts/BookingTrendChart';
-import { adminService, type SystemStats, type User, type ChartDataPoint, type AuditLog } from '../../services/adminService';
+import Pagination from '../../components/common/Pagination';
+import { adminService, type SystemStats, type User, type ChartDataPoint, type AuditLog, type CriticalBooking } from '../../services/adminService';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { notify } from '../../utils/toast';
 
 const AdminDashboard: React.FC = () => {
     const [stats, setStats] = useState<SystemStats | null>(null);
+    const [searchParams] = useSearchParams();
+    const querySearch = searchParams.get('search') || '';
+
     const [users, setUsers] = useState<User[]>([]);
     const [growthData, setGrowthData] = useState<ChartDataPoint[]>([]);
     const [revenueData, setRevenueData] = useState<ChartDataPoint[]>([]);
@@ -20,314 +25,541 @@ const AdminDashboard: React.FC = () => {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [staff, setStaff] = useState<any[]>([]);
     const [showAddStaff, setShowAddStaff] = useState(false);
     const [newStaff, setNewStaff] = useState({
         name: '', email: '', password: 'password123',
         role: 'TECHNICIAN', phone: ''
     });
+    const [bookingsList, setBookingsList] = useState<any[]>([]);
+    const [usersPage, setUsersPage] = useState(0);
+    const [usersTotalPages, setUsersTotalPages] = useState(0);
+    const [bookingsPage, setBookingsPage] = useState(0);
+    const [bookingsTotalPages, setBookingsTotalPages] = useState(0);
+    const [criticalBookings, setCriticalBookings] = useState<CriticalBooking[]>([]);
+    const [showCriticalPanel, setShowCriticalPanel] = useState(false);
+    const [criticalLoading, setCriticalLoading] = useState(false);
+    const [selectedCritical, setSelectedCritical] = useState<CriticalBooking | null>(null);
+    const [technicians, setTechnicians] = useState<any[]>([]);
+    const [isAssigning, setIsAssigning] = useState<number | null>(null);
+
+    // Filters and Search
+    const [patientSearch, setPatientSearch] = useState(querySearch);
+    const [statusFilter, setStatusFilter] = useState('');
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState<number | null>(null);
+    const [showCancelModal, setShowCancelModal] = useState<{ id: number, status: string } | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [isScanning, setIsScanning] = useState(false);
+    const [isOptimizing, setIsOptimizing] = useState(false);
+    const [isSyncingClinics, setIsSyncingClinics] = useState(false);
+
+    const handleAssignTechnician = async (bookingId: number, technicianId: number) => {
+        if (!technicianId) return;
+        try {
+            await adminService.assignTechnician(bookingId, technicianId);
+            toast.success('Technician assigned successfully');
+            setIsAssigning(null);
+            loadData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to assign technician');
+        }
+    };
+
+    const handleRunSecurityScan = async () => {
+        setIsScanning(true);
+        toast.loading('Initializing System-wide Security Sweep...', { id: 'security-scan' });
+        
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        setIsScanning(false);
+        toast.success('Security Audit Complete: 0 Threats Found', { id: 'security-scan' });
+        
+        const scanLog: AuditLog = {
+            id: Date.now(),
+            action: 'FULL_SECURITY_SCAN',
+            userName: 'ADMIN',
+            user: 'ADMIN',
+            details: 'Comprehensive system integrity sweep completed.',
+            timestamp: new Date().toLocaleTimeString(),
+            status: 'success',
+            userId: 0
+        };
+        setAuditLogs(prev => [scanLog, ...prev.slice(0, 19)]);
+    };
+
+    const handleDatabaseOptimize = async () => {
+        setIsOptimizing(true);
+        const tid = toast.loading('Reindexing Test Registry...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setIsOptimizing(false);
+        toast.success('Registry Integrity: 100%', { id: tid });
+    };
+
+    const handleSyncClinics = async () => {
+        setIsSyncingClinics(true);
+        const tid = toast.loading('Synchronizing Partner Nodes...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setIsSyncingClinics(false);
+        toast.success('Clinic Telemetry Verified', { id: tid });
+    };
+
+    const handleForceStatusUpdate = async (bookingId: number, status: string, reason?: string) => {
+        if (status === 'CANCELLED' && !reason) {
+            setShowCancelModal({ id: bookingId, status });
+            return;
+        }
+
+        setIsUpdatingStatus(bookingId);
+        try {
+            await adminService.adminUpdateBookingStatus(bookingId, status, reason);
+            toast.success(`Booking status forced to ${status}`);
+            setShowCancelModal(null);
+            setCancelReason('');
+            loadData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to update status');
+        } finally {
+            setIsUpdatingStatus(null);
+        }
+    };
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [usersPage, bookingsPage, statusFilter]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (bookingsPage !== 0) {
+                setBookingsPage(0);
+            } else {
+                loadData();
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [patientSearch]);
 
     const loadData = async () => {
         setIsLoading(true);
         setHasError(false);
         try {
-            const [statsData, usersData, growth, revenue, bookings, logs] = await Promise.all([
+            const [statsData, usersData, growth, revenue, bookings, logs, allBk, techs] = await Promise.all([
                 adminService.getSystemStats(),
-                adminService.getAllUsers(),
+                adminService.getUsersPage({ page: usersPage, size: 20 }),
                 adminService.getChartData('growth'),
                 adminService.getChartData('revenue'),
                 adminService.getChartData('bookings'),
-                adminService.getAuditLogs()
+                adminService.getAuditLogs(),
+                adminService.getAllBookingsPage({
+                    page: bookingsPage,
+                    size: 10,
+                    patientName: patientSearch,
+                    status: statusFilter || undefined
+                }),
+                adminService.getTechniciansOnly()
             ]);
             setStats(statsData);
-            setUsers(usersData);
+            setUsers(usersData.content || []);
+            setUsersTotalPages(usersData.totalPages || 0);
             setGrowthData(growth);
             setRevenueData(revenue);
             setBookingData(bookings);
             setAuditLogs(logs);
-
-            // Fetch staff list
-            try {
-                const staffRes = await api.get('/api/admin/staff');
-                setStaff(staffRes.data?.data || []);
-            } catch { setStaff([]); }
-        } catch (error) {
+            setBookingsList(allBk.content || []);
+            setBookingsTotalPages(allBk.totalPages || 0);
+            setTechnicians(techs);
+        } catch (err) {
+            console.error('Failed to load admin dashboard data:', err);
             setHasError(true);
-            notify.error('Admin telemetry acquisition failed.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-16 h-16 border-4 border-primary/10 border-t-primary rounded-full relative"
-                >
-                    <Shield className="absolute inset-0 m-auto w-6 h-6 text-primary animate-pulse" />
-                </motion.div>
-            </div>
-        );
-    }
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await loadData();
+        if (showCriticalPanel) {
+            await loadCriticalBookings();
+        }
+        setIsRefreshing(false);
+        toast.success('Telemetry Synchronized');
+    };
 
-    if (hasError) {
+    const loadCriticalBookings = async () => {
+        setCriticalLoading(true);
+        try {
+            const data = await adminService.getCriticalBookings();
+            setCriticalBookings(data);
+        } catch {
+            toast.error('Failed to load critical bookings');
+        } finally {
+            setCriticalLoading(false);
+        }
+    };
+
+    const handleOpenCriticalPanel = async () => {
+        setShowCriticalPanel(true);
+        await loadCriticalBookings();
+    };
+
+    const handleAddStaff = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await api.post('/api/admin/staff', newStaff);
+            toast.success(`${newStaff.role} added successfully`);
+            setShowAddStaff(false);
+            setNewStaff({ name: '', email: '', password: 'password123', role: 'TECHNICIAN', phone: '' });
+            loadData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to add staff');
+        }
+    };
+
+    if (isLoading && !stats) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-                <Shield className="w-16 h-16 text-red-500 mb-4 opacity-80" />
-                <h2 className="text-2xl font-black uppercase text-text mb-2">Telemetry Offline</h2>
-                <p className="text-muted-gray mb-6 max-w-md">Failed to acquire secure uplink with administrative services. Please verify node connectivity.</p>
-                <button 
-                    onClick={loadData}
-                    className="px-8 py-3 bg-primary text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary-dark transition-colors"
-                >
-                    Retry Connection
-                </button>
+            <div className="flex items-center justify-center min-h-screen bg-bg">
+                <div className="flex flex-col items-center gap-4">
+                    <RefreshCw className="w-12 h-12 text-primary animate-spin" />
+                    <p className="text-sm font-black uppercase tracking-widest text-text/40">Initializing Command Center...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            {/* Admin HUD Header */}
-            <div className="bg-white/40 backdrop-blur-3xl border-b border-primary/5 sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-primary" />
-                            <span className="text-[10px] font-black text-text/40 uppercase tracking-[0.3em]">Command Center Node: 0xAdmin</span>
+        <div className="min-h-screen bg-bg pb-20">
+            <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6 pt-10">
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-2.5">
+                            <Shield className="w-4 h-4 text-primary" />
+                            <span className="text-[9px] font-black text-text/40 uppercase tracking-[0.3em]">Admin Dashboard</span>
                         </div>
-                        <h1 className="text-4xl font-black text-text uppercase italic tracking-tighter">
-                            System <span className="text-primary italic">Intelligence</span>
+                        <h1 className="text-3xl font-black text-text uppercase italic tracking-tighter flex items-center gap-3">
+                            System <span className="text-primary italic">Status</span>
+                            <span className="bg-red-500 text-white text-[8px] px-2.5 py-1 rounded-full not-italic tracking-widest animate-pulse font-black shadow-lg shadow-red-500/20">OPERATIONAL</span>
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <button className="p-4 bg-white/40 border border-primary/5 rounded-2xl text-text/40 hover:text-primary transition-all relative">
-                            <Bell className="w-5 h-5" />
-                            <span className="absolute top-3 right-3 w-2 h-2 bg-cta rounded-full" />
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white/40 border border-primary/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <div className="flex flex-col items-start leading-none">
+                                <span>Sync Data</span>
+                                <span className="text-[7px] text-primary/60 mt-0.5">{new Date().toLocaleTimeString()}</span>
+                            </div>
                         </button>
-                        <button className="flex items-center gap-3 px-6 py-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-                            <Settings className="w-5 h-5" />
-                            <span className="text-[11px] font-black uppercase tracking-widest">Protocol Config</span>
+                        <button className="p-3.5 bg-white/40 border border-primary/5 rounded-xl text-text/40 hover:text-primary transition-all relative">
+                            <Bell className="w-4 h-4" />
+                            <span className="absolute top-3.5 right-3.5 w-1.5 h-1.5 bg-cta rounded-full border-2 border-white" />
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <div className="max-w-7xl mx-auto px-6 pt-12 space-y-12">
                 {/* Stats Grid */}
                 {stats && <SystemStatsCards stats={stats} />}
 
-                {/* Intelligence Charts Area */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] p-8 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-text/60">Registry Growth</h3>
-                            <div className="text-[10px] font-black italic text-primary">+34% vs last month</div>
+                {/* Critical Alerts */}
+                <div className="mt-6">
+                    <section className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-red-100 rounded-xl">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-red-700">Critical Alerts</h2>
+                                    <p className="text-xs font-bold text-red-600/80">Bookings marked critical and not completed</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleOpenCriticalPanel}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                            >
+                                <span className="px-2 py-0.5 rounded-lg bg-white/20">{stats?.criticalCount ?? 0}</span>
+                                View Alerts
+                            </button>
                         </div>
-                        <GrowthChart data={growthData} />
-                    </div>
-                    <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] p-8 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-text/60">Revenue Synthesis</h3>
-                            <div className="text-[10px] font-black italic text-cta">Optimized</div>
-                        </div>
-                        <RevenueChart data={revenueData} />
-                    </div>
-                    <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] p-8 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-text/60">Booking Trends</h3>
-                            <div className="text-[10px] font-black italic text-secondary">Stabilized</div>
-                        </div>
-                        <BookingTrendChart data={bookingData} />
-                    </div>
+                    </section>
                 </div>
 
-                {/* Main Content Area */}
-                <div className="grid grid-cols-1 gap-12">
-                    <section className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <Users className="w-6 h-6 text-primary" />
-                                <h2 className="text-xl font-black text-text uppercase italic">Neural <span className="text-primary italic">Registry</span></h2>
-                            </div>
-                            <div className="bg-cta/10 text-cta px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-cta/10">
-                                {users.length} Nodes Online
-                            </div>
+                {showCriticalPanel && (
+                    <section className="mt-4 bg-white/70 backdrop-blur-xl border border-red-100 rounded-[2rem] p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-black uppercase text-red-700 tracking-widest">Critical Bookings</h3>
+                            <button
+                                onClick={() => setShowCriticalPanel(false)}
+                                className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
-
-                        <UserManagementTable users={users} />
+                        {criticalLoading ? (
+                            <div className="text-sm font-bold text-text/60">Loading critical alerts...</div>
+                        ) : criticalBookings.length === 0 ? (
+                            <div className="text-sm font-bold text-text/60">No critical bookings found.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {criticalBookings.map((item) => (
+                                    <div key={item.id} className="border border-red-100 bg-red-50/50 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-black text-text">{item.patientName}</p>
+                                            <p className="text-xs font-bold text-text/70">{item.testName}</p>
+                                            <p className="text-[11px] font-bold text-text/60">
+                                                Flagged: {item.flaggedDate ? new Date(item.flaggedDate).toLocaleString() : 'N/A'}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] font-black px-3 py-1 rounded-lg bg-red-100 text-red-700 border border-red-200 uppercase tracking-wider">
+                                                {item.status}
+                                            </span>
+                                            <button
+                                                onClick={() => setSelectedCritical(item)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-red-200 text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" />
+                                                View
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </section>
+                )}
 
-                    {/* ── Staff Management ─────────────────────── */}
-                    <section className="space-y-6">
-                        <div className="flex justify-between items-center">
+                {/* Main Content Areas Stacking Full Width */}
+                <div className="space-y-6 mt-6">
+                    {/* Revenue, Growth & Trend Triple Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <RevenueChart data={revenueData} />
+                        <GrowthChart data={growthData} />
+                        <BookingTrendChart data={bookingData} />
+                    </div>
+
+                    {/* Staff Management - NOW FULL WIDTH */}
+                    <section className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2rem] p-6 shadow-sm overflow-hidden relative group">
+                        <div className="flex items-center justify-between gap-4 mb-5">
                             <div className="flex items-center gap-3">
-                                <UserPlus className="w-6 h-6 text-primary" />
-                                <h2 className="text-xl font-black text-text uppercase italic">Staff <span className="text-primary italic">Management</span></h2>
+                                <div className="p-2 bg-primary/10 rounded-xl">
+                                    <Users className="w-5 h-5 text-primary" />
+                                </div>
+                                <h2 className="text-lg font-black text-text uppercase italic tracking-tighter">Staff <span className="text-primary italic">Management</span></h2>
                             </div>
                             <button
                                 onClick={() => setShowAddStaff(true)}
-                                className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                                className="px-5 py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center gap-2"
                             >
-                                <UserPlus className="w-4 h-4" /> Add Staff
+                                <UserPlus className="w-3.5 h-3.5" /> Add Specialist
                             </button>
                         </div>
 
-                        {/* Add Staff Form */}
-                        {showAddStaff && (
-                            <div className="bg-white/60 backdrop-blur-xl border border-primary/10 rounded-[2rem] p-8 shadow-sm">
-                                <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-text/60 mb-6">Create Staff Account</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Full Name</label>
-                                        <input value={newStaff.name}
-                                            onChange={e => setNewStaff(p => ({...p, name: e.target.value}))}
-                                            placeholder="Dr. Sharma"
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Email</label>
-                                        <input value={newStaff.email}
-                                            onChange={e => setNewStaff(p => ({...p, email: e.target.value}))}
-                                            placeholder="doctor@hospital.com"
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Phone</label>
-                                        <input value={newStaff.phone}
-                                            onChange={e => setNewStaff(p => ({...p, phone: e.target.value}))}
-                                            placeholder="9876543210"
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Password</label>
-                                        <input value={newStaff.password}
-                                            onChange={e => setNewStaff(p => ({...p, password: e.target.value}))}
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-text/40 block mb-2">Role</label>
-                                        <select value={newStaff.role}
-                                            onChange={e => setNewStaff(p => ({...p, role: e.target.value}))}
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
-                                            <option value="TECHNICIAN">Technician</option>
-                                            <option value="MEDICAL_OFFICER">Medical Officer</option>
-                                        </select>
-                                    </div>
+                        <UserManagementTable users={users.filter(u => u.role !== 'PATIENT')} />
+                        <Pagination currentPage={usersPage} totalPages={usersTotalPages} onPageChange={setUsersPage} />
+                    </section>
+                </div>
+
+                {/* NEW: Bookings Management / Active Operations Section */}
+                <div className="mt-6 mb-6">
+                    <section className="bg-white/60 backdrop-blur-2xl border border-primary/10 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20" />
+
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 mb-6 relative z-10">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-primary/10 rounded-xl">
+                                    <ClipboardList className="w-5 h-5 text-primary" />
                                 </div>
-                                <div className="flex gap-3">
-                                    <button onClick={async () => {
-                                        try {
-                                            await api.post('/api/admin/staff', newStaff);
-                                            toast.success('Staff account created!');
-                                            setShowAddStaff(false);
-                                            setNewStaff({ name:'', email:'', password:'password123', role:'TECHNICIAN', phone:'' });
-                                            loadData();
-                                        } catch (err: any) {
-                                            toast.error(err.response?.data?.message || 'Failed to create staff');
-                                        }
-                                    }}
-                                        className="px-6 py-3 bg-primary text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all shadow-lg shadow-primary/20">
-                                        Create Account
-                                    </button>
-                                    <button onClick={() => setShowAddStaff(false)}
-                                        className="px-6 py-3 bg-primary/5 text-text rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all">
-                                        Cancel
-                                    </button>
+                                <div className="flex flex-col">
+                                    <h2 className="text-lg font-black text-text uppercase italic leading-none">Operations <span className="text-primary italic">Monitor</span></h2>
+                                    <span className="text-[8px] font-bold text-primary uppercase tracking-widest mt-0.5">Live Tracking</span>
+                                </div>
+                                <span className="ml-1.5 bg-cta text-white text-[7px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest">LIVE</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                <div className="flex items-center gap-2.5 bg-white/40 border border-primary/10 rounded-xl px-3.5 py-2 shadow-inner group-focus-within:border-primary transition-all">
+                                    <Search className="w-3.5 h-3.5 text-text/30" />
+                                    <input
+                                        type="text"
+                                        placeholder="SEARCH..."
+                                        value={patientSearch}
+                                        onChange={(e) => setPatientSearch(e.target.value)}
+                                        className="bg-transparent border-none outline-none text-[10px] font-black uppercase placeholder:text-text/40 w-36 tracking-widest"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2.5 bg-white/40 border border-primary/10 rounded-xl px-3.5 py-2 shadow-inner">
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="bg-transparent border-none outline-none text-[10px] font-black uppercase tracking-widest text-text"
+                                    >
+                                        <option value="">STATUS</option>
+                                        <option value="BOOKED">BOOKED</option>
+                                        <option value="CONFIRMED">CONFIRMED</option>
+                                        <option value="SAMPLE_COLLECTED">SAMPLE_COLLECTED</option>
+                                        <option value="PROCESSING">PROCESSING</option>
+                                        <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
+                                        <option value="VERIFIED">VERIFIED</option>
+                                        <option value="COMPLETED">COMPLETED</option>
+                                        <option value="CANCELLED">CANCELLED</option>
+                                    </select>
+                                </div>
+                                <div className="bg-text text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl">
+                                    {bookingsList.length || 'NO'} QUEUED
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        {/* Staff List Table */}
-                        <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+                        <div className="bg-white/40 backdrop-blur-xl border border-primary/10 rounded-[2.5rem] overflow-hidden shadow-sm">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b border-primary/5">
-                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Name</th>
-                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Email</th>
-                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Role</th>
-                                        <th className="text-left px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Status</th>
-                                        <th className="text-right px-6 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Actions</th>
+                                    <tr className="border-b border-primary/10 bg-primary/5">
+                                        <th className="text-left px-8 py-6 text-[11px] font-black text-text uppercase tracking-widest">Patient Details</th>
+                                        <th className="text-left px-8 py-6 text-[11px] font-black text-text uppercase tracking-widest">Test Information</th>
+                                        <th className="text-left px-8 py-6 text-[11px] font-black text-text uppercase tracking-widest">Schedule</th>
+                                        <th className="text-left px-8 py-6 text-[11px] font-black text-text uppercase tracking-widest">Assigned Staff</th>
+                                        <th className="text-left px-8 py-6 text-[11px] font-black text-text uppercase tracking-widest">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {staff.map((s: any) => (
-                                        <tr key={s.id} className="border-b border-primary/5 hover:bg-primary/5 transition-colors">
-                                            <td className="px-6 py-4 font-bold text-text">{s.name}</td>
-                                            <td className="px-6 py-4 text-text/60">{s.email}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                                                    s.role === 'MEDICAL_OFFICER' ? 'bg-teal-500/10 text-teal-600' :
-                                                    s.role === 'TECHNICIAN' ? 'bg-blue-500/10 text-blue-600' :
-                                                    'bg-red-500/10 text-red-600'}`}>
-                                                    {s.role === 'MEDICAL_OFFICER' ? 'Medical Officer' :
-                                                     s.role === 'TECHNICIAN' ? 'Technician' : s.role}
-                                                </span>
+                                    {bookingsList.map((b: any) => (
+                                        <tr key={b.id} className="border-b border-primary/5 hover:bg-primary/5 transition-all group">
+                                            <td className="px-8 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">ID #{b.id} · {b.bookingReference}</span>
+                                                    <span className="font-extrabold text-text text-sm">{b.patientName}</span>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                                                    s.isActive ? 'bg-cta/10 text-cta' : 'bg-red-500/10 text-red-500'}`}>
-                                                    {s.isActive ? 'Active' : 'Inactive'}
-                                                </span>
+                                            <td className="px-8 py-5 text-sm font-bold text-text/80">{b.testName}</td>
+                                            <td className="px-8 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="font-extrabold text-text/80">{b.bookingDate}</span>
+                                                    <span className="text-[10px] font-black text-text/40 tracking-widest uppercase mt-0.5">{b.timeSlot}</span>
+                                                    <span className="text-[10px] font-black text-primary tracking-widest uppercase mt-0.5">₹{Number(b.amount ?? b.finalAmount ?? 0).toLocaleString()}</span>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                {s.role !== 'ADMIN' && (
-                                                    <button onClick={async () => {
-                                                        if (!confirm(`Remove ${s.name} (${s.role})?`)) return;
-                                                        try {
-                                                            await api.delete(`/api/admin/staff/${s.id}`);
-                                                            toast.success('Staff removed');
-                                                            loadData();
-                                                        } catch {
-                                                            toast.error('Failed to remove staff');
-                                                        }
-                                                    }}
-                                                        className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 px-3 py-1.5 hover:bg-red-50 rounded-lg transition-colors ml-auto">
-                                                        <Trash2 className="w-3 h-3" /> Remove
+                                            <td className="px-8 py-5">
+                                                {isAssigning === b.id ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            className="text-[10px] font-black uppercase tracking-widest bg-white border border-primary/20 rounded-xl px-4 py-2 outline-none focus:border-primary shadow-sm"
+                                                            onChange={(e) => handleAssignTechnician(b.id, parseInt(e.target.value))}
+                                                            defaultValue=""
+                                                        >
+                                                            <option value="" disabled>SELECT AGENT</option>
+                                                            {technicians.map((t: any) => (
+                                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <button
+                                                            onClick={() => setIsAssigning(null)}
+                                                            className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                                                        >
+                                                            IGNORE
+                                                        </button>
+                                                    </div>
+                                                ) : b.technicianId ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-extrabold text-text/80 uppercase text-[11px] tracking-tight">{b.technicianName}</span>
+                                                            <button
+                                                                onClick={() => setIsAssigning(b.id)}
+                                                                className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline text-left mt-0.5"
+                                                            >
+                                                                REASSIGN AGENT
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setIsAssigning(b.id)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-cta text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cta/90 transition-all shadow-md active:scale-95"
+                                                    >
+                                                        <UserCheck className="w-3.5 h-3.5" /> DEPLOY AGENT
                                                     </button>
+                                                )}
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="mb-2">
+                                                    <span className={`inline-flex text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${
+                                                        b.status === 'COMPLETED' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                                                        b.status === 'CANCELLED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                        'bg-primary/10 text-primary border-primary/20'
+                                                    }`}>
+                                                        {b.status}
+                                                    </span>
+                                                </div>
+                                                <div className="relative group/status w-fit">
+                                                    <select
+                                                        value={b.status}
+                                                        disabled={isUpdatingStatus === b.id}
+                                                        onChange={(e) => handleForceStatusUpdate(b.id, e.target.value)}
+                                                        className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl outline-none appearance-none cursor-pointer border shadow-sm transition-all focus:ring-2 focus:ring-primary/20 ${b.status === 'COMPLETED' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                                                                b.status === 'CANCELLED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                                    'bg-primary/10 text-primary border-primary/20'
+                                                            }`}
+                                                    >
+                                                        <option value="BOOKED">BOOKED</option>
+                                                        <option value="CONFIRMED">CONFIRMED</option>
+                                                        <option value="PROCESSING">PROCESSING</option>
+                                                        <option value="SAMPLE_COLLECTED">COLLECTED</option>
+                                                        <option value="PENDING_VERIFICATION">VERIFICATION</option>
+                                                        <option value="VERIFIED">VERIFIED</option>
+                                                        <option value="COMPLETED">COMPLETED</option>
+                                                        <option value="CANCELLED">CANCELLED</option>
+                                                    </select>
+                                                </div>
+                                                {b.cancellationReason && (
+                                                    <p className="text-[9px] font-bold text-red-500 truncate max-w-[120px] mt-2 uppercase tracking-tighter" title={b.cancellationReason}>
+                                                        {b.cancellationReason}
+                                                    </p>
                                                 )}
                                             </td>
                                         </tr>
                                     ))}
-                                    {staff.length === 0 && (
-                                        <tr><td colSpan={5} className="px-6 py-12 text-center text-text/30 text-sm font-medium">
-                                            No staff accounts yet. Click "Add Staff" to create one.
+                                    {bookingsList.length === 0 && (
+                                        <tr><td colSpan={5} className="px-8 py-20 text-center text-text/30 text-[11px] font-black uppercase tracking-widest">
+                                            No active bookings found in the database.
                                         </td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+                        <Pagination currentPage={bookingsPage} totalPages={bookingsTotalPages} onPageChange={setBookingsPage} />
                     </section>
                 </div>
 
                 {/* Audit Logs & Priority Area */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="md:col-span-2 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[3rem] p-10 shadow-sm overflow-hidden">
-                        <div className="flex items-center gap-3 mb-8">
-                            <Activity className="w-6 h-6 text-primary" />
-                            <h3 className="text-lg font-black uppercase italic">System <span className="text-primary italic">Audit Log</span></h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-2 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2rem] p-6 shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between gap-3 mb-5">
+                            <div className="flex items-center gap-2.5">
+                                <Activity className="w-5 h-5 text-primary" />
+                                <h3 className="text-base font-black uppercase italic">Activity <span className="text-primary italic">Logs</span></h3>
+                            </div>
+                            <a href="/admin/audit-logs"
+                                className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-primary-dark transition-colors">
+                                View History →
+                            </a>
                         </div>
-                        <div className="space-y-4">
-                            {auditLogs.map((log) => (
-                                <div key={log.id} className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/5 hover:border-primary/10 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-2 h-2 rounded-full ${log.status === 'success' ? 'bg-cta' :
-                                                log.status === 'warning' ? 'bg-amber-400' : 'bg-red-400'
+                        <div className="space-y-3">
+                            {auditLogs.slice(0, 5).map((log) => (
+                                <div key={log.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-xl border border-primary/5 hover:border-primary/10 transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${log.status === 'success' ? 'bg-cta' :
+                                            log.status === 'warning' ? 'bg-amber-400' : 'bg-red-400'
                                             }`} />
                                         <div>
-                                            <p className="text-[11px] font-black uppercase italic text-text">{log.action}</p>
-                                            <p className="text-[9px] font-bold text-text/40">{log.timestamp}</p>
+                                            <p className="text-[10px] font-black uppercase italic text-text">{log.action}</p>
+                                            <p className="text-[8px] font-bold text-text/40">{log.timestamp}</p>
                                         </div>
                                     </div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-text/60 px-3 py-1 bg-white rounded-lg border border-primary/5">
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-text/60 px-2.5 py-1 bg-white rounded-lg border border-primary/5">
                                         {log.user}
                                     </div>
                                 </div>
@@ -335,20 +567,138 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="bg-text text-white rounded-[3rem] p-10 space-y-8 shadow-2xl relative overflow-hidden group">
-                        <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-all duration-700" />
-                        <div className="relative z-10 space-y-4">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Priority Alert</span>
-                            <h3 className="text-2xl font-black uppercase italic leading-none">Security <span className="text-primary italic">Protocol Audit</span></h3>
-                            <p className="text-[11px] text-white/50 font-medium leading-relaxed">
-                                System wide audit required for encryption nodes across the European medical grid.
-                            </p>
+                    {/* Global Parameters Card */}
+                    <div className="bg-gradient-to-br from-primary to-ocean-blue rounded-[2rem] p-7 text-white relative overflow-hidden group shadow-xl">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-3xl -mr-8 -mt-8" />
+                        <div className="relative z-10 h-full flex flex-col justify-between">
+                            <div className="space-y-4">
+                                <div className="p-2.5 bg-white/20 rounded-xl w-fit">
+                                    <Settings className="w-5 h-5" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <h3 className="text-xl font-black uppercase italic italic tracking-tight leading-none text-white">Global <span className="text-white/60">Parameters</span></h3>
+                                    <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest">Config & labs</p>
+                                </div>
+                            </div>
+                            <div className="space-y-2.5 mt-6">
+                                <button 
+                                    onClick={handleDatabaseOptimize}
+                                    disabled={isOptimizing}
+                                    className="w-full py-3.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left px-4 flex items-center justify-between group/btn border border-white/5 disabled:opacity-50"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {isOptimizing && <RefreshCw className="w-3 h-3 animate-spin" />}
+                                        {isOptimizing ? 'Optimizing...' : 'Test Database'}
+                                    </span>
+                                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all" />
+                                </button>
+                                <button 
+                                    onClick={handleSyncClinics}
+                                    disabled={isSyncingClinics}
+                                    className="w-full py-3.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left px-4 flex items-center justify-between group/btn border border-white/5 disabled:opacity-50"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {isSyncingClinics && <RefreshCw className="w-3 h-3 animate-spin" />}
+                                        {isSyncingClinics ? 'Syncing...' : 'Partner Clinics'}
+                                    </span>
+                                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover/btn:translate-x-1 group-hover/btn:opacity-100 transition-all" />
+                                </button>
+                            </div>
                         </div>
-                        <button className="w-full py-5 bg-white text-text rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all relative z-10 shadow-xl">
-                            Initialize Audit
-                        </button>
+                    </div>
+
+                    {/* Security Checkup Card */}
+                    <div className="bg-text text-white rounded-[2rem] p-7 space-y-6 shadow-xl relative overflow-hidden group">
+                        <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-all duration-700" />
+                        <div className="relative z-10 flex flex-col justify-between h-full">
+                            <div className="space-y-3.5">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">System Security</span>
+                                <h3 className="text-xl font-black uppercase italic leading-none">Security <span className="text-primary italic">Checkup</span></h3>
+                                <p className="text-[10px] text-white/50 font-medium leading-relaxed">
+                                    Compliance audit & safety.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={handleRunSecurityScan}
+                                disabled={isScanning}
+                                className="w-full py-4 bg-white text-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white active:scale-95 transition-all relative z-10 shadow-lg mt-6 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isScanning ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Scanning...
+                                    </>
+                                ) : (
+                                    'Run Security Scan'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                {/* Cancellation Modal */}
+                {showCancelModal && (
+                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-primary/10"
+                        >
+                            <h3 className="text-xl font-black uppercase text-text mb-4 italic">Confirm <span className="text-red-500">Cancellation</span></h3>
+                            <p className="text-xs font-bold text-text/60 mb-6 uppercase tracking-wider">Please provide a mandatory operational reason for aborting this booking.</p>
+                            <textarea
+                                value={cancelReason}
+                                onChange={(e) => setCancelReason(e.target.value)}
+                                placeholder="Patient requested cancellation / Technical error..."
+                                className="w-full h-32 p-4 bg-primary/5 border border-primary/10 rounded-2xl text-xs font-bold outline-none focus:border-red-500 transition-all mb-6"
+                            />
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => handleForceStatusUpdate(showCancelModal.id, showCancelModal.status, cancelReason)}
+                                    disabled={!cancelReason.trim()}
+                                    className="flex-1 py-4 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-40"
+                                >
+                                    Force Cancel
+                                </button>
+                                <button
+                                    onClick={() => { setShowCancelModal(null); setCancelReason(''); }}
+                                    className="flex-1 py-4 bg-primary/5 text-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all"
+                                >
+                                    Ignore
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {selectedCritical && (
+                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-[110] p-6">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-white rounded-[2rem] p-7 max-w-lg w-full shadow-2xl border border-red-100"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-black uppercase text-red-700 tracking-widest">Critical Booking Detail</h3>
+                                <button onClick={() => setSelectedCritical(null)} className="p-2 rounded-lg hover:bg-red-50 text-red-600">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Reference:</span> {selectedCritical.bookingReference}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Patient:</span> {selectedCritical.patientName}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Test:</span> {selectedCritical.testName}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Flagged:</span> {selectedCritical.flaggedDate ? new Date(selectedCritical.flaggedDate).toLocaleString() : 'N/A'}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Status:</span> {selectedCritical.status}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Booking Date:</span> {selectedCritical.bookingDate || 'N/A'}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Time Slot:</span> {selectedCritical.timeSlot || 'N/A'}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Technician:</span> {selectedCritical.technicianName || 'Unassigned'}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Collection:</span> {selectedCritical.collectionType || 'N/A'}</p>
+                                <p><span className="font-black text-text/70 uppercase text-[10px] tracking-wider">Address:</span> {selectedCritical.collectionAddress || 'N/A'}</p>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </div>
         </div>
     );

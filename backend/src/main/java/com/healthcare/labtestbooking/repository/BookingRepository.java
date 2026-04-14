@@ -57,6 +57,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByStatusAndBookingDateBetween(BookingStatus status, LocalDate startDate, LocalDate endDate);
 
     long countByStatus(BookingStatus status);
+    long countByCriticalFlagTrueAndStatusNot(BookingStatus status);
 
     long countByTestId(Long testId);
 
@@ -66,7 +67,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     long countByTechnicianIdAndBookingDate(Long technicianId, LocalDate bookingDate);
 
-    @Query("select b.bookingDate, count(b) from Booking b where b.bookingDate between :start and :end group by b.bookingDate order by b.bookingDate")
+    @Query("select DATE(b.createdAt), count(b) from Booking b " +
+           "where DATE(b.createdAt) between :start and :end " +
+           "group by DATE(b.createdAt) order by DATE(b.createdAt)")
+    List<Object[]> countBookingsByCreatedDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("select DATE(b.createdAt), count(b) from Booking b " +
+           "where DATE(b.createdAt) between :start and :end " +
+           "group by DATE(b.createdAt) order by DATE(b.createdAt)")
     List<Object[]> countBookingsByDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
     @Query("select b.test.testName, count(b) from Booking b where b.test is not null group by b.test.testName order by count(b) desc")
@@ -79,4 +87,44 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.test.id = :testId AND b.createdAt >= :start")
     long countByTestIdAndCreatedAtAfter(@Param("testId") Long testId, @Param("start") LocalDateTime start);
+
+    long countByBookingDate(LocalDate bookingDate);
+
+    @Query("SELECT DATE(b.createdAt), COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
+           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED " +
+           "AND DATE(b.createdAt) BETWEEN :start AND :end " +
+           "GROUP BY DATE(b.createdAt) ORDER BY DATE(b.createdAt)")
+    List<Object[]> sumRevenueByCreatedDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT DATE(b.createdAt), COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
+           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED " +
+           "AND DATE(b.createdAt) BETWEEN :start AND :end " +
+           "GROUP BY DATE(b.createdAt) ORDER BY DATE(b.createdAt)")
+    List<Object[]> sumRevenueByDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
+           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED")
+    java.math.BigDecimal sumTotalRevenue();
+
+    Page<Booking> findByStatusAndPatientDisplayNameContainingIgnoreCase(BookingStatus status, String patientName, Pageable pageable);
+
+    Page<Booking> findByPatientDisplayNameContainingIgnoreCase(String patientName, Pageable pageable);
+
+    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
+    List<Booking> findByCriticalFlagTrueAndStatusNotOrderByCreatedAtDesc(BookingStatus status);
+
+    /** Unassigned bookings eligible for MO technician suggestion, sorted by bookingDate asc. */
+    @EntityGraph(attributePaths = {"patient", "test", "testPackage"})
+    @Query("SELECT b FROM Booking b WHERE b.technician IS NULL " +
+           "AND b.status IN :statuses " +
+           "ORDER BY b.bookingDate ASC")
+    List<Booking> findUnassignedBookingsByStatuses(@Param("statuses") List<BookingStatus> statuses);
+
+    /** Count of bookings for a specific technician on a specific date (for load-balancing display). */
+    @Query("SELECT b.technician.id, COUNT(b) FROM Booking b " +
+           "WHERE b.bookingDate = :date AND b.technician IS NOT NULL " +
+           "GROUP BY b.technician.id")
+    List<Object[]> countBookingsByTechnicianForDate(@Param("date") LocalDate date);
 }

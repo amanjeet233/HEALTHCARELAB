@@ -25,11 +25,7 @@ public class TestParameterService {
     }
 
     public List<TestParameter> getParametersByTestId(Long testId) {
-        // Assuming repository has findByTestId or similar. If not, use findAll and
-        // filter for now or add to repo.
-        return testParameterRepository.findAll().stream()
-                .filter(p -> p.getTest() != null && p.getTest().getId().equals(testId))
-                .toList();
+        return testParameterRepository.findByTest_IdOrderByDisplayOrder(testId);
     }
 
     public Optional<TestParameter> getParameterById(Long id) {
@@ -38,5 +34,11 @@ public class TestParameterService {
 
     public List<TestParameter> getAllParameters() {
         return testParameterRepository.findAll();
+    }
+
+    @Transactional
+    public void deleteParameter(Long id) {
+        log.info("Deleting test parameter with id: {}", id);
+        testParameterRepository.deleteById(id);
     }
 }

@@ -95,6 +95,10 @@ public class LabTest {
     
     @Column(name = "fasting_required")
     private Boolean fastingRequired;
+
+    @Column(name = "consent_required", nullable = false)
+    @Builder.Default
+    private Boolean consentRequired = false;
     
     @Transient
     private Integer fastingHours;
@@ -203,6 +207,8 @@ public class LabTest {
     private void serializeJsonFields() {
         ObjectMapper mapper = new ObjectMapper();
         try {
+            enforceConsentRequirementDefaults();
+
             if (testCode == null || testCode.isBlank()) {
                 String base = (testName == null ? "test" : testName)
                         .toLowerCase(Locale.ROOT)
@@ -227,6 +233,23 @@ public class LabTest {
             }
         } catch (JsonProcessingException e) {
             System.err.println("Error serializing JSON fields for test: " + testName + " - " + e.getMessage());
+        }
+    }
+
+    private void enforceConsentRequirementDefaults() {
+        if (Boolean.TRUE.equals(consentRequired)) {
+            return;
+        }
+        String haystack = ((testName != null ? testName : "") + " " + (categoryName != null ? categoryName : ""))
+                .toLowerCase(Locale.ROOT);
+        if (haystack.contains("hiv")
+                || haystack.contains("genetic")
+                || haystack.contains("sti")
+                || haystack.contains("std")
+                || haystack.contains("drug monitoring")
+                || haystack.contains("cancer marker")
+                || haystack.contains("cancer")) {
+            consentRequired = true;
         }
     }
     

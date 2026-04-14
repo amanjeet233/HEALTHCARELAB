@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes } from 'react-icons/fa';
 import { useModal } from '../../context/ModalContext';
 import { BookingDetailsModal, ProfileModal } from '../dashboard/Modals';
+import MedicalOfficerVerificationModal from '../doctor/MedicalOfficerVerificationModal';
 import type { BookingResponse } from '../../types/booking';
 import { useAuth } from '../../hooks/useAuth';
 import AuthModal from '../auth/AuthModal';
@@ -27,6 +28,17 @@ const AppModal: React.FC = () => {
                 return <div className="p-12 text-evergreen font-black uppercase tracking-widest text-center">Medical Officer Approval System</div>;
             case 'COLLECTION_DETAILS':
                 return <div className="p-12 text-evergreen font-black uppercase tracking-widest text-center">Technician Collection Details</div>;
+            case 'CLINICAL_VERIFICATION': {
+                const props = modalProps as any;
+                return (
+                    <MedicalOfficerVerificationModal 
+                        bookingId={props.bookingId} 
+                        testName={props.testName} 
+                        onClose={closeModal} 
+                        onSuccess={() => window.location.reload()} 
+                    />
+                );
+            }
             default:
                 return null;
         }

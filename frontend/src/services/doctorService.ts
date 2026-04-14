@@ -2,7 +2,7 @@ import api from './api';
 import type { BookingResponse, BookingSearchParams } from '../types/booking';
 
 export const getPendingRequests = async () => {
-    return api.get("/api/mo/pending");
+    return api.get("/api/mo/pending", { params: { page: 0, size: 10 } });
 };
 
 export const doctorService = {
@@ -60,6 +60,10 @@ export const doctorService = {
     getPendingApprovals: async (params?: BookingSearchParams): Promise<{ bookings: BookingResponse[], totalPages: number }> => {
         try {
             const response = await api.get('/api/mo/pending', { params: params || {} });
+
+            if (response.data && response.data.data && response.data.data.content) {
+                return { bookings: response.data.data.content as BookingResponse[], totalPages: response.data.data.totalPages || 1 };
+            }
 
             if (response.data && response.data.content) {
                 return { bookings: response.data.content as BookingResponse[], totalPages: response.data.totalPages || 1 };

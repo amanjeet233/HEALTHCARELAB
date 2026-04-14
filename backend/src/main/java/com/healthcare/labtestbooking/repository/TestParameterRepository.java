@@ -11,4 +11,5 @@ import java.util.List;
 public interface TestParameterRepository extends JpaRepository<TestParameter, Long> {
 
     List<TestParameter> findByTestOrderByDisplayOrder(LabTest test);
+    List<TestParameter> findByTest_IdOrderByDisplayOrder(Long testId);
 }

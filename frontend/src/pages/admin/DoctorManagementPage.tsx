@@ -41,18 +41,14 @@ export const DoctorManagementPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      // Load from API in real implementation
-      const doctorsList: Doctor[] = [
-        { id: 1, name: 'Dr. Rajesh Kumar', specialty: 'General Practitioner', email: 'rajesh@clinic.com' },
-        { id: 2, name: 'Dr. Priya Singh', specialty: 'Cardiologist', email: 'priya@clinic.com' },
-        { id: 3, name: 'Dr. Amit Patel', specialty: 'Neurologist', email: 'amit@clinic.com' }
-      ];
-      setDoctors(doctorsList);
+      // Load doctors from API
+      const response = await adminService.getUsers({ role: 'DOCTOR' });
+      setDoctors(response.users as unknown as Doctor[]);
 
       // Load assignments
       try {
         const assignmentsList = await adminService.getDoctorTestAssignments();
-        setAssignments(assignmentsList);
+        setAssignments(assignmentsList as any);
       } catch {
         setAssignments([]);
       }

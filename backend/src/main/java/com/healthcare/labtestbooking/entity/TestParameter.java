@@ -57,6 +57,9 @@ public class TestParameter {
     @Column(name = "display_order")
     private Integer displayOrder;
 
+    @Column(name = "category")
+    private String category;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -103,6 +103,12 @@ public class UserReportsController {
         return ResponseEntity.ok(ApiResponse.success("Report shared successfully", null));
     }
 
+    @GetMapping("/trends")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getTrends() {
+        Long userId = userService.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success("Trend data fetched successfully", reportService.getTrendsForPatient(userId)));
+    }
+
     private UserReportSummaryDTO toReportSummary(Booking booking) {
         Report report = reportRepository.findByBookingId(booking.getId()).orElse(null);
         String reportStatus;

@@ -1,19 +1,33 @@
 package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.AuditLog;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.entity.enums.UserRole;
 import com.healthcare.labtestbooking.repository.BookingRepository;
+import com.healthcare.labtestbooking.repository.AuditLogRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.service.AuditLogService;
+import com.healthcare.labtestbooking.service.AuditService;
 import com.healthcare.labtestbooking.service.DashboardService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -31,8 +45,11 @@ public class AdminController {
 
     private final DashboardService dashboardService;
     private final BookingRepository bookingRepository;
+    private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
+    private final AuditService auditService;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
@@ -42,24 +59,24 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<Object>> getAllUsers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getAllUsers(
+            @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) String role) {
-        log.info("GET /api/admin/users page={} size={} role={}", page, size, role);
-        List<User> users;
+        log.info("GET /api/admin/users page={} size={} role={}",
+                pageable.getPageNumber(), pageable.getPageSize(), role);
+        Page<User> usersPage;
         if (role != null && !role.isBlank()) {
             try {
                 UserRole roleEnum = UserRole.valueOf(role.toUpperCase());
-                users = userRepository.findByRole(roleEnum);
+                usersPage = userRepository.findByRole(roleEnum, pageable);
             } catch (IllegalArgumentException e) {
-                users = userRepository.findAll();
+                usersPage = userRepository.findAll(pageable);
             }
         } else {
-            users = userRepository.findAll();
+            usersPage = userRepository.findAll(pageable);
         }
 
-        List<Map<String, Object>> result = users.stream().map(u -> {
+        Page<Map<String, Object>> result = usersPage.map(u -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", u.getId());
             m.put("name", u.getName());
@@ -69,7 +86,7 @@ public class AdminController {
             m.put("createdAt", u.getCreatedAt());
             m.put("joinDate", u.getCreatedAt());
             return m;
-        }).toList();
+        });
 
         return ResponseEntity.ok(ApiResponse.success("Users fetched", result));
     }
@@ -77,10 +94,13 @@ public class AdminController {
     @PutMapping("/users/{userId}/role")
     public ResponseEntity<ApiResponse<String>> updateUserRole(
             @PathVariable Long userId,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserDetails principal,
+            HttpServletRequest request) {
         log.info("PUT /api/admin/users/{}/role", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        String oldRole = user.getRole().name();
         try {
             user.setRole(UserRole.valueOf(body.get("role").toUpperCase()));
             userRepository.save(user);
@@ -88,57 +108,146 @@ public class AdminController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Invalid role: " + body.get("role")));
         }
+        User admin = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        auditService.logAction(
+                admin != null ? admin.getId() : null,
+                principal.getUsername(), "ADMIN",
+                "ROLE_CHANGED", "USER", String.valueOf(userId),
+                "Role changed from " + oldRole + " to " + body.get("role"),
+                request.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success("Role updated", "OK"));
     }
 
     @PutMapping("/users/{userId}/toggle-status")
-    public ResponseEntity<ApiResponse<String>> toggleUserStatus(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<String>> toggleUserStatus(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails principal,
+            HttpServletRequest request) {
         log.info("PUT /api/admin/users/{}/toggle-status", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setIsActive(!Boolean.TRUE.equals(user.getIsActive()));
         userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.success(
-                "Status toggled",
-                Boolean.TRUE.equals(user.getIsActive()) ? "ACTIVE" : "INACTIVE"));
+        String newStatus = Boolean.TRUE.equals(user.getIsActive()) ? "ACTIVE" : "INACTIVE";
+
+        User admin = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        auditService.logAction(
+                admin != null ? admin.getId() : null,
+                principal.getUsername(), "ADMIN",
+                "USER_STATUS_TOGGLED", "USER", String.valueOf(userId),
+                "Status toggled to " + newStatus + " for user " + user.getEmail(),
+                request.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.success("Status toggled", newStatus));
     }
+
+    // ── Real chart data (last 7 days) ─────────────────────────────────────────
 
     @GetMapping("/charts/{type}")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChartData(
             @PathVariable String type) {
         log.info("GET /api/admin/charts/{}", type);
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(6);
         List<Map<String, Object>> data = new ArrayList<>();
-        for (int i = 6; i >= 0; i--) {
-            Map<String, Object> point = new HashMap<>();
-            LocalDate date = LocalDate.now().minusDays(i);
-            point.put("date", date.toString());
-            point.put("value", (long) (Math.random() * 50 + 10));
-            point.put("label", date.getDayOfWeek().toString().substring(0, 3));
-            data.add(point);
+
+        if ("revenue".equals(type)) {
+            // Revenue grouped by date for COMPLETED bookings
+            List<Object[]> rows = bookingRepository.sumRevenueByCreatedDateRange(startDate, endDate);
+            Map<LocalDate, BigDecimal> byDate = new HashMap<>();
+            for (Object[] row : rows) {
+                LocalDate d = (LocalDate) row[0];
+                BigDecimal v = row[1] instanceof BigDecimal ? (BigDecimal) row[1]
+                        : new BigDecimal(row[1].toString());
+                byDate.put(d, v);
+            }
+            for (int i = 6; i >= 0; i--) {
+                LocalDate d = endDate.minusDays(i);
+                Map<String, Object> point = new HashMap<>();
+                point.put("date", d.toString());
+                point.put("value", byDate.getOrDefault(d, BigDecimal.ZERO).doubleValue());
+                point.put("label", d.getDayOfWeek().toString().substring(0, 3));
+                data.add(point);
+            }
+        } else {
+            // Bookings / growth: count per day
+            List<Object[]> rows = bookingRepository.countBookingsByCreatedDateRange(startDate, endDate);
+            Map<LocalDate, Long> byDate = new HashMap<>();
+            for (Object[] row : rows) {
+                LocalDate d = row[0] instanceof LocalDate ? (LocalDate) row[0]
+                        : LocalDate.parse(row[0].toString());
+                long count = ((Number) row[1]).longValue();
+                byDate.put(d, count);
+            }
+            for (int i = 6; i >= 0; i--) {
+                LocalDate d = endDate.minusDays(i);
+                Map<String, Object> point = new HashMap<>();
+                point.put("date", d.toString());
+                point.put("value", byDate.getOrDefault(d, 0L));
+                point.put("label", d.getDayOfWeek().toString().substring(0, 3));
+                data.add(point);
+            }
         }
         return ResponseEntity.ok(ApiResponse.success("Chart data", data));
     }
+
+    // ── Real revenue data ─────────────────────────────────────────────────────
 
     @GetMapping("/revenue")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRevenue(
             @RequestParam(defaultValue = "week") String period) {
         log.info("GET /api/admin/revenue period={}", period);
-        List<Map<String, Object>> data = new ArrayList<>();
         int days = "month".equals(period) ? 30 : 7;
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(days - 1);
+
+        List<Object[]> rows = bookingRepository.sumRevenueByCreatedDateRange(startDate, endDate);
+        Map<LocalDate, BigDecimal> byDate = new HashMap<>();
+        for (Object[] row : rows) {
+            LocalDate d = (LocalDate) row[0];
+            BigDecimal v = row[1] instanceof BigDecimal ? (BigDecimal) row[1]
+                    : new BigDecimal(row[1].toString());
+            byDate.put(d, v);
+        }
+
+        List<Map<String, Object>> data = new ArrayList<>();
         for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = endDate.minusDays(i);
             Map<String, Object> point = new HashMap<>();
-            LocalDate date = LocalDate.now().minusDays(i);
-            point.put("date", date.toString());
-            point.put("value", (long) (Math.random() * 5000 + 1000));
+            point.put("date", d.toString());
+            point.put("value", byDate.getOrDefault(d, BigDecimal.ZERO).doubleValue());
             data.add(point);
         }
         return ResponseEntity.ok(ApiResponse.success("Revenue data", data));
     }
 
+    // ── Paginated, filtered audit log endpoint ────────────────────────────────
+
     @GetMapping("/audit-logs")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAuditLogs() {
-        log.info("GET /api/admin/audit-logs");
-        return ResponseEntity.ok(ApiResponse.success("Audit logs", new ArrayList<>()));
+    public ResponseEntity<ApiResponse<Page<AuditLog>>> getAuditLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String userRole,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        log.info("GET /api/admin/audit-logs page={} size={} action={} userRole={} from={} to={}",
+                page, size, action, userRole, from, to);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"));
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.atTime(23, 59, 59) : null;
+
+        boolean hasFilters = (action != null && !action.isBlank())
+                || (userRole != null && !userRole.isBlank())
+                || fromDt != null || toDt != null;
+
+        Page<AuditLog> logs = hasFilters
+                ? auditLogService.getFilteredAuditLogs(
+                        (action != null && !action.isBlank()) ? action : null,
+                        (userRole != null && !userRole.isBlank()) ? userRole : null,
+                        fromDt, toDt, pageable)
+                : auditLogService.getPaginatedAuditLogs(pageable);
+
+        return ResponseEntity.ok(ApiResponse.success("Audit logs fetched", logs));
     }
 
     @GetMapping("/bookings/trends")
@@ -154,10 +263,45 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Booking trends", data));
     }
 
-    // ── Create staff account (TECHNICIAN or MEDICAL_OFFICER) ──────
+    @GetMapping("/bookings/critical")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCriticalBookings() {
+        log.info("GET /api/admin/bookings/critical");
+        List<Map<String, Object>> data = bookingRepository
+                .findByCriticalFlagTrueAndStatusNotOrderByCreatedAtDesc(BookingStatus.COMPLETED)
+                .stream()
+                .map(b -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", b.getId());
+                    m.put("bookingReference", b.getBookingReference());
+                    m.put("patientName", b.getPatientDisplayName());
+                    m.put("testName", b.getTest() != null
+                            ? b.getTest().getTestName()
+                            : (b.getTestPackage() != null ? b.getTestPackage().getPackageName() : "Lab Test"));
+                    LocalDateTime flaggedDate = auditLogRepository
+                            .findTopByActionAndEntityNameAndEntityIdOrderByTimestampDesc(
+                                    "BOOKING_FLAGGED_CRITICAL", "BOOKING", String.valueOf(b.getId()))
+                            .map(AuditLog::getTimestamp)
+                            .orElse(b.getCreatedAt());
+                    m.put("flaggedDate", flaggedDate);
+                    m.put("status", b.getStatus() != null ? b.getStatus().name() : null);
+                    m.put("bookingDate", b.getBookingDate());
+                    m.put("timeSlot", b.getTimeSlot());
+                    m.put("technicianName", b.getTechnician() != null ? b.getTechnician().getName() : null);
+                    m.put("collectionType", b.getCollectionType() != null ? b.getCollectionType().name() : null);
+                    m.put("collectionAddress", b.getCollectionAddress());
+                    return m;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success("Critical bookings fetched", data));
+    }
+
+    // ── Create staff account (TECHNICIAN or MEDICAL_OFFICER) ──────────────────
+
     @PostMapping("/staff")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createStaff(
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserDetails principal,
+            HttpServletRequest request) {
         log.info("POST /api/admin/staff - creating staff account");
 
         String name     = body.getOrDefault("name", "").trim();
@@ -192,6 +336,14 @@ public class AdminController {
         staff.setUpdatedAt(LocalDateTime.now());
         User saved = userRepository.save(staff);
 
+        User admin = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        auditService.logAction(
+                admin != null ? admin.getId() : null,
+                principal.getUsername(), "ADMIN",
+                "STAFF_CREATED", "USER", String.valueOf(saved.getId()),
+                "Created " + roleStr + " account for " + email,
+                request.getRemoteAddr());
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", saved.getId());
         result.put("name", saved.getName());
@@ -202,9 +354,13 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Staff created", result));
     }
 
-    // ── Delete staff account ──────────────────────────────────────
+    // ── Delete staff account ───────────────────────────────────────────────────
+
     @DeleteMapping("/staff/{userId}")
-    public ResponseEntity<ApiResponse<String>> deleteStaff(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<String>> deleteStaff(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails principal,
+            HttpServletRequest request) {
         log.info("DELETE /api/admin/staff/{}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
@@ -218,11 +374,40 @@ public class AdminController {
                 .body(ApiResponse.error("Cannot delete admin accounts"));
         }
 
+        String deletedEmail = user.getEmail();
+        String deletedRole  = user.getRole().name();
         userRepository.delete(user);
+
+        User admin = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        auditService.logAction(
+                admin != null ? admin.getId() : null,
+                principal.getUsername(), "ADMIN",
+                "STAFF_DELETED", "USER", String.valueOf(userId),
+                "Deleted " + deletedRole + " account: " + deletedEmail,
+                request.getRemoteAddr());
+
         return ResponseEntity.ok(ApiResponse.success("Staff account deleted", "OK"));
     }
 
-    // ── Get all staff (non-patient) ───────────────────────────────
+    @GetMapping("/staff/technicians-only")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechniciansOnly() {
+        log.info("GET /api/admin/staff/technicians-only");
+        List<User> technicians = userRepository.findByRoleAndIsActiveTrue(UserRole.TECHNICIAN);
+
+        List<Map<String, Object>> result = technicians.stream().map(u -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("name", u.getName());
+            m.put("email", u.getEmail());
+            m.put("role", u.getRole().name());
+            return m;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success("Active technicians list", result));
+    }
+
+    // ── Get all staff (non-patient) ────────────────────────────────────────────
+
     @GetMapping("/staff")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllStaff() {
         log.info("GET /api/admin/staff");

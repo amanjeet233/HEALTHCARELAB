@@ -19,9 +19,10 @@ const GrowthChart: React.FC<Props> = ({ data }) => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
                     <XAxis
-                        dataKey="name"
+                        dataKey="date"
                         axisLine={false}
                         tickLine={false}
+                        tickFormatter={(value: string) => value?.slice(5)}
                         tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }}
                         dy={10}
                     />
@@ -31,6 +32,8 @@ const GrowthChart: React.FC<Props> = ({ data }) => {
                         tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }}
                     />
                     <Tooltip
+                        labelFormatter={(label) => `Date: ${label}`}
+                        formatter={(value) => [value, 'Count']}
                         contentStyle={{
                             borderRadius: '1rem',
                             border: 'none',

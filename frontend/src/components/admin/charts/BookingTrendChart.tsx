@@ -13,9 +13,10 @@ const BookingTrendChart: React.FC<Props> = ({ data }) => {
                 <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
                     <XAxis
-                        dataKey="name"
+                        dataKey="date"
                         axisLine={false}
                         tickLine={false}
+                        tickFormatter={(value: string) => value?.slice(5)}
                         tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }}
                         dy={10}
                     />
@@ -25,6 +26,8 @@ const BookingTrendChart: React.FC<Props> = ({ data }) => {
                         tick={{ fontSize: 10, fontWeight: 900, fill: '#64748B' }}
                     />
                     <Tooltip
+                        labelFormatter={(label) => `Date: ${label}`}
+                        formatter={(value) => [value, 'Bookings']}
                         contentStyle={{
                             borderRadius: '1rem',
                             border: 'none',

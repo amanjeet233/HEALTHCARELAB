@@ -6,6 +6,7 @@ import { reportService } from '../../services/reportService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SmartReportViewer from '../../components/reports/SmartReportViewer';
 import ParameterTrends from '../../components/reports/ParameterTrends';
+import api from '../../services/api';
 import { notify } from '../../utils/toast';
 
 interface ReportSummary {
@@ -45,10 +46,17 @@ const SmartReportsPage: React.FC = () => {
     try {
       setIsLoadingReports(true);
       setError(null);
-      // Using reportService to get list of reports
-      // Assuming there's a getReports method
-      // For now, we'll show a message
-      notify.info('Loading your reports...');
+      const data = await reportService.getMyReports();
+      // Only keep reports that are VERIFIED or COMPLETED
+      const readyReports = data
+        .filter(r => r.status === 'VERIFIED' || r.status === 'COMPLETED')
+        .map(r => ({
+          id: r.bookingId,
+          bookingReference: `BK-${r.bookingId}`,
+          testName: r.testName,
+          reportDate: r.reportDate
+        }));
+      setReports(readyReports);
     } catch (err) {
       console.error('Error fetching reports:', err);
       setError('Failed to load reports');
@@ -110,20 +118,50 @@ const SmartReportsPage: React.FC = () => {
           <p className="text-gray-600 mt-2">AI-powered analysis and health insights</p>
         </div>
 
-        {/* Message */}
-        <div className="text-center py-20 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <FaExclamationTriangle className="text-4xl text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-600 text-gray-900 mb-2">No Report Selected</h3>
-          <p className="text-gray-600 mb-6">
-            Go to your reports page and select a report to view smart analysis
-          </p>
-          <button
-            onClick={() => navigate('/reports')}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0D7C7C] text-white font-600 rounded-lg hover:bg-[#0a6666] transition-colors"
-          >
-            <FaArrowLeft /> View My Reports
-          </button>
-        </div>
+        {/* Reports List */}
+        {reports.length === 0 ? (
+          <div className="text-center py-20 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <FaExclamationTriangle className="text-4xl text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-600 text-gray-900 mb-2">No Reports Available</h3>
+            <p className="text-gray-600 mb-6">
+              You don't have any reports ready for smart analysis yet.
+            </p>
+            <button
+              onClick={() => navigate('/reports')}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0D7C7C] text-white font-600 rounded-lg hover:bg-[#0a6666] transition-colors"
+            >
+              <FaArrowLeft /> View My Reports
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {reports.map((report) => (
+              <div 
+                key={report.id}
+                className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => setSelectedReportId(report.id)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <span className="font-bold text-lg">AI</span>
+                  </div>
+                  <span className="text-xs font-600 text-gray-400 uppercase tracking-wider">
+                    {report.bookingReference}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                  {report.testName}
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Tested on {new Date(report.reportDate).toLocaleDateString()}
+                </p>
+                <div className="flex items-center gap-2 text-[#0D7C7C] font-600 text-sm">
+                  View Smart Analysis →
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -179,10 +217,32 @@ const SmartReportsPage: React.FC = () => {
               Download Full Report
             </button>
             <button
-              onClick={() => notify.success('Report shared successfully')}
+              onClick={async () => {
+                try {
+                  const resp = await api.post(`/api/reports/${selectedReportId}/share`);
+                  const link = `${window.location.origin}/public/view-report/${resp.data.data}`;
+                  await navigator.clipboard.writeText(link);
+                  notify.success('Sharing link copied to clipboard! (Expires in 7 days)');
+                } catch (err) {
+                  notify.error('Failed to generate sharing link');
+                }
+              }}
               className="flex-1 px-6 py-2.5 bg-gray-100 text-gray-700 font-600 rounded-lg hover:bg-gray-200 transition-all"
             >
               Share Report
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  await api.delete(`/api/reports/share/${selectedReportId}/revoke`);
+                  notify.success('Sharing access revoked successfully');
+                } catch (err) {
+                  notify.error('Failed to revoke sharing link');
+                }
+              }}
+              className="flex-1 px-6 py-2.5 bg-red-50 text-red-600 font-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
+            >
+              Revoke Access
             </button>
           </div>
         </>

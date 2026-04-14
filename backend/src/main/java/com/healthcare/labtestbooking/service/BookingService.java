@@ -2,14 +2,18 @@ package com.healthcare.labtestbooking.service;
 
 import com.healthcare.labtestbooking.dto.BookingRequest;
 import com.healthcare.labtestbooking.dto.BookingResponse;
+import com.healthcare.labtestbooking.dto.SpecimenRejectionRequest;
 import com.healthcare.labtestbooking.entity.Booking;
 import com.healthcare.labtestbooking.entity.FamilyMember;
 import com.healthcare.labtestbooking.entity.LabTest;
 import com.healthcare.labtestbooking.entity.TestPackage;
 import com.healthcare.labtestbooking.entity.User;
+import com.healthcare.labtestbooking.entity.enums.AssignmentType;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.entity.enums.CollectionType;
+import com.healthcare.labtestbooking.entity.enums.SpecimenRejectionReason;
 import com.healthcare.labtestbooking.entity.enums.UserRole;
+import com.healthcare.labtestbooking.exception.BadRequestException;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.repository.FamilyMemberRepository;
 import com.healthcare.labtestbooking.repository.LabTestRepository;
@@ -26,8 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -43,8 +52,55 @@ public class BookingService {
     private final LabTestRepository labTestRepository;
     private final TestPackageRepository testPackageRepository;
     private final FamilyMemberRepository familyMemberRepository;
+    private final AuditService auditService;
+    private final NotificationService notificationService;
+    private final NotificationInboxService notificationInboxService;
+    private final ConsentService consentService;
 
     private static final BigDecimal HOME_COLLECTION_CHARGE = new BigDecimal("150.00");
+
+    /** Allowed forward transitions for each status. */
+    private static final Map<BookingStatus, Set<BookingStatus>> ALLOWED_TRANSITIONS;
+
+    static {
+        Map<BookingStatus, Set<BookingStatus>> map = new EnumMap<>(BookingStatus.class);
+        map.put(BookingStatus.BOOKED,               EnumSet.of(BookingStatus.SAMPLE_COLLECTED, BookingStatus.CANCELLED));
+        map.put(BookingStatus.REFLEX_PENDING,       EnumSet.of(BookingStatus.SAMPLE_COLLECTED, BookingStatus.CANCELLED));
+        map.put(BookingStatus.SAMPLE_COLLECTED,      EnumSet.of(BookingStatus.PROCESSING));
+        map.put(BookingStatus.PROCESSING,            EnumSet.of(BookingStatus.PENDING_VERIFICATION));
+        map.put(BookingStatus.PENDING_VERIFICATION,  EnumSet.of(BookingStatus.VERIFIED, BookingStatus.PROCESSING));
+        map.put(BookingStatus.VERIFIED,              EnumSet.of(BookingStatus.COMPLETED));
+        map.put(BookingStatus.COMPLETED,             Collections.emptySet());
+        map.put(BookingStatus.CANCELLED,             Collections.emptySet());
+        //noinspection deprecation
+        map.put(BookingStatus.CONFIRMED,             EnumSet.of(BookingStatus.CANCELLED));
+        ALLOWED_TRANSITIONS = Collections.unmodifiableMap(map);
+    }
+
+    // ── Status Transition Validation ──────────────────────────────────────────
+
+    /**
+     * Validates that {@code newStatus} is a legal forward transition from {@code currentStatus}.
+     * Throws {@link BadRequestException} if the transition is not allowed.
+     */
+    public void validateStatusTransition(BookingStatus currentStatus, BookingStatus newStatus) {
+        Set<BookingStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Collections.emptySet());
+        if (!allowed.contains(newStatus)) {
+            throw new BadRequestException("Invalid status transition");
+        }
+    }
+
+    /**
+     * Returns the list of valid next statuses for a given booking.
+     */
+    public List<BookingStatus> getAllowedTransitions(Long bookingId) {
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(bookingId, "Booking ID must not be null"))
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
+        Set<BookingStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(booking.getStatus(), Collections.emptySet());
+        return List.copyOf(allowed);
+    }
+
+    // ── Booking CRUD ──────────────────────────────────────────────────────────
 
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
@@ -54,7 +110,6 @@ public class BookingService {
         User patient = getCurrentUser();
         log.info("Patient: {} (ID: {})", patient.getEmail(), patient.getId());
 
-        // Validate patientId
         if (request.getPatientId() != null && !request.getPatientId().equals(patient.getId())
                 && patient.getRole() != UserRole.ADMIN) {
             log.error("Patient ID mismatch: Request ID {}, Authenticated ID {}", request.getPatientId(),
@@ -148,6 +203,10 @@ public class BookingService {
                 .build();
 
         booking = bookingRepository.save(Objects.requireNonNull(booking, "Booking must not be null"));
+
+        // Fire-and-forget: send fasting & preparation instructions to the patient
+        notificationService.sendBookingConfirmation(booking);
+
         return mapToResponse(booking);
     }
 
@@ -181,11 +240,32 @@ public class BookingService {
                 .map(this::mapToResponse);
     }
 
+    public List<BookingResponse> getTechnicianTodayBookings() {
+        User technician = getCurrentUser();
+        LocalDate today = LocalDate.now();
+        return bookingRepository.findByTechnicianId(technician.getId()).stream()
+                .filter(b -> today.equals(b.getBookingDate()))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<BookingResponse> getTechnicianRejectedSpecimens() {
+        User technician = getCurrentUser();
+        return bookingRepository.findByTechnicianId(technician.getId()).stream()
+                .filter(b -> b.getStatus() == BookingStatus.CANCELLED && b.getRejectionReason() != null && !b.getRejectionReason().isBlank())
+                .sorted((a, b) -> {
+                    LocalDateTime left = a.getRejectedAt() != null ? a.getRejectedAt() : a.getCreatedAt();
+                    LocalDateTime right = b.getRejectedAt() != null ? b.getRejectedAt() : b.getCreatedAt();
+                    return right.compareTo(left);
+                })
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<String> getAvailableSlots(String dateStr, Long testId) {
         LocalDate date = LocalDate.parse(dateStr);
         List<Booking> bookings = bookingRepository.findByBookingDate(date);
 
-        // Define available time slots
         List<String> allSlots = java.util.Arrays.asList(
                 "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
                 "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM");
@@ -259,7 +339,16 @@ public class BookingService {
         }
 
         booking.setTechnician(technician);
+        booking.setAssignmentType(AssignmentType.ADMIN_ASSIGNED);
         booking = bookingRepository.save(booking);
+
+        User currentUser = getCurrentUser();
+        auditService.logAction(
+                currentUser.getId(), currentUser.getEmail(), currentUser.getRole().name(),
+                "TECHNICIAN_ASSIGNED",
+                "BOOKING", String.valueOf(bookingId),
+                "TECHNICIAN_ASSIGNED bookingId=" + bookingId + " technicianId=" + technicianId + " technicianName=" + technician.getName());
+
         return mapToResponse(booking);
     }
 
@@ -269,11 +358,55 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse updateBookingStatus(Long id, String status) {
+    public BookingResponse updateBookingStatus(Long id, BookingStatus newStatus) {
         Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
-        booking.setStatus(BookingStatus.valueOf(status.toUpperCase()));
+
+        // Only admin endpoint can cancel directly from status-update APIs.
+        if (newStatus == BookingStatus.CANCELLED) {
+            throw new BadRequestException("Invalid status transition");
+        }
+
+        if (newStatus == BookingStatus.SAMPLE_COLLECTED) {
+            consentService.assertConsentCapturedBeforeSampleCollection(booking);
+        }
+
+        BookingStatus oldStatus = booking.getStatus();
+        validateStatusTransition(oldStatus, newStatus);
+
+        booking.setStatus(newStatus);
         booking = bookingRepository.save(booking);
+
+        auditService.logAction(
+                null, null, null,
+                "BOOKING_STATUS_CHANGED",
+                "BOOKING", String.valueOf(id),
+                "Status changed from " + oldStatus + " to " + newStatus);
+
+        return mapToResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse adminUpdateBookingStatus(Long id, BookingStatus newStatus, String cancellationReason) {
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
+
+        BookingStatus oldStatus = booking.getStatus();
+        booking.setStatus(newStatus);
+        
+        if (newStatus == BookingStatus.CANCELLED && cancellationReason != null) {
+            booking.setCancellationReason(cancellationReason);
+        }
+
+        booking = bookingRepository.save(booking);
+
+        auditService.logAction(
+                null, null, "ADMIN",
+                "BOOKING_STATUS_CHANGED",
+                "BOOKING", String.valueOf(id),
+                "Admin forced status from " + oldStatus + " to " + newStatus + 
+                (cancellationReason != null ? " Reason: " + cancellationReason : ""));
+
         return mapToResponse(booking);
     }
 
@@ -282,12 +415,78 @@ public class BookingService {
         Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
-        if (booking.getStatus() != BookingStatus.BOOKED && booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new RuntimeException("Booking is not in a states that allows collection");
-        }
+        consentService.assertConsentCapturedBeforeSampleCollection(booking);
+        validateStatusTransition(booking.getStatus(), BookingStatus.SAMPLE_COLLECTED);
 
         booking.setStatus(BookingStatus.SAMPLE_COLLECTED);
         booking = bookingRepository.save(booking);
+
+        auditService.logAction(null, null, "TECHNICIAN",
+                "BOOKING_STATUS_CHANGED", "BOOKING", String.valueOf(id),
+                "Sample collected");
+
+        return mapToResponse(booking);
+    }
+
+    @Transactional
+    public BookingResponse rejectSpecimen(Long bookingId, SpecimenRejectionRequest request) {
+        Booking booking = bookingRepository.findById(Objects.requireNonNull(bookingId, "Booking ID must not be null"))
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
+        User technician = getCurrentUser();
+
+        if (technician.getRole() != UserRole.TECHNICIAN) {
+            throw new BadRequestException("Only technicians can reject specimens");
+        }
+        if (booking.getTechnician() == null || !Objects.equals(booking.getTechnician().getId(), technician.getId())) {
+            throw new BadRequestException("You can reject only your assigned bookings");
+        }
+        if (!(booking.getStatus() == BookingStatus.BOOKED || booking.getStatus() == BookingStatus.SAMPLE_COLLECTED)) {
+            throw new BadRequestException("Specimen can only be rejected in BOOKED or SAMPLE_COLLECTED status");
+        }
+        if (request == null || request.getReason() == null) {
+            throw new BadRequestException("Rejection reason is required");
+        }
+
+        SpecimenRejectionReason reason = request.getReason();
+        String notes = request.getNotes() != null ? request.getNotes().trim() : null;
+        String finalReason = notes == null || notes.isEmpty()
+                ? reason.name()
+                : reason.name() + " | " + notes;
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setRejectionReason(finalReason);
+        booking.setRejectedAt(LocalDateTime.now());
+        booking = bookingRepository.save(booking);
+        final Booking rejectedBooking = booking;
+
+        auditService.logAction(
+                technician.getId(), technician.getEmail(), technician.getRole().name(),
+                "SPECIMEN_REJECTED",
+                "BOOKING", String.valueOf(bookingId),
+                "Technician rejected specimen. reason=" + reason.name() + (notes != null && !notes.isEmpty() ? ", notes=" + notes : "")
+        );
+
+        if (rejectedBooking.getPatient() != null) {
+            notificationInboxService.createNotification(
+                    rejectedBooking.getPatient().getId(),
+                    "SPECIMEN_REJECTED",
+                    "Sample Rejected",
+                    "Your sample for booking #" + rejectedBooking.getId() + " was rejected due to: " + reason.name(),
+                    "BOOKING",
+                    rejectedBooking.getId()
+            );
+        }
+        userRepository.findByRoleAndIsActiveTrue(UserRole.ADMIN).forEach(admin ->
+                notificationInboxService.createNotification(
+                        admin.getId(),
+                        "SPECIMEN_REJECTED",
+                        "Specimen Rejected",
+                        "Technician " + technician.getName() + " rejected specimen for booking #" + rejectedBooking.getId() + " (" + reason.name() + ").",
+                        "BOOKING",
+                        rejectedBooking.getId()
+                )
+        );
+
         return mapToResponse(booking);
     }
 
@@ -297,11 +496,22 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    public Page<BookingResponse> getAllBookings(Pageable pageable) {
-        log.info("Fetching all bookings with pagination | Page: {}, Size: {}",
-                pageable.getPageNumber(), pageable.getPageSize());
-        return bookingRepository.findAll(pageable)
-                .map(this::mapToResponse);
+    public Page<BookingResponse> getAllBookings(String patientName, BookingStatus status, Pageable pageable) {
+        log.info("Fetching all bookings (admin) | Filter: patientName={}, status={} | Pagination: Page={}, Size={}",
+                patientName, status, pageable.getPageNumber(), pageable.getPageSize());
+        
+        Page<Booking> page;
+        if (patientName != null && !patientName.isBlank() && status != null) {
+            page = bookingRepository.findByStatusAndPatientDisplayNameContainingIgnoreCase(status, patientName, pageable);
+        } else if (patientName != null && !patientName.isBlank()) {
+            page = bookingRepository.findByPatientDisplayNameContainingIgnoreCase(patientName, pageable);
+        } else if (status != null) {
+            page = bookingRepository.findByStatus(status, pageable);
+        } else {
+            page = bookingRepository.findAll(pageable);
+        }
+        
+        return page.map(this::mapToResponse);
     }
 
     public List<BookingResponse> getUpcomingBookings() {
@@ -352,6 +562,11 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    /** Public accessor so co-located services can map a Booking they already loaded. */
+    public BookingResponse mapToResponsePublic(Booking booking) {
+        return mapToResponse(booking);
+    }
+
     private BookingResponse mapToResponse(Booking booking) {
         return BookingResponse.builder()
                 .id(booking.getId())
@@ -361,6 +576,7 @@ public class BookingService {
                 .patientEmail(booking.getPatient().getEmail())
                 .patientPhone(booking.getPatient().getPhone())
                 .familyMemberId(booking.getFamilyMemberId())
+                .parentBookingId(booking.getParentBookingId())
                 .labTestId(booking.getTest() != null ? booking.getTest().getId() : null)
                 .labTestName(booking.getTest() != null ? booking.getTest().getTestName() : null)
                 .packageId(booking.getTestPackage() != null ? booking.getTestPackage().getId() : null)
@@ -379,7 +595,14 @@ public class BookingService {
                 .finalAmount(booking.getFinalAmount())
                 .notes(booking.getNotes())
                 .paymentStatus(booking.getPaymentStatus() != null ? booking.getPaymentStatus().name() : "PENDING")
+                .reportAvailable(Boolean.TRUE.equals(booking.getReportAvailable()))
                 .createdAt(booking.getCreatedAt())
+                .technicianId(booking.getTechnician() != null ? booking.getTechnician().getId() : null)
+                .technicianName(booking.getTechnician() != null ? booking.getTechnician().getName() : null)
+                .assignmentType(booking.getAssignmentType() != null ? booking.getAssignmentType().name() : null)
+                .cancellationReason(booking.getCancellationReason())
+                .rejectionReason(booking.getRejectionReason())
+                .rejectedAt(booking.getRejectedAt())
                 .build();
     }
 }

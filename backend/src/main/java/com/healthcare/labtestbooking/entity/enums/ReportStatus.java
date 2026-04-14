@@ -4,5 +4,6 @@ public enum ReportStatus {
     DRAFT,
     VERIFIED,
     DELIVERED,
-    ARCHIVED
+    ARCHIVED,
+    AMENDED
 }

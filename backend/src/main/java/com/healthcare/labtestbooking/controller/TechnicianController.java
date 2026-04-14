@@ -10,6 +10,10 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,12 +40,19 @@ public class TechnicianController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid date or pincode"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAvailableTechnicians(
+    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getAvailableTechnicians(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String pincode) {
+            @RequestParam String pincode,
+            @PageableDefault(size = 20) Pageable pageable) {
         log.info("GET /api/technicians/available - date: {}, pincode: {}", date, pincode);
         List<Map<String, Object>> technicians = technicianAssignmentService.getAvailableTechnicians(date, pincode);
-        return ResponseEntity.ok(ApiResponse.success("Found " + technicians.size() + " available technicians", technicians));
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), technicians.size());
+        List<Map<String, Object>> content = start >= technicians.size()
+                ? List.of()
+                : technicians.subList(start, end);
+        Page<Map<String, Object>> page = new PageImpl<>(content, pageable, technicians.size());
+        return ResponseEntity.ok(ApiResponse.success("Found " + technicians.size() + " available technicians", page));
     }
 
     @PostMapping("/assign/{bookingId}")
@@ -88,6 +99,22 @@ public class TechnicianController {
         log.info("GET /api/technicians/location/{}", techId);
         Map<String, Object> location = technicianAssignmentService.getTechnicianLocation(techId);
         return ResponseEntity.ok(ApiResponse.success("Location retrieved", location));
+    }
+
+    /**
+     * GET /api/technicians/available-for-date?date=YYYY-MM-DD
+     * Returns all active technicians with their booking count for the given date,
+     * for MO load-balanced assignment.
+     */
+    @GetMapping("/available-for-date")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER')")
+    @Operation(summary = "Technicians with load info for a date",
+               description = "Returns active technicians and their booking count for a specific date")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechniciansForDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        log.info("GET /api/technicians/available-for-date?date={}", date);
+        List<Map<String, Object>> result = technicianAssignmentService.getTechniciansWithLoadForDate(date);
+        return ResponseEntity.ok(ApiResponse.success("Technicians fetched for date " + date, result));
     }
 
     @Data
