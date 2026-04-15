@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Clock, CheckCircle2, Truck, Upload,
-  AlertCircle, User, Phone, RefreshCw } from 'lucide-react';
+  AlertCircle, User, Phone, RefreshCw, Search, XCircle, Activity } from 'lucide-react';
 import { technicianService, getTechnicianBookings } from '../../services/technicianService';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
+import SkeletonBlock from '../../components/common/SkeletonBlock';
 
 // Status badge config
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
@@ -58,6 +61,7 @@ const TechnicianDashboardPage: React.FC = () => {
   const [consentAcknowledgedByBooking, setConsentAcknowledgedByBooking] = useState<Record<number, boolean>>({});
   const [consentNameByBooking, setConsentNameByBooking] = useState<Record<number, string>>({});
   const [capturingConsentId, setCapturingConsentId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -244,10 +248,20 @@ const TechnicianDashboardPage: React.FC = () => {
   );
   const completedBookings = bookings.filter(b => b.status === 'SAMPLE_COLLECTED' || b.status === 'COMPLETED');
   const rejectedTabBookings = rejectedBookings;
-  const displayBookings = activeTab === 'today' ? todayBookings
+  const displayBookingsBase = activeTab === 'today' ? todayBookings
     : activeTab === 'pending' ? pendingBookings
     : activeTab === 'completed' ? completedBookings
     : rejectedTabBookings;
+
+  const displayBookings = displayBookingsBase.filter((b: any) => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(b.id || '').toLowerCase().includes(q) ||
+      String(b.patientName || '').toLowerCase().includes(q) ||
+      String(b.testName || b.packageName || '').toLowerCase().includes(q)
+    );
+  });
 
   const statCards = [
     { label: "Today's Bookings", value: stats.todayBookings ?? todayBookings.length, icon: Clock, color: '#0D7C7C' },
@@ -257,30 +271,34 @@ const TechnicianDashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 md:px-8 py-5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">
-              Technician Dashboard
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Welcome, {currentUser?.name || currentUser?.email?.split('@')[0]}
-            </p>
+    <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
+              <Truck className="w-5 h-5 text-cyan-600" />
+            </div>
+            <span className="text-[clamp(0.62rem,0.58rem+0.16vw,0.72rem)] font-black uppercase tracking-[0.22em] text-cyan-800/60">
+              TECHNICIAN / OPERATIONS
+            </span>
           </div>
-          <button onClick={loadData}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-700 transition-all">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
+          <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5 uppercase">
+            Lab <span className="text-cyan-600">Queue</span>
+          </h1>
+          <p className="text-[clamp(0.84rem,0.8rem+0.3vw,1rem)] text-cyan-900/60 font-medium leading-relaxed">
+            Welcome, {currentUser?.name || currentUser?.email?.split('@')[0]}. Track collection, consent, and report uploads.
+          </p>
         </div>
-      </div>
+        <GlassButton onClick={loadData} className="h-full px-6 py-3.5" icon={<RefreshCw className="w-3.5 h-3.5" />}>
+          REFRESH
+        </GlassButton>
+      </header>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
+      <div>
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
           {statCards.map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-slate-200 p-4">
+            <div key={label} className="bg-white/60 backdrop-blur-md rounded-xl border border-white/70 p-4 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: color + '15' }}>
@@ -294,7 +312,7 @@ const TechnicianDashboardPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-5 w-fit">
+        <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl mb-5 w-fit">
           {([['today', "Today's"], ['pending', 'Upcoming'], ['completed', 'Completed'], ['rejected', 'Rejected']] as const).map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -305,15 +323,44 @@ const TechnicianDashboardPage: React.FC = () => {
           ))}
         </div>
 
+        <GlassCard className="mb-7 border-cyan-100/30">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[260px]">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Search Queue</label>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-600/50" size={18} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by patient, booking ID or test"
+                  className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 focus:ring-4 focus:ring-cyan-500/5 rounded-xl pl-10 pr-3 py-2.5 text-sm font-medium transition-all"
+                />
+              </div>
+            </div>
+            {searchTerm.trim() && (
+              <div className="pt-6">
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  title="Clear Search"
+                >
+                  <XCircle size={24} />
+                </button>
+              </div>
+            )}
+          </div>
+        </GlassCard>
+
         {/* Bookings List */}
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse h-24" />
+              <SkeletonBlock key={i} className="h-24 border border-white/30" />
             ))}
           </div>
         ) : displayBookings.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+          <div className="bg-white/70 rounded-xl border border-white/50 p-12 text-center">
             <CheckCircle2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 font-medium">No bookings in this category</p>
           </div>
@@ -338,7 +385,7 @@ const TechnicianDashboardPage: React.FC = () => {
               const displayAddress = booking.collectionAddress || booking.address?.city || booking.address || 'N/A';
               return (
                 <div key={booking.id}
-                  className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all">
+                  className="bg-white/70 backdrop-blur-md rounded-xl border border-white/60 p-4 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">

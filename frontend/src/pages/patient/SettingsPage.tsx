@@ -35,7 +35,7 @@ import {
     UserCheck,
     LockIcon
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { notify } from '../../utils/toast';
 import GlassCard from '../../components/common/GlassCard';
@@ -127,6 +127,11 @@ const SettingsPage: React.FC = () => {
                         <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                         HUB CENTRAL
                     </button>
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                        <ChevronRight size={12} className="text-cyan-700/40" />
+                        <span className="text-cyan-700">Settings</span>
+                    </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">
                             <Settings className="w-5 h-5 text-cyan-600" />

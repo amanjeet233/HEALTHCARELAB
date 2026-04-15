@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { bookingService } from '../../services/booking';
 import type { BookingResponse, BookingStatus } from '../../types/booking';
 import { 
@@ -18,11 +18,14 @@ import {
     Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
+import { List, type RowComponentProps } from 'react-window';
 import StatusBadge from '../../components/common/StatusBadge';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
 import { notify } from '../../utils/toast';
 import GlassCard from '../../components/common/GlassCard';
 import GlassButton from '../../components/common/GlassButton';
+import SkeletonBlock from '../../components/common/SkeletonBlock';
 import './MyBookingsPage.css';
 
 const MyBookingsPage: React.FC = () => {
@@ -202,10 +205,87 @@ const MyBookingsPage: React.FC = () => {
 
     const hasActiveFilters = searchTerm || fromDate || toDate || activeTab !== 'All';
 
+    const renderUpcomingCard = (booking: BookingResponse) => (
+        <GlassCard key={booking.id} className="group hover:border-cyan-400 transition-all !p-0 overflow-hidden glass-pane hover:shadow-2xl hover:shadow-cyan-500/10">
+            <div className="flex flex-col lg:flex-row items-stretch h-full">
+                <div className="p-5 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                        <div>
+                            <div className="flex items-center gap-3 mb-3">
+                                <StatusBadge status={booking.status as any} />
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">REF: {booking.bookingReference}</span>
+                            </div>
+                            <h3 className="text-[clamp(1.05rem,0.94rem+0.6vw,1.5rem)] font-black text-[#164E63] tracking-tight group-hover:text-cyan-600 transition-colors uppercase leading-tight mb-2">
+                                {booking.testName || booking.packageName || 'Diagnostic Test'}
+                            </h3>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-sm font-black text-cyan-600 bg-cyan-50 px-3 py-1 rounded-lg inline-block mb-1">
+                                {booking.collectionType}
+                            </div>
+                            <div className="text-xs font-bold text-slate-400">{booking.collectionDate}</div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-4 mb-5">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                            <MapPin size={16} className="text-cyan-500" />
+                            {booking.collectionAddress || 'Lab Collection'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                            <Activity size={16} className="text-cyan-500" />
+                            Booking Details
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        {booking.collectionAddress && (
+                            <a href={`https://maps.google.com/?q=${encodeURIComponent(booking.collectionAddress)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-cyan-50 rounded-xl text-xs font-black text-slate-600 hover:text-cyan-700 border border-slate-100 hover:border-cyan-200 transition-all">
+                                <ExternalLink size={14} /> DIRECTIONS
+                            </a>
+                        )}
+                        <button
+                            onClick={() => { setBookingToReschedule(booking.id); setRescheduleModalVisible(true); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-cyan-50 rounded-xl text-xs font-black text-slate-600 hover:text-cyan-700 border border-slate-100 hover:border-cyan-200 transition-all"
+                        >
+                            <RefreshCcw size={14} /> RESCHEDULE
+                        </button>
+                        <button
+                            onClick={() => { setBookingToCancel(booking.id); setCancelModalVisible(true); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-black text-rose-500 transition-all"
+                        >
+                            <XCircle size={14} /> CANCEL
+                        </button>
+                    </div>
+                </div>
+                <button
+                    onClick={() => navigate(`/booking/${booking.id}`)}
+                    className="lg:w-12 bg-slate-50/50 hover:bg-cyan-600 group-hover:bg-cyan-600 border-l border-white/50 flex items-center justify-center text-slate-300 hover:text-white group-hover:text-white transition-all"
+                >
+                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+            </div>
+        </GlassCard>
+    );
+
+    const UpcomingVirtualRow = ({ index, style, rows }: RowComponentProps<{ rows: BookingResponse[] }>) => {
+        const booking = rows[index];
+        return (
+            <div style={style} className="pr-2 pb-4">
+                {renderUpcomingCard(booking)}
+            </div>
+        );
+    };
+
     return (
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                        <ChevronRight size={12} className="text-cyan-700/40" />
+                        <span className="text-cyan-700">My Bookings</span>
+                    </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
                             <Clock className="w-5 h-5 text-cyan-600" />
@@ -311,7 +391,7 @@ const MyBookingsPage: React.FC = () => {
                 {isLoading ? (
                     <div className="grid grid-cols-1 gap-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="h-32 bg-white/40 rounded-3xl animate-pulse border border-white/30" />
+                            <SkeletonBlock key={i} className="h-32 border border-white/30" />
                         ))}
                     </div>
                 ) : bookings.length === 0 ? (
@@ -331,70 +411,25 @@ const MyBookingsPage: React.FC = () => {
                                     <h2 className="text-xs font-black uppercase tracking-[0.3em] text-cyan-600/70">Upcoming Sessions</h2>
                                     <div className="flex-1 h-px bg-gradient-to-r from-cyan-100 to-transparent" />
                                 </div>
-                                <div className="grid grid-cols-1 gap-4">
-                                    {upcomingBookings.map(booking => (
-                                        <GlassCard key={booking.id} className="group hover:border-cyan-400 transition-all !p-0 overflow-hidden glass-pane hover:shadow-2xl hover:shadow-cyan-500/10">
-                                            <div className="flex flex-col lg:flex-row items-stretch">
-                                                <div className="p-5 flex-1">
-                                                    <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                                                        <div>
-                                                            <div className="flex items-center gap-3 mb-3">
-                                                                <StatusBadge status={booking.status as any} />
-                                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">REF: {booking.bookingReference}</span>
-                                                            </div>
-                                                            <h3 className="text-[clamp(1.05rem,0.94rem+0.6vw,1.5rem)] font-black text-[#164E63] tracking-tight group-hover:text-cyan-600 transition-colors uppercase leading-tight mb-2">
-                                                                {booking.testName || booking.packageName || 'Diagnostic Test'}
-                                                            </h3>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="text-sm font-black text-cyan-600 bg-cyan-50 px-3 py-1 rounded-lg inline-block mb-1">
-                                                                {booking.collectionType}
-                                                            </div>
-                                                            <div className="text-xs font-bold text-slate-400">{booking.collectionDate}</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-wrap gap-4 mb-5">
-                                                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-                                                            <MapPin size={16} className="text-cyan-500" />
-                                                            {booking.collectionAddress || 'Lab Collection'}
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-                                                            <Activity size={16} className="text-cyan-500" />
-                                                            Booking Details
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-wrap gap-3">
-                                                        {booking.collectionAddress && (
-                                                            <a href={`https://maps.google.com/?q=${encodeURIComponent(booking.collectionAddress)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-cyan-50 rounded-xl text-xs font-black text-slate-600 hover:text-cyan-700 border border-slate-100 hover:border-cyan-200 transition-all">
-                                                                <ExternalLink size={14} /> DIRECTIONS
-                                                            </a>
-                                                        )}
-                                                        <button 
-                                                            onClick={() => { setBookingToReschedule(booking.id); setRescheduleModalVisible(true); }}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-cyan-50 rounded-xl text-xs font-black text-slate-600 hover:text-cyan-700 border border-slate-100 hover:border-cyan-200 transition-all"
-                                                        >
-                                                            <RefreshCcw size={14} /> RESCHEDULE
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => { setBookingToCancel(booking.id); setCancelModalVisible(true); }}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-black text-rose-500 transition-all"
-                                                        >
-                                                            <XCircle size={14} /> CANCEL
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => navigate(`/booking/${booking.id}`)}
-                                                    className="lg:w-12 bg-slate-50/50 hover:bg-cyan-600 group-hover:bg-cyan-600 border-l border-white/50 flex items-center justify-center text-slate-300 hover:text-white group-hover:text-white transition-all"
-                                                >
-                                                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                                                </button>
-                                            </div>
-                                        </GlassCard>
-                                    ))}
-                                </div>
+                                {upcomingBookings.length > 8 ? (
+                                    <div className="h-[760px] w-full">
+                                        <AutoSizer>
+                                            {({ height, width }) => (
+                                                <List
+                                                    rowCount={upcomingBookings.length}
+                                                    rowHeight={270}
+                                                    rowComponent={UpcomingVirtualRow}
+                                                    rowProps={{ rows: upcomingBookings }}
+                                                    style={{ height, width }}
+                                                />
+                                            )}
+                                        </AutoSizer>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {upcomingBookings.map(renderUpcomingCard)}
+                                    </div>
+                                )}
                             </section>
                         )}
 

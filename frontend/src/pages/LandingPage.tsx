@@ -6,10 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../context/ModalContext';
 import toast from 'react-hot-toast';
 
-// Lazy load 3D assets
-const DNAHelix3D = lazy(() => import('../components/3d/DNAHelix3D'));
-const MedicalIcons3D = lazy(() => import('../components/3d/MedicalIcons3D'));
-
 // Lazy load UI components
 const TestCarousel = lazy(() => import('../components/ui/TestCarousel'));
 const HeroBannerCarousel = lazy(() => import('../components/ui/HeroBannerCarousel'));
@@ -21,6 +17,7 @@ const DiagnosticProtocol = lazy(() => import('../components/ui/DiagnosticProtoco
 const UserDashboard = lazy(() => import('../components/dashboard/UserDashboard'));
 const HomeCollectionProcess = lazy(() => import('../components/ui/HomeCollectionProcess'));
 const PromotionalOffersWidget = lazy(() => import('../components/dashboard/PromotionalOffersWidget'));
+const DNAHelix3D = lazy(() => import('../components/3d/DNAHelix3D'));
 
 // Skeleton Fallback for 3D/Heavy sections
 const SkeletonFallback = () => (
@@ -53,16 +50,18 @@ const LandingPage: React.FC = () => {
 
                     <div className="content-wrapper relative grid grid-cols-1 items-center">
 
-                        {/* 3D Asset - Absolute Right */}
-                        <div className="absolute right-[5%] top-[50%] -translate-y-1/2 w-[40%] h-100 lg:h-125 flex items-center justify-end z-1 pointer-events-none opacity-40 lg:opacity-100">
-                            <Suspense fallback={<SkeletonFallback />}>
-                                <DNAHelix3D className="w-full h-full pointer-events-none" />
+                        {/* 3D DNA decor for desktop only */}
+                        <div className="absolute right-[2%] top-1/2 -translate-y-1/2 hidden lg:block w-[42%] max-w-160 h-130 pointer-events-none z-0">
+                            <div className="absolute inset-0 rounded-[48%] bg-linear-to-br from-cyan-200/50 via-teal-100/35 to-transparent blur-3xl opacity-70" />
+                            <div className="absolute inset-0 rounded-[40%] border border-cyan-200/30 bg-white/10 backdrop-blur-[2px] shadow-[0_30px_80px_rgba(45,212,191,0.12)]" />
+                            <Suspense fallback={null}>
+                                <DNAHelix3D className="relative h-full w-full opacity-95 scale-[0.92]" />
                             </Suspense>
-                            <div className="absolute top-12 right-12 hidden lg:block z-20">
+                            <div className="absolute top-10 left-8 z-20">
                                 <Suspense fallback={null}>
                                     <FloatingElement duration={4}>
-                                        <div className="medical-card px-4 py-2 border-primary/20 text-primary-teal font-black uppercase text-[10px] tracking-[0.2em] rotate-6 pointer-events-none shadow-lg">
-                                            Precision Analysis
+                                        <div className="medical-card px-4 py-2 border-primary/20 text-primary-teal font-black uppercase text-[10px] tracking-[0.2em] rotate-[-8deg] pointer-events-none shadow-lg">
+                                            DNA Intelligence
                                         </div>
                                     </FloatingElement>
                                 </Suspense>
@@ -156,7 +155,7 @@ const LandingPage: React.FC = () => {
                                         {/* Full Body Packages */}
                                         <div
                                             onClick={() => navigate('/lab-tests-category/full-body-checkup')}
-                                            className="md:col-span-5 bg-white border border-gray-100 rounded-lg p-2.5 flex items-center justify-between hover:shadow-sm transition-all cursor-pointer border-l-[2px] border-l-transparent hover:border-l-green-400 group"
+                                            className="md:col-span-5 bg-white border border-gray-100 rounded-lg p-2.5 flex items-center justify-between hover:shadow-sm transition-all cursor-pointer border-l-2 border-l-[2px] border-l-transparent hover:border-l-green-400 group"
                                         >
                                             <div>
                                                 <p className="font-bold text-gray-900 text-left text-xs leading-snug">Full Body</p>
@@ -242,11 +241,11 @@ const LandingPage: React.FC = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                             <div className="space-y-6">
                                 <div className="inline-flex items-center space-x-2 px-3 py-1 bg-teal-50 rounded-full border border-teal-100">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#0D7C7C]">Advanced Intelligence</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary-teal">Advanced Intelligence</span>
                                 </div>
                                 <h2 className="text-3xl lg:text-4xl font-black text-slate-800 leading-tight uppercase italic underline decoration-teal-500/20">
                                     NOT JUST DATA. <br />
-                                    <span className="text-[#0D7C7C]">VITALITY INSIGHTS.</span>
+                                    <span className="text-primary-teal">VITALITY INSIGHTS.</span>
                                 </h2>
                                 <p className="text-sm font-bold text-slate-500 max-w-md leading-relaxed">
                                     Our proprietary AI engine processes your lab results into an easy-to-understand vitality matrix. 
@@ -262,7 +261,7 @@ const LandingPage: React.FC = () => {
                                         <div className="text-[10px] uppercase font-bold text-slate-400">Smart Translation</div>
                                     </div>
                                 </div>
-                                <button onClick={() => navigate('/lab-tests/all-lab-tests')} className="px-8 py-3 bg-[#0D7C7C] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-teal-600/20">
+                                <button onClick={() => navigate('/lab-tests/all-lab-tests')} className="px-8 py-3 bg-primary-teal text-white rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-teal-600/20">
                                     Explore Health Hub
                                 </button>
                             </div>
@@ -337,7 +336,7 @@ const LandingPage: React.FC = () => {
                     <ExpertsSection />
                 </Suspense>
 
-                <section className="w-full py-4 lg:py-6 bg-white relative overflow-hidden my-3 lg:my-4 flex justify-center max-w-[1240px] mx-4 xl:mx-auto rounded-[1.5rem] shadow-sm border border-slate-100">
+                <section className="w-full py-4 lg:py-6 bg-white relative overflow-hidden my-3 lg:my-4 flex justify-center max-w-310 mx-4 xl:mx-auto rounded-[1.5rem] shadow-sm border border-slate-100">
                     <div className="content-wrapper w-full grid lg:grid-cols-2 gap-8 lg:gap-12 items-center px-6 lg:px-8">
                         <div className="space-y-3 relative z-10 text-center lg:text-left flex flex-col items-center lg:items-start lg:pl-12 w-full">
                             <h2 className="text-lg md:text-xl lg:text-2xl font-black leading-tight tracking-tighter uppercase italic text-balance text-slate-800">
@@ -354,10 +353,10 @@ const LandingPage: React.FC = () => {
                         </div>
 
                         <div className="relative flex justify-center lg:justify-end mt-4 lg:mt-0 lg:pr-12 w-full">
-                            <div className="absolute -inset-6 bg-primary/20 blur-[40px] rounded-full opacity-60 animate-pulse" />
+                            <div className="absolute -inset-6 bg-primary/20 blur-2xl rounded-full opacity-60 animate-pulse" />
                             <Suspense fallback={<SkeletonFallback />}>
                                 <FloatingElement duration={8} yOffset={10}>
-                                    <div className="w-40 sm:w-48 min-h-[220px] lg:h-60 bg-white rounded-2xl sm:rounded-[1.5rem] border border-slate-100 shadow-lg rotate-0 lg:-rotate-3 overflow-hidden relative mx-auto">
+                                    <div className="w-40 sm:w-48 min-h-55 lg:h-60 bg-white rounded-2xl sm:rounded-[1.5rem] border border-slate-100 shadow-lg rotate-0 lg:-rotate-3 overflow-hidden relative mx-auto">
                                         <div className="absolute top-2 left-4 right-4 flex justify-between items-center h-3">
                                             <div className="w-8 h-1 bg-slate-200 rounded-full" />
                                             <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-sm" />
@@ -371,8 +370,8 @@ const LandingPage: React.FC = () => {
                                                     </div>
                                                 ))}
                                             </div>
-                                            <div className="mt-4 sm:mt-5 h-12 sm:h-16 rounded-xl bg-gradient-to-br from-primary/5 to-transparent flex items-center justify-center border-2 border-dashed border-primary/20">
-                                                <div className="w-6 h-6 sm:w-8 sm:h-8 border-[2px] sm:border-[3px] border-primary border-t-transparent rounded-full animate-spin opacity-50" />
+                                            <div className="mt-4 sm:mt-5 h-12 sm:h-16 rounded-xl bg-linear-to-br from-primary/5 to-transparent flex items-center justify-center border-2 border-dashed border-primary/20">
+                                                <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 sm:border-[3px] border-primary border-t-transparent rounded-full animate-spin opacity-50" />
                                             </div>
                                         </div>
                                     </div>

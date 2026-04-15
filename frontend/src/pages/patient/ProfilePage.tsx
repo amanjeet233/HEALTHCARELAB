@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { User, HeartPulse, Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, HeartPulse, Activity, ChevronRight } from 'lucide-react';
 import { userService } from '../../services/userService';
 import type { User as UserType } from '../../types/auth';
 import { notify } from '../../utils/toast';
@@ -50,6 +51,11 @@ const ProfilePage: React.FC = () => {
     return (
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="mb-8">
+                <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                    <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                    <ChevronRight size={12} className="text-cyan-700/40" />
+                    <span className="text-cyan-700">My Profile</span>
+                </div>
                 <div className="flex items-center gap-2.5 mb-3">
                     <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">
                         <User className="w-5 h-5 text-cyan-600" />

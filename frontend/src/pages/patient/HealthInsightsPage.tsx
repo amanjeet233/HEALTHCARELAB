@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronLeft,
@@ -17,7 +17,8 @@ import {
     RefreshCw,
     HeartPulse,
     ShieldCheck,
-    Zap
+    Zap,
+    ChevronRight
 } from 'lucide-react';
 import { healthScoreService, type HealthScore, type HealthMetric, type HealthTrend, type HealthRecommendation } from '../../services/healthScoreService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -106,6 +107,11 @@ const HealthInsightsPage: React.FC = () => {
                         <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                         Return to Hub
                     </button>
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                        <ChevronRight size={12} className="text-cyan-700/40" />
+                        <span className="text-cyan-700">Health Insights</span>
+                    </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">
                             <HeartPulse className="w-5 h-5 text-cyan-600" />

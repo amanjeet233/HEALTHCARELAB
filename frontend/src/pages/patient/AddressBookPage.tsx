@@ -7,9 +7,10 @@ import {
     Map as MapIcon,
     Plus,
     Activity,
-    Compass
+    Compass,
+    ChevronRight
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { addressService, AddressDTO } from '../../services/addressService';
 import { notify } from '../../utils/toast';
 import AddressCard from '../../components/profile/AddressCard';
@@ -138,6 +139,11 @@ const AddressBookPage: React.FC = () => {
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                        <ChevronRight size={12} className="text-cyan-700/40" />
+                        <span className="text-cyan-700">My Addresses</span>
+                    </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">
                             <Satellite className="w-5 h-5 text-cyan-600" />

@@ -117,6 +117,19 @@ public class LabTestController {
                 return ResponseEntity.ok(ApiResponse.success("Test fetched successfully", test));
         }
 
+        @GetMapping("/slug/{slug}")
+        @Operation(summary = "Get test by slug", description = "Retrieve a lab test by its URL-friendly slug")
+        @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Test fetched successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Test not found"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<ApiResponse<LabTestDTO>> getTestBySlug(@PathVariable String slug) {
+                log.info("GET /api/lab-tests/slug/{}", slug);
+                LabTestDTO test = labTestService.getTestByCode(slug);  // slug and code are interchangeable (stored in testCode field)
+                return ResponseEntity.ok(ApiResponse.success("Test fetched successfully", test));
+        }
+
         @GetMapping("/category/{categoryId}")
         @Operation(summary = "Get tests by category", description = "Retrieve all lab tests in a specific category")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {

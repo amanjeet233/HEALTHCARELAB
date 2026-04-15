@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, AlertCircle, Loader } from 'lucide-react';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
+import { List, type RowComponentProps } from 'react-window';
 import { TestParameterForm } from '../../components/admin/TestParameterForm';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
 import { testParameterService, type TestParameter } from '../../services/testParameterService';
@@ -96,6 +98,50 @@ export const TestParametersPage: React.FC = () => {
     tests.find((test) => test.id === selectedTestId)?.name ||
     '';
 
+  const ParameterRow = ({ index, style, rows }: RowComponentProps<{ rows: TestParameter[] }>) => {
+    const param = rows[index];
+    return (
+      <div
+        style={style}
+        className="grid grid-cols-[2.2fr_1fr_1fr_0.8fr_0.8fr] items-center border-b border-gray-100 px-6"
+      >
+        <div className="pr-3">
+          <p className="font-medium text-gray-900">{param.parameterName}</p>
+          {param.normalRangeText && <p className="text-sm text-gray-600">{param.normalRangeText}</p>}
+        </div>
+        <div className="text-sm text-gray-700">{param.unit || '-'}</div>
+        <div className="text-sm text-gray-700">
+          {param.normalRangeMin ?? '-'} - {param.normalRangeMax ?? '-'}
+        </div>
+        <div>
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded ${
+              param.isCritical ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+            }`}
+          >
+            {param.isCritical ? 'Yes' : 'No'}
+          </span>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => handleEdit(param)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setDeleteConfirm(param)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -181,58 +227,83 @@ export const TestParametersPage: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Parameter Name</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Unit</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Normal Range</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Critical</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {parameters.map((param) => (
-                <tr key={param.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900">{param.parameterName}</p>
-                    {param.normalRangeText && <p className="text-sm text-gray-600">{param.normalRangeText}</p>}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{param.unit || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {param.normalRangeMin ?? '-'} - {param.normalRangeMax ?? '-'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded ${
-                        param.isCritical ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {param.isCritical ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(param)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(param)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+          {parameters.length > 20 ? (
+            <>
+              <div className="grid grid-cols-[2.2fr_1fr_1fr_0.8fr_0.8fr] bg-gray-50 border-b border-gray-200 px-6 py-3 text-sm font-semibold text-gray-900">
+                <div>Parameter Name</div>
+                <div>Unit</div>
+                <div>Normal Range</div>
+                <div>Critical</div>
+                <div className="text-right">Actions</div>
+              </div>
+              <div className="h-130">
+                <AutoSizer>
+                  {({ height, width }) => (
+                    <List
+                      rowCount={parameters.length}
+                      rowHeight={84}
+                      rowComponent={ParameterRow}
+                      rowProps={{ rows: parameters }}
+                      style={{ height, width }}
+                    />
+                  )}
+                </AutoSizer>
+              </div>
+            </>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Parameter Name</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Unit</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Normal Range</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Critical</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {parameters.map((param) => (
+                  <tr key={param.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-gray-900">{param.parameterName}</p>
+                      {param.normalRangeText && <p className="text-sm text-gray-600">{param.normalRangeText}</p>}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{param.unit || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {param.normalRangeMin ?? '-'} - {param.normalRangeMax ?? '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          param.isCritical ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {param.isCritical ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(param)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(param)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

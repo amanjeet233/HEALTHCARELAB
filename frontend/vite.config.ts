@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { VitePWA } from 'vite-plugin-pwa'
+import viteImagemin from 'vite-plugin-imagemin'
 import path from 'path'
 
 // https://vite.dev/config/
@@ -40,6 +41,27 @@ export default defineConfig({
       }
     }),
     visualizer({ open: false, filename: 'bundle-analysis.html' }),
+    viteImagemin({
+      mozjpeg: {
+        quality: 75,
+      },
+      pngquant: {
+        quality: [0.7, 0.9],
+        speed: 4,
+      },
+      svgo: {
+        plugins: [
+          {
+            name: 'preset-default',
+            params: {
+              overrides: {
+                removeViewBox: false,
+              },
+            },
+          },
+        ],
+      },
+    }),
   ],
   build: {
     rollupOptions: {

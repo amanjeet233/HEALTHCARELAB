@@ -75,33 +75,34 @@ const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onSave, in
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose}></div>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 md:p-4">
+            <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-md" onClick={onClose}></div>
 
-            <div className="relative w-full max-w-xl bg-white rounded-[2rem] shadow-2xl border border-gray-100 overflow-hidden animate-zoomIn">
-                <div className="p-8">
-                    <div className="flex justify-between items-center mb-6">
+            <div className="relative w-full max-w-xl bg-white/96 rounded-4xl shadow-[0_28px_90px_rgba(15,23,42,0.20)] border border-white/70 overflow-hidden animate-zoomIn max-h-[92vh] flex flex-col">
+                <div className="p-4 md:p-5 overflow-y-auto">
+                    <div className="flex justify-between items-start gap-4 mb-4 pb-4 border-b border-slate-100">
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700/60 mb-1">Popup Form</p>
+                            <h2 className="text-[clamp(1.35rem,1rem+1vw,1.8rem)] font-black text-slate-900 tracking-tight">
                                 {initialData ? 'Edit Address' : 'Add New Address'}
                             </h2>
-                            <p className="text-sm text-gray-500">Configure your shipping coordinates</p>
+                            <p className="text-sm text-slate-500">Configure your shipping coordinates</p>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
+                        <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-all">
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="flex gap-3">
+                    <form onSubmit={handleSubmit} className="space-y-4 md:space-y-4.5">
+                        <div className="grid grid-cols-3 gap-2.5 md:gap-3">
                             {labels.map((item) => (
                                 <button
                                     key={item.id}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, label: item.id })}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${formData.label === item.id
-                                        ? 'border-blue-600 bg-blue-50 text-blue-600'
-                                        : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
+                                        className={`flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 transition-all ${formData.label === item.id
+                                        ? 'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm'
+                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
                                         }`}
                                 >
                                     <item.icon size={18} />
@@ -111,64 +112,64 @@ const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onSave, in
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Street / Locality</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Street / Locality</label>
                             <textarea
                                 value={formData.street}
                                 onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                                 placeholder="House no, Building, Street..."
                                 rows={2}
-                                className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-medium text-gray-900 text-sm ${errors.street ? 'border-red-500' : 'border-gray-100'}`}
+                                className={`w-full px-4 py-2.5 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.street ? 'border-red-500' : 'border-slate-200'}`}
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">City</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">City</label>
                                 <input
                                     type="text"
                                     value={formData.city || ''}
                                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-medium text-gray-900 text-sm"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Postal Code</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Postal Code</label>
                                 <input
                                     type="text"
                                     value={formData.postalCode || ''}
                                     onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                                    className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-medium text-gray-900 text-sm ${errors.postalCode ? 'border-red-500' : 'border-gray-100'}`}
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.postalCode ? 'border-red-500' : 'border-slate-200'}`}
                                 />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">State</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">State</label>
                                 <input
                                     type="text"
                                     value={formData.state || ''}
                                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:border-blue-500 transition-all font-medium text-gray-900 text-sm"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Country</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Country</label>
                                 <input
                                     type="text"
                                     value={formData.country || 'India'}
                                     disabled
-                                    className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-xl font-medium text-gray-400 text-sm cursor-not-allowed"
+                                    className="w-full px-4 py-2.5 bg-slate-100 border-2 border-slate-200 rounded-2xl font-medium text-slate-400 text-sm cursor-not-allowed"
                                 />
                             </div>
                         </div>
 
-                        <label className={`flex items-center justify-between p-4 border-2 rounded-2xl cursor-pointer transition-all ${formData.isDefault ? 'border-emerald-500 bg-emerald-50' : 'bg-gray-50 border-gray-100'}`}>
+                        <label className={`flex items-center justify-between p-3.5 border-2 rounded-2xl cursor-pointer transition-all ${formData.isDefault ? 'border-emerald-500 bg-emerald-50' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${formData.isDefault ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                <div className={`p-2 rounded-lg ${formData.isDefault ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
                                     <CheckCircle2 size={18} />
                                 </div>
-                                <span className="text-sm font-bold text-gray-900">Set as Primary</span>
+                                <span className="text-sm font-semibold text-slate-900">Set as Primary</span>
                             </div>
                             <input
                                 type="checkbox"
@@ -181,7 +182,7 @@ const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onSave, in
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-linear-to-r from-cyan-600 to-blue-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:from-cyan-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             <ShieldCheck className="w-5 h-5" />
                             {loading ? 'Saving...' : initialData ? 'Update Address' : 'Save Address'}

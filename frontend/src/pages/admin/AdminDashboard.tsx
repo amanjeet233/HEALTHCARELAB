@@ -229,7 +229,7 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-bg pb-20">
-            <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+            <div className="max-w-350 mx-auto px-6 lg:px-10">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6 pt-10">
                     <div className="space-y-1.5">
@@ -262,6 +262,23 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="mb-6">
+                    <div className="inline-flex gap-3 p-2 bg-white/40 backdrop-blur-md rounded-xl border border-white/60">
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-23">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-cyan-700 tracking-tight">{stats?.totalUsers ?? 0}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Users</span>
+                        </div>
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-23">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-amber-600 tracking-tight">{stats?.pendingBookings ?? 0}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Pending</span>
+                        </div>
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-23">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-rose-600 tracking-tight">{stats?.criticalCount ?? 0}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Critical</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Stats Grid */}
                 {stats && <SystemStatsCards stats={stats} />}
 
@@ -290,7 +307,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {showCriticalPanel && (
-                    <section className="mt-4 bg-white/70 backdrop-blur-xl border border-red-100 rounded-[2rem] p-5">
+                    <section className="mt-4 bg-white/70 backdrop-blur-xl border border-red-100 rounded-4xl p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base font-black uppercase text-red-700 tracking-widest">Critical Bookings</h3>
                             <button
@@ -344,7 +361,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {/* Staff Management - NOW FULL WIDTH */}
-                    <section className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2rem] p-6 shadow-sm overflow-hidden relative group">
+                    <section className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-4xl p-6 shadow-sm overflow-hidden relative group">
                         <div className="flex items-center justify-between gap-4 mb-5">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-primary/10 rounded-xl">
@@ -515,7 +532,7 @@ const AdminDashboard: React.FC = () => {
                                                     </select>
                                                 </div>
                                                 {b.cancellationReason && (
-                                                    <p className="text-[9px] font-bold text-red-500 truncate max-w-[120px] mt-2 uppercase tracking-tighter" title={b.cancellationReason}>
+                                                    <p className="text-[9px] font-bold text-red-500 truncate max-w-30 mt-2 uppercase tracking-tighter" title={b.cancellationReason}>
                                                         {b.cancellationReason}
                                                     </p>
                                                 )}
@@ -536,7 +553,7 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Audit Logs & Priority Area */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="lg:col-span-2 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2rem] p-6 shadow-sm overflow-hidden">
+                    <div className="lg:col-span-2 bg-white/40 backdrop-blur-xl border border-primary/5 rounded-4xl p-6 shadow-sm overflow-hidden">
                         <div className="flex items-center justify-between gap-3 mb-5">
                             <div className="flex items-center gap-2.5">
                                 <Activity className="w-5 h-5 text-primary" />
@@ -568,7 +585,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {/* Global Parameters Card */}
-                    <div className="bg-gradient-to-br from-primary to-ocean-blue rounded-[2rem] p-7 text-white relative overflow-hidden group shadow-xl">
+                    <div className="bg-linear-to-br from-primary to-ocean-blue rounded-4xl p-7 text-white relative overflow-hidden group shadow-xl">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-3xl -mr-8 -mt-8" />
                         <div className="relative z-10 h-full flex flex-col justify-between">
                             <div className="space-y-4">
@@ -576,7 +593,7 @@ const AdminDashboard: React.FC = () => {
                                     <Settings className="w-5 h-5" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <h3 className="text-xl font-black uppercase italic italic tracking-tight leading-none text-white">Global <span className="text-white/60">Parameters</span></h3>
+                                    <h3 className="text-xl font-black uppercase italic tracking-tight leading-none text-white">Global <span className="text-white/60">Parameters</span></h3>
                                     <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest">Config & labs</p>
                                 </div>
                             </div>
@@ -608,7 +625,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {/* Security Checkup Card */}
-                    <div className="bg-text text-white rounded-[2rem] p-7 space-y-6 shadow-xl relative overflow-hidden group">
+                    <div className="bg-text text-white rounded-4xl p-7 space-y-6 shadow-xl relative overflow-hidden group">
                         <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/40 transition-all duration-700" />
                         <div className="relative z-10 flex flex-col justify-between h-full">
                             <div className="space-y-3.5">
@@ -638,11 +655,11 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Cancellation Modal */}
                 {showCancelModal && (
-                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-100 p-6">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-primary/10"
+                            className="bg-white rounded-4xl p-8 max-w-sm w-full shadow-2xl border border-primary/10"
                         >
                             <h3 className="text-xl font-black uppercase text-text mb-4 italic">Confirm <span className="text-red-500">Cancellation</span></h3>
                             <p className="text-xs font-bold text-text/60 mb-6 uppercase tracking-wider">Please provide a mandatory operational reason for aborting this booking.</p>
@@ -672,11 +689,11 @@ const AdminDashboard: React.FC = () => {
                 )}
 
                 {selectedCritical && (
-                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-[110] p-6">
+                    <div className="fixed inset-0 bg-text/40 backdrop-blur-md flex items-center justify-center z-110 p-6">
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="bg-white rounded-[2rem] p-7 max-w-lg w-full shadow-2xl border border-red-100"
+                            className="bg-white rounded-4xl p-7 max-w-lg w-full shadow-2xl border border-red-100"
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-black uppercase text-red-700 tracking-widest">Critical Booking Detail</h3>

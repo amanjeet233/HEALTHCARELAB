@@ -1,10 +1,10 @@
 package com.healthcare.labtestbooking.entity;
 
 import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
+import com.healthcare.labtestbooking.entity.converter.PaymentStatusConverter;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -45,7 +45,7 @@ public class GatewayPayment {
     @Column(name = "gateway_payment_id", length = 100)
     private String gatewayPaymentId;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatusConverter.class)
     @Column(name = "status", nullable = false, length = 20)
     private PaymentStatus status;
 

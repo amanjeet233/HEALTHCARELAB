@@ -27,6 +27,7 @@ import api from '../../services/api';
 import { useCart } from '../../hooks/useCart';
 import GlassCard from '../../components/common/GlassCard';
 import GlassButton from '../../components/common/GlassButton';
+import SkeletonBlock from '../../components/common/SkeletonBlock';
 import { notify } from '../../utils/toast';
 import { getApiErrorMessage } from '../../utils/getApiErrorMessage';
 
@@ -163,7 +164,7 @@ const PackagesListingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 pt-10">
-      <header className="max-w-[1400px] mx-auto px-6 mb-16">
+      <header className="max-w-350 mx-auto px-6 mb-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div className="max-w-2xl">
                     <div className="flex items-center gap-3 mb-4">
@@ -174,7 +175,7 @@ const PackagesListingPage: React.FC = () => {
                             Diagnostic / Arsenals
                         </span>
                     </div>
-                    <h1 className="text-5xl font-black text-[#164E63] tracking-tighter mb-4">
+                    <h1 className="text-5xl font-black text-text tracking-tighter mb-4">
                         Health <span className="text-cyan-600">Packages</span>
                     </h1>
                     <p className="text-lg text-cyan-900/60 font-medium leading-relaxed">
@@ -182,7 +183,7 @@ const PackagesListingPage: React.FC = () => {
                     </p>
               </div>
 
-              <div className="flex items-center gap-6 px-10 py-6 bg-white/40 backdrop-blur-md rounded-[32px] border border-white/60">
+              <div className="flex items-center gap-6 px-10 py-6 bg-white/40 backdrop-blur-md rounded-4xl border border-white/60">
                   <div className="text-center">
                       <span className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Available Units</span>
                       <span className="text-2xl font-black text-[#164E63] tracking-tighter">{totalPackages}</span>
@@ -287,7 +288,7 @@ const PackagesListingPage: React.FC = () => {
               {loading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {[1,2,3,4,5,6,7,8].map(i => (
-                          <div key={i} className="h-[320px] bg-white/40 rounded-[24px] animate-pulse border border-white/30" />
+                          <SkeletonBlock key={i} className="h-[320px] rounded-[24px] border border-white/30" />
                       ))}
                   </div>
               ) : packages.length === 0 ? (

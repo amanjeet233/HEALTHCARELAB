@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Activity,
     AlertTriangle,
@@ -7,12 +8,17 @@ import {
     CalendarDays,
     Download,
     FileText,
+    RefreshCcw,
     Search,
     Stethoscope,
+    ChevronRight,
+    XCircle,
     UtensilsCrossed
 } from 'lucide-react';
 import { reportService, type AIAnalysis, type ReportDisplay } from '../../services/reportService';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
+import GlassCard from '../../components/common/GlassCard';
+import GlassButton from '../../components/common/GlassButton';
+import SkeletonBlock from '../../components/common/SkeletonBlock';
 import { notify } from '../../utils/toast';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -22,6 +28,8 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const canDownload = (status: string) => status === 'VERIFIED' || status === 'COMPLETED';
+
+type ReportStatusFilter = 'ALL' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'COMPLETED';
 
 const getHealthScoreClass = (score: number) => {
     if (score >= 80) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -61,7 +69,9 @@ const recommendationIcon = (category: string) => {
 const ReportsPage: React.FC = () => {
     const [reports, setReports] = useState<ReportDisplay[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<ReportStatusFilter>('ALL');
     const [aiAnalysisByBooking, setAiAnalysisByBooking] = useState<Record<number, AIAnalysis | null>>({});
     const [aiLoadingByBooking, setAiLoadingByBooking] = useState<Record<number, boolean>>({});
     const [showAiByBooking, setShowAiByBooking] = useState<Record<number, boolean>>({});
@@ -83,13 +93,39 @@ const ReportsPage: React.FC = () => {
         }
     };
 
+    const refreshReports = async () => {
+        setRefreshing(true);
+        try {
+            const data = await reportService.getMyReports();
+            setReports(data);
+            notify.success('Reports updated.');
+        } catch (error) {
+            console.error(error);
+            notify.error('Failed to refresh reports.');
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const filtered = useMemo(() => {
         if (!search.trim()) return reports;
         const q = search.toLowerCase();
-        return reports.filter((r) =>
-            r.testName.toLowerCase().includes(q) || String(r.bookingId).includes(q)
-        );
-    }, [reports, search]);
+        return reports.filter((r) => {
+            const matchSearch = r.testName.toLowerCase().includes(q) || String(r.bookingId).includes(q);
+            const matchStatus = statusFilter === 'ALL' ? true : r.status === statusFilter;
+            return matchSearch && matchStatus;
+        });
+    }, [reports, search, statusFilter]);
+
+    const verifiedCount = reports.filter((r) => r.status === 'VERIFIED' || r.status === 'COMPLETED').length;
+    const pendingCount = reports.filter((r) => r.status === 'PENDING_VERIFICATION').length;
+
+    const clearFilters = () => {
+        setSearch('');
+        setStatusFilter('ALL');
+    };
+
+    const hasFilters = search.trim().length > 0 || statusFilter !== 'ALL';
 
     const handleDownload = async (bookingId: number) => {
         try {
@@ -123,36 +159,130 @@ const ReportsPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <LoadingSpinner size="lg" />
+            <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen space-y-4">
+                {[1, 2, 3].map((idx) => (
+                    <div key={idx} className="bg-white/70 border border-white/40 rounded-3xl p-6">
+                        <SkeletonBlock className="h-6 w-56 mb-4" />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                            <SkeletonBlock className="h-4 w-full" />
+                            <SkeletonBlock className="h-4 w-full" />
+                            <SkeletonBlock className="h-4 w-full" />
+                        </div>
+                        <div className="flex gap-2">
+                            <SkeletonBlock className="h-10 w-36" />
+                            <SkeletonBlock className="h-10 w-32" />
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-            <div className="mb-6">
-                <h1 className="text-2xl font-black text-[#164E63] uppercase tracking-tight">My Reports</h1>
-                <p className="text-sm text-cyan-900/60 font-medium mt-1">
-                    View verified reports and download files after MO sign-off.
-                </p>
-            </div>
+        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
+                <div className="max-w-2xl">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
+                        <ChevronRight size={12} className="text-cyan-700/40" />
+                        <span className="text-cyan-700">My Reports</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 mb-3">
+                        <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
+                            <FileText className="w-5 h-5 text-cyan-600" />
+                        </div>
+                        <span className="text-[clamp(0.62rem,0.58rem+0.16vw,0.72rem)] font-black uppercase tracking-[0.22em] text-cyan-800/60">
+                            REPORTS / INSIGHTS
+                        </span>
+                    </div>
+                    <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5 uppercase">
+                        My <span className="text-cyan-600">Reports</span>
+                    </h1>
+                    <p className="text-[clamp(0.84rem,0.8rem+0.3vw,1rem)] text-cyan-900/60 font-medium leading-relaxed">
+                        View verified reports, download files, and review AI-based health insights.
+                    </p>
+                </div>
 
-            <div className="relative mb-6">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-700/40" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by test name or booking ID"
-                    className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-sm outline-none focus:border-cyan-400"
-                />
-            </div>
+                <div className="flex flex-wrap gap-3 items-center">
+                    <div className="flex gap-3 p-2 bg-white/40 backdrop-blur-md rounded-xl border border-white/60">
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-[84px]">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-cyan-700 tracking-tight">{reports.length}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                        </div>
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-[84px]">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-emerald-600 tracking-tight">{verifiedCount}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Verified</span>
+                        </div>
+                        <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-[84px]">
+                            <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-amber-600 tracking-tight">{pendingCount}</span>
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Pending</span>
+                        </div>
+                    </div>
+
+                    <GlassButton
+                        onClick={() => void refreshReports()}
+                        className="h-full px-6 py-3.5"
+                        icon={<RefreshCcw size={16} className={refreshing ? 'animate-spin' : ''} />}
+                        loading={refreshing}
+                    >
+                        REFRESH
+                    </GlassButton>
+                </div>
+            </header>
+
+            <GlassCard className="mb-7 border-cyan-100/30">
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex-1 min-w-[240px]">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Search</label>
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-600/50" size={18} />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search by test name or booking ID"
+                                className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 focus:ring-4 focus:ring-cyan-500/5 rounded-xl pl-10 pr-3 py-2.5 text-sm font-medium transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="w-full md:w-auto">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Status Filter</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as ReportStatusFilter)}
+                            className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 rounded-xl px-4 py-2.5 text-sm font-black uppercase tracking-wider text-slate-700 appearance-none cursor-pointer"
+                        >
+                            <option value="ALL">All</option>
+                            <option value="PENDING_VERIFICATION">Pending Verification</option>
+                            <option value="VERIFIED">Verified</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+
+                    {hasFilters && (
+                        <div className="pt-6">
+                            <button
+                                onClick={clearFilters}
+                                className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                title="Clear Filters"
+                            >
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </GlassCard>
 
             {filtered.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
-                    <FileText className="mx-auto text-slate-300 mb-3" size={40} />
-                    <p className="text-lg font-bold text-slate-700">No reports yet</p>
+                <div className="py-24 text-center">
+                    <div className="inline-flex p-10 bg-cyan-50/50 backdrop-blur-md rounded-[50px] text-cyan-200 mb-8 border border-cyan-100/30 shadow-inner">
+                        <FileText size={72} strokeWidth={1} />
+                    </div>
+                    <h3 className="text-3xl font-black text-[#164E63] tracking-tight mb-3 uppercase">No Reports Found</h3>
+                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest max-w-sm mx-auto">
+                        No reports match your current filters.
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -162,46 +292,51 @@ const ReportsPage: React.FC = () => {
                         const reportDate = report.reportDate ? new Date(report.reportDate).toLocaleString('en-IN') : 'Pending';
 
                         return (
-                            <div key={report.bookingId} className="bg-white border border-slate-200 rounded-2xl p-5">
+                            <div key={report.bookingId} className="bg-white/70 backdrop-blur-md border border-white/40 rounded-3xl p-5 shadow-lg shadow-cyan-900/5">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                     <div>
-                                        <h3 className="text-lg font-bold text-[#164E63]">{report.testName}</h3>
-                                        <div className="mt-2 space-y-1 text-sm text-slate-600">
-                                            <p className="flex items-center gap-2">
+                                        <h3 className="text-xl font-black text-[#164E63] tracking-tight uppercase">{report.testName}</h3>
+                                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-600">
+                                            <p className="flex items-center gap-2 font-semibold">
                                                 <Calendar size={14} />
                                                 Booking Date: {bookingDate}
                                             </p>
-                                            <p>Booking ID: {report.bookingId}</p>
-                                            <p>Verified By: {report.verifiedByName || 'Pending'}</p>
-                                            <p>Report Date: {reportDate}</p>
+                                            <p className="font-semibold">Booking ID: {report.bookingId}</p>
+                                            <p className="font-semibold">Verified By: {report.verifiedByName || 'Pending'}</p>
+                                            <p className="font-semibold">Report Date: {reportDate}</p>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-col items-start md:items-end gap-3">
-                                        <span className={`px-3 py-1 rounded-md border text-xs font-bold ${badgeClass}`}>
+                                        <span className={`px-3 py-1 rounded-md border text-xs font-black uppercase tracking-wider ${badgeClass}`}>
                                             {report.status}
                                         </span>
 
                                         {canDownload(report.status) ? (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 border border-red-200 text-red-700 text-[11px] font-black uppercase tracking-wider">
                                                     <FileText size={14} />
                                                     PDF
                                                 </span>
-                                                <button
+
+                                                <GlassButton
                                                     onClick={() => void toggleInsights(report.bookingId)}
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-800 text-sm font-bold hover:bg-cyan-100"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    icon={<Brain size={15} />}
+                                                    className="!rounded-lg !px-3"
                                                 >
-                                                    <Brain size={15} />
                                                     AI Insights
-                                                </button>
-                                                <button
+                                                </GlassButton>
+
+                                                <GlassButton
                                                     onClick={() => void handleDownload(report.bookingId)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-700 text-white text-sm font-bold hover:bg-cyan-800"
+                                                    size="sm"
+                                                    icon={<Download size={16} />}
+                                                    className="!rounded-lg !px-4"
                                                 >
-                                                    <Download size={16} />
                                                     Download
-                                                </button>
+                                                </GlassButton>
                                             </div>
                                         ) : (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-700 text-xs font-bold">
@@ -212,7 +347,7 @@ const ReportsPage: React.FC = () => {
                                 </div>
 
                                 {showAiByBooking[report.bookingId] && (
-                                    <div className="mt-4 border-t border-slate-100 pt-4 space-y-4">
+                                    <div className="mt-4 border-t border-slate-200/60 pt-4 space-y-4">
                                         {aiLoadingByBooking[report.bookingId] ? (
                                             <div className="text-sm text-cyan-700 font-semibold">Generating your health insights...</div>
                                         ) : aiAnalysisByBooking[report.bookingId] ? (

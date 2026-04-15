@@ -1,9 +1,11 @@
 package com.healthcare.labtestbooking.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.healthcare.labtestbooking.entity.converter.PaymentStatusConverter;
 import com.healthcare.labtestbooking.entity.enums.OrderStatus;
 import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
 import com.healthcare.labtestbooking.listener.AuditListener;
+import jakarta.persistence.Convert;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -87,7 +89,7 @@ public class Order {
     @Column(name = "total_amount", precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatusConverter.class)
     @Column(name = "payment_status", length = 40)
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;

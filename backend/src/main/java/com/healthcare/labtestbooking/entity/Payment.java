@@ -3,6 +3,7 @@ package com.healthcare.labtestbooking.entity;
 import com.healthcare.labtestbooking.entity.enums.PaymentMethod;
 import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
 import com.healthcare.labtestbooking.entity.enums.RefundStatus;
+import com.healthcare.labtestbooking.entity.converter.PaymentStatusConverter;
 import com.healthcare.labtestbooking.listener.AuditListener;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,7 +42,7 @@ public class Payment {
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatusConverter.class)
     @Column(name = "payment_status")
     private PaymentStatus status;
 

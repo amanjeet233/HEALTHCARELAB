@@ -37,19 +37,21 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
   const relations = ['Spouse', 'Parent', 'Child', 'Sibling', 'Grandparent', 'Grandchild', 'Other'];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 bg-white p-4 rounded-lg border border-gray-200">
-      <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">Add Family Member</h3>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4 md:space-y-4.5"
+    >
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         {/* Name */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Full Name *</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Full Name *</label>
           <div className="relative">
-            <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0D7C7C]" />
+            <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-teal" />
             <input
               type="text"
               placeholder="Enter name"
-              className={`w-full pl-11 pr-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+              className={`w-full px-4 py-2.5 pl-11 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.name ? 'border-red-500 bg-red-50' : 'border-slate-200'}
                 }`}
               {...register('name')}
             />
@@ -59,28 +61,30 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
 
         {/* Relation */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Relation *</label>
-          <select
-            className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.relation ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Relation *</label>
+          <div className="relative">
+            <select
+              className={`w-full px-4 py-2.5 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.relation ? 'border-red-500 bg-red-50' : 'border-slate-200'}
               }`}
-            {...register('relation')}
-          >
-            <option value="">Select relation</option>
-            {relations.map(rel => (
-              <option key={rel} value={rel}>{rel}</option>
-            ))}
-          </select>
+              {...register('relation')}
+            >
+              <option value="">Select relation</option>
+              {relations.map(rel => (
+                <option key={rel} value={rel}>{rel}</option>
+              ))}
+            </select>
+          </div>
           {errors.relation && <p className="text-xs text-red-600 font-600">{errors.relation.message}</p>}
         </div>
 
         {/* Date of Birth */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Date of Birth *</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Date of Birth *</label>
           <div className="relative">
-            <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0D7C7C]" />
+            <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-teal" />
             <input
               type="date"
-              className={`w-full pl-11 pr-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.dateOfBirth ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+              className={`w-full px-4 py-2.5 pl-11 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.dateOfBirth ? 'border-red-500 bg-red-50' : 'border-slate-200'}
                 }`}
               {...register('dateOfBirth')}
             />
@@ -90,11 +94,11 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
 
         {/* Gender */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Gender *</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Gender *</label>
           <div className="relative">
-            <FaVenusMars className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0D7C7C]" />
+            <FaVenusMars className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-teal" />
             <select
-              className={`w-full pl-11 pr-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.gender ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+              className={`w-full px-4 py-2.5 pl-11 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.gender ? 'border-red-500 bg-red-50' : 'border-slate-200'}
                 }`}
               {...register('gender')}
             >
@@ -108,13 +112,13 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
 
         {/* Phone Number */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Phone Number (Optional)</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Phone Number (Optional)</label>
           <div className="relative">
-            <FaPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0D7C7C]" />
+            <FaPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-teal" />
             <input
               type="tel"
               placeholder="+91 XXXXX XXXXX"
-              className={`w-full pl-11 pr-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.phoneNumber ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+              className={`w-full px-4 py-2.5 pl-11 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.phoneNumber ? 'border-red-500 bg-red-50' : 'border-slate-200'}
                 }`}
               {...register('phoneNumber')}
             />
@@ -124,13 +128,13 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
 
         {/* Email */}
         <div className="space-y-2">
-          <label className="block text-[0.82rem] font-600 text-gray-700">Email (Optional)</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Email (Optional)</label>
           <div className="relative">
-            <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0D7C7C]" />
+            <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-teal" />
             <input
               type="email"
               placeholder="email@example.com"
-              className={`w-full pl-11 pr-3 py-2 border-2 rounded-lg focus:outline-none transition-all text-sm ${errors.email ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+              className={`w-full px-4 py-2.5 pl-11 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.email ? 'border-red-500 bg-red-50' : 'border-slate-200'}
                 }`}
               {...register('email')}
             />
@@ -141,11 +145,11 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
 
       {/* Medical History */}
       <div className="space-y-2">
-        <label className="block text-[0.82rem] font-600 text-gray-700">Medical History (Optional)</label>
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">Medical History (Optional)</label>
         <textarea
           placeholder="Any relevant medical history or conditions..."
-          rows={4}
-          className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none transition-all resize-none text-sm ${errors.medicalHistory ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#0D7C7C] focus:ring-2 focus:ring-[#0D7C7C]/10'
+          rows={3}
+          className={`w-full px-4 py-2.5 bg-slate-50 border-2 rounded-2xl focus:outline-none focus:border-cyan-500 transition-all font-medium text-slate-900 text-sm ${errors.medicalHistory ? 'border-red-500 bg-red-50' : 'border-slate-200'}
             }`}
           {...register('medicalHistory')}
         />
@@ -153,11 +157,11 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-3 pt-3 border-t border-gray-200">
+      <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 px-3 py-2 bg-gradient-to-r from-[#0D7C7C] to-[#004B87] text-white font-600 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+          className="flex-1 py-3 bg-linear-to-r from-cyan-600 to-blue-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:from-cyan-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
         >
           {isSubmitting ? (
             <>
@@ -172,7 +176,7 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 font-600 rounded-lg hover:bg-gray-200 transition-all text-sm"
+            className="flex-1 py-3 bg-slate-100 text-slate-700 font-semibold rounded-2xl hover:bg-slate-200 transition-all text-sm"
           >
             Cancel
           </button>

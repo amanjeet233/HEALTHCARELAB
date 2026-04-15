@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.entity.enums.AssignmentType;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.entity.enums.CollectionType;
 import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
+import com.healthcare.labtestbooking.entity.converter.PaymentStatusConverter;
 import com.healthcare.labtestbooking.listener.AuditListener;
 import jakarta.persistence.*;
 import lombok.*;
@@ -114,7 +115,7 @@ public class Booking {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal finalAmount;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatusConverter.class)
     @Column(nullable = false)
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
