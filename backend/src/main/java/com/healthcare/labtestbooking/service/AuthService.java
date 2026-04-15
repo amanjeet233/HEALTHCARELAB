@@ -60,7 +60,11 @@ public class AuthService {
                         String phoneNumber = request.getPhoneNumber().trim();
 
                         if (userRepository.existsByEmail(email)) {
-                                throw new UserAlreadyExistsException("Email already registered");
+                                log.info("Registration attempt with existing email - sending verification email to original owner");
+                                // Generic success message to prevent email enumeration
+                                return AuthResponse.builder()
+                                                .message("User registered successfully. Please check your email for verification.")
+                                                .build();
                         }
 
                         if (userRepository.existsByPhone(phoneNumber)) {
@@ -166,7 +170,7 @@ public class AuthService {
                         emailVerificationService.sendVerificationEmail(user);
                 } catch (Exception e) {
                         // Don't fail registration if verification email fails
-                        log.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
+                        log.error("Failed to send verification email: {}", e.getMessage());
                 }
         }
 
@@ -193,7 +197,7 @@ public class AuthService {
                 // 2. Check if account is locked due to failed attempts
                 if (loginAttemptService.isAccountLocked(normalizedEmail)) {
                         long remainingMinutes = loginAttemptService.getRemainingLockoutMinutes(normalizedEmail);
-                        log.warn("Login blocked - account locked for: {}", normalizedEmail);
+                        log.warn("Login blocked - account locked");
                         throw new InvalidCredentialsException(
                                 "Account temporarily locked due to multiple failed login attempts. " +
                                 "Try again in " + remainingMinutes + " minutes or reset your password.");
@@ -212,7 +216,7 @@ public class AuthService {
 
                 // 4. Active-account check
                 if (user.getIsActive() == null || !user.getIsActive()) {
-                        log.warn("Login attempt on disabled account: {}", normalizedEmail);
+                        log.warn("Login attempt on disabled account");
                         throw new InvalidCredentialsException("Account disabled");
                 }
 
@@ -226,7 +230,7 @@ public class AuthService {
 
                 // 6. BCrypt password comparison
                 if (!passwordEncoder.matches(password, user.getPassword())) {
-                        log.warn("Password mismatch for: {}", normalizedEmail);
+                        log.warn("Password mismatch");
                         loginAttemptService.recordFailedAttempt(normalizedEmail);
                         int remaining = loginAttemptService.getRemainingAttempts(normalizedEmail);
                         if (remaining > 0) {
@@ -295,7 +299,7 @@ public class AuthService {
                                 .orElseThrow(() -> new InvalidCredentialsException("Invalid or expired refresh token"));
 
                 if (user.getIsActive() == null || !user.getIsActive()) {
-                        log.warn("Refresh token rejected – account disabled for: {}", username);
+                        log.warn("Refresh token rejected – account disabled");
                         throw new InvalidCredentialsException("Account disabled");
                 }
 
@@ -345,7 +349,7 @@ public class AuthService {
                 String resetLink = "http://localhost:8080/reset-password?token=" + resetToken;
                 notificationService.sendPasswordResetEmail(normalizedEmail, resetLink);
 
-                log.info("Password reset token stored and email dispatched for: {}", normalizedEmail);
+                log.info("Password reset token stored and email dispatched");
                 log.info("Token expires at: {}", expiry);
 
                 return "Password reset link has been sent to your email address";
@@ -376,7 +380,7 @@ public class AuthService {
                 // Clear any lockouts so user can login immediately
                 loginAttemptService.clearFailedAttempts(user.getEmail());
 
-                log.info("Password successfully reset for user: {}", user.getEmail());
+                log.info("Password successfully reset for user");
         }
 
         public boolean validateToken(String token) {

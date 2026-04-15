@@ -1,27 +1,64 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Edit2, Trash2, AlertCircle, Loader } from 'lucide-react';
 import { TestParameterForm } from '../../components/admin/TestParameterForm';
-import { ConfirmationModal } from '../../components/common/ConfirmationModal';
-
-interface TestParameter {
-  id?: number;
-  name: string;
-  unit: string;
-  dataType: string;
-  isActive?: boolean;
-  description?: string;
-}
+import ConfirmationModal from '../../components/common/ConfirmationModal';
+import { testParameterService, type TestParameter } from '../../services/testParameterService';
+import { labTestService } from '../../services/labTest';
+import type { LabTestResponse } from '../../types/labTest';
 
 export const TestParametersPage: React.FC = () => {
-  const [parameters, setParameters] = useState<TestParameter[]>([
-    { id: 1, name: 'Hemoglobin', unit: 'g/dL', dataType: 'NUMERIC', isActive: true },
-    { id: 2, name: 'White Blood Cells', unit: 'cells/mcL', dataType: 'NUMERIC', isActive: true },
-    { id: 3, name: 'Platelet Count', unit: '10^3/mcL', dataType: 'NUMERIC', isActive: true }
-  ]);
+  const [tests, setTests] = useState<LabTestResponse[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<number>(0);
+  const [parameters, setParameters] = useState<TestParameter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedParam, setSelectedParam] = useState<TestParameter | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TestParameter | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    loadTests();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTestId > 0) {
+      loadParameters(selectedTestId);
+    } else {
+      setParameters([]);
+    }
+  }, [selectedTestId]);
+
+  const loadTests = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await labTestService.getLabTests({ page: 0, size: 200, sort: 'testName,asc' });
+      const loadedTests = response.tests || [];
+      setTests(loadedTests);
+      if (loadedTests.length > 0) {
+        setSelectedTestId(loadedTests[0].id);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load tests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadParameters = async (testId: number) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await testParameterService.getByTestId(testId);
+      setParameters(data || []);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load parameters');
+      setParameters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEdit = (param: TestParameter) => {
     setSelectedParam(param);
@@ -29,12 +66,14 @@ export const TestParametersPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteConfirm) return;
+    if (!deleteConfirm?.id) return;
     setDeleting(true);
     try {
-      // TODO: Implement API call
-      setParameters(parameters.filter(p => p.id !== deleteConfirm.id));
+      await testParameterService.remove(deleteConfirm.id);
+      setParameters((current) => current.filter((p) => p.id !== deleteConfirm.id));
       setDeleteConfirm(null);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to delete parameter');
     } finally {
       setDeleting(false);
     }
@@ -45,36 +84,59 @@ export const TestParametersPage: React.FC = () => {
     setSelectedParam(null);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
     handleFormClose();
-    // Reload parameters from API
+    if (selectedTestId > 0) {
+      await loadParameters(selectedTestId);
+    }
   };
+
+  const selectedTestName =
+    tests.find((test) => test.id === selectedTestId)?.testName ||
+    tests.find((test) => test.id === selectedTestId)?.name ||
+    '';
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Test Parameters</h1>
-          <p className="text-gray-600 mt-2">Manage test parameters and their properties</p>
+          <p className="text-gray-600 mt-2">Manage parameter definitions for each lab test</p>
         </div>
         <button
           onClick={() => {
+            if (!selectedTestId) return;
             setSelectedParam(null);
             setShowForm(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+          disabled={!selectedTestId}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           Add Parameter
         </button>
       </div>
 
-      {/* Form Modal */}
-      {showForm && (
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Select Test</label>
+        <select
+          value={selectedTestId || ''}
+          onChange={(e) => setSelectedTestId(Number(e.target.value))}
+          className="w-full max-w-lg px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {tests.map((test) => (
+            <option key={test.id} value={test.id}>
+              {test.testName || test.name || `Test #${test.id}`}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {showForm && selectedTestId > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <TestParameterForm
+              testId={selectedTestId}
               parameterData={selectedParam || undefined}
               onSuccess={handleFormSuccess}
               onClose={handleFormClose}
@@ -83,66 +145,70 @@ export const TestParametersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation */}
       {deleteConfirm && (
         <ConfirmationModal
+          isOpen={Boolean(deleteConfirm)}
           title="Delete Test Parameter"
-          message={`Are you sure you want to delete "${deleteConfirm.name}"? This action cannot be undone.`}
+          description={`Are you sure you want to delete "${deleteConfirm.parameterName}"? This action cannot be undone.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteConfirm(null)}
-          isLoading={deleting}
-          destructive
+          confirmText={deleting ? 'Deleting...' : 'Delete'}
+          cancelText="Cancel"
+          confirmColor="bg-danger hover:bg-red-700 focus:ring-danger"
         />
       )}
 
-      {/* Parameters List */}
-      {parameters.length === 0 ? (
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-red-900">Error</h3>
+            <p className="text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+        </div>
+      ) : parameters.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
           <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600">No test parameters found</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Create your first parameter
-          </button>
+          <p className="text-gray-600">
+            {selectedTestId ? `No test parameters found for ${selectedTestName}` : 'No test selected'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
           <table className="w-full">
-            <thead classList="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Parameter Name</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Unit</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Data Type</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Normal Range</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Critical</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {parameters.map(param => (
+              {parameters.map((param) => (
                 <tr key={param.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900">{param.name}</p>
-                    {param.description && (
-                      <p className="text-sm text-gray-600">{param.description}</p>
-                    )}
+                    <p className="font-medium text-gray-900">{param.parameterName}</p>
+                    {param.normalRangeText && <p className="text-sm text-gray-600">{param.normalRangeText}</p>}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{param.unit}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                      {param.dataType}
-                    </span>
+                  <td className="px-6 py-4 text-sm text-gray-700">{param.unit || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {param.normalRangeMin ?? '-'} - {param.normalRangeMax ?? '-'}
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded ${
-                        param.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                        param.isCritical ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {param.isActive ? 'Active' : 'Inactive'}
+                      {param.isCritical ? 'Yes' : 'No'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -170,12 +236,11 @@ export const TestParametersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Stats */}
-      {parameters.length > 0 && (
+      {!loading && parameters.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <p className="text-sm text-green-900">
-              <strong>{parameters.filter(p => p.isActive).length}</strong> Active Parameters
+          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+            <p className="text-sm text-red-900">
+              <strong>{parameters.filter((p) => p.isCritical).length}</strong> Critical Parameters
             </p>
           </div>
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -188,3 +253,5 @@ export const TestParametersPage: React.FC = () => {
     </div>
   );
 };
+
+export default TestParametersPage;

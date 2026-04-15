@@ -1,6 +1,7 @@
 package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.dto.AssignTechnicianRequest;
 import com.healthcare.labtestbooking.dto.BookingRequest;
 import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.SpecimenRejectionRequest;
@@ -189,13 +190,9 @@ public class BookingController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<BookingResponse>> assignTechnician(@PathVariable Long id,
-                        @RequestBody Map<String, Long> payload) {
-                Long technicianId = payload.get("technicianId");
-                if (technicianId == null) {
-                        return ResponseEntity.badRequest().body(ApiResponse.error("technicianId is required in the request body"));
-                }
-                log.info("Assign technician {} to booking {}", technicianId, id);
-                BookingResponse booking = bookingService.assignTechnician(id, technicianId);
+                        @Valid @RequestBody AssignTechnicianRequest request) {
+                log.info("Assign technician {} to booking {}", request.getTechnicianId(), id);
+                BookingResponse booking = bookingService.assignTechnician(id, request.getTechnicianId());
                 return ResponseEntity.ok(ApiResponse.success("Technician assigned", booking));
         }
 

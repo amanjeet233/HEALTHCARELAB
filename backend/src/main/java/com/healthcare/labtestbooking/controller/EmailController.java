@@ -24,7 +24,7 @@ import java.util.Map;
 @RequestMapping({"/api/email", "/api/emails"})
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("isAuthenticated()")
+@PreAuthorize("hasAnyRole('PATIENT', 'TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class EmailController {
 

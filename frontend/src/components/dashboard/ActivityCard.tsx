@@ -56,7 +56,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                     </span>
                     <span className="text-[10px] font-bold text-muted-gray uppercase tracking-widest opacity-40 mt-1">{booking.timeSlot}</span>
                 </div>
-                {role === 'TECHNICIAN' && booking.status === 'CONFIRMED' && onMarkCollected && (
+                {role === 'TECHNICIAN' && booking.status === 'BOOKED' && onMarkCollected && (
                     <button
                         type="button"
                         onClick={(event) => {

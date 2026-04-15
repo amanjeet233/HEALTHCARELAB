@@ -81,13 +81,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             await new Promise(r => setTimeout(r, 800));
 
             // Step 2: Processing
-            setProcessingStep('Connecting to payment gateway...');
+            setProcessingStep('Simulating gateway handshake...');
             const result = await paymentService.initiatePayment({
                 bookingId,
                 amount,
                 paymentMethod: selectedMethod,
-                paymentGateway: 'RAZORPAY',
-                transactionId: 'TXN_' + Math.random().toString(36).substring(7)
+                paymentGateway: 'MOCK',
+                transactionId: 'MOCK_TXN_' + Math.random().toString(36).substring(7).toUpperCase()
             });
 
             // Step 3: Confirming

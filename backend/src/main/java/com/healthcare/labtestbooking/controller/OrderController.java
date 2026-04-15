@@ -121,7 +121,7 @@ public class OrderController {
 
     @PostMapping("/{orderId}/initiate-payment")
     @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
-    @Operation(summary = "Initiate payment for order", description = "Create Razorpay payment order and get payment link")
+    @Operation(summary = "Initiate payment for order", description = "Create generic payment order and get payment link")
     public ResponseEntity<ApiResponse<OrderPaymentService.PaymentInitiationResponse>> initiatePayment(
             @PathVariable Long orderId,
             @Valid @RequestBody PaymentInitiationRequest request,
@@ -146,16 +146,35 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success("Payment status retrieved", response));
     }
 
-    @PostMapping("/payment/razorpay-callback")
-    @Operation(summary = "Razorpay payment webhook", description = "Handle payment success/failure callbacks from Razorpay")
-    public ResponseEntity<String> handleRazorpayWebhook(
+    @PostMapping("/payment/webhook")
+    @Operation(summary = "Payment webhook", description = "Handle generic payment success/failure callbacks")
+    public ResponseEntity<String> handlePaymentWebhook(
             @RequestBody java.util.Map<String, Object> payload) {
         try {
-            log.info("Razorpay webhook received");
+            log.info("Payment webhook received with event: {}", payload.get("event"));
+            
+            String event = (String) payload.get("status"); // Generic "status" field
+            String gatewayOrderId = (String) payload.get("gatewayOrderId");
+            String gatewayPaymentId = (String) payload.get("gatewayPaymentId");
+            
+            if (gatewayOrderId == null) {
+                return ResponseEntity.ok("Received empty gatewayOrderId");
+            }
+
+            if ("SUCCESS".equalsIgnoreCase(event)) {
+                log.info("Payment success event for Gateway Order: {}", gatewayOrderId);
+                orderPaymentService.handlePaymentSuccess(gatewayOrderId, gatewayPaymentId, "MOCK_VERIFIED");
+            } else {
+                String reason = (String) payload.get("reason");
+                log.info("Payment failure event for Gateway Order: {}. Reason: {}", gatewayOrderId, reason);
+                orderPaymentService.handlePaymentFailure(gatewayOrderId, reason != null ? reason : "Mock failure");
+            }
+
             return ResponseEntity.ok("Webhook processed successfully");
         } catch (Exception e) {
             log.error("Webhook processing failed", e);
-            return ResponseEntity.badRequest().body("Webhook processing failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Webhook processing failed: " + e.getMessage());
         }
     }
 

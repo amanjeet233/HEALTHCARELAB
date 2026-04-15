@@ -257,9 +257,19 @@ public class ReportService {
 
     public ReportResultDTO getReportByBookingId(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + bookingId));
+        
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() == UserRole.PATIENT) {
+            if (booking.getPatient() == null || !booking.getPatient().getId().equals(currentUser.getId())) {
+                log.warn("Security Alert: User {} attempted to access report for booking {} owned by someone else", 
+                    currentUser.getEmail(), bookingId);
+                throw new ResourceNotFoundException("Report not found");
+            }
+        }
+
         List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
-        if (results.isEmpty()) throw new RuntimeException("No report results found for booking id: " + bookingId);
+        if (results.isEmpty()) throw new ResourceNotFoundException("No report results found for booking id: " + bookingId);
         User technician = results.get(0).getBooking().getTechnician();
         return convertToDTO(results, booking, technician);
     }
@@ -306,6 +316,13 @@ public class ReportService {
     }
 
     public List<Map<String, Object>> getTrendsForPatient(Long patientId) {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() == UserRole.PATIENT && !currentUser.getId().equals(patientId)) {
+            log.warn("Security Alert: User {} attempted to access trends for patient ID {}", 
+                currentUser.getEmail(), patientId);
+            throw new ResourceNotFoundException("Patient not found");
+        }
+        
         List<Booking> bookings = bookingRepository.findByPatientId(patientId);
         Map<String, List<Map<String, Object>>> paramTrends = new HashMap<>();
         

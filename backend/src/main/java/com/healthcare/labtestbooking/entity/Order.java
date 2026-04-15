@@ -92,8 +92,8 @@ public class Order {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
-    @Column(name = "razorpay_order_id", length = 100, unique = true)
-    private String razorpayOrderId;
+    @Column(name = "gateway_order_id", length = 100, unique = true)
+    private String gatewayOrderId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

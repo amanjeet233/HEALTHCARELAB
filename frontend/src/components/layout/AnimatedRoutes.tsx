@@ -45,6 +45,9 @@ const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
 const ProfilePage = lazy(() => import('../../pages/patient/ProfilePage'));
 const NotificationCenter = lazy(() => import('../../pages/patient/NotificationCenter'));
 const AdminDashboard = lazy(() => import('../../pages/admin/AdminDashboard'));
+const DoctorManagementPage = lazy(() => import('../../pages/admin/DoctorManagementPage'));
+const ReferenceRangesPage = lazy(() => import('../../pages/admin/ReferenceRangesPage'));
+const TestParametersPage = lazy(() => import('../../pages/admin/TestParametersPage'));
 const BookConsultationPage = lazy(() => import('../../pages/patient/BookConsultationPage'));
 const FamilyMembersPage = lazy(() => import('../../pages/patient/FamilyMembersPage'));
 const AddressBookPage = lazy(() => import('../../pages/patient/AddressBookPage'));
@@ -92,7 +95,7 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/test-listing/:slug" element={<PageTransition><TestListingBySlugPage /></PageTransition>} />
                         <Route path="/lab-tests-category/:categorySlug" element={<PageTransition><TestListingBySlugPage /></PageTransition>} />
 
-                        <Route path="/tests" element={<PageTransition><TestListingPage /></PageTransition>} />
+                        <Route path="/tests" element={<Navigate to="/lab-tests" replace />} />
                         <Route path="/screenings" element={<PageTransition><ScreeningsPage /></PageTransition>} />
                         <Route path="/test/:slug" element={<PageTransition><TestDetailPage /></PageTransition>} />
                         <Route path="/packages" element={<PageTransition><PackagesListingPage /></PageTransition>} />
@@ -102,13 +105,15 @@ const AnimatedRoutes: React.FC = () => {
 
                         {/* Public Pages - No auth required */}
                         <Route path="/cart" element={<PageTransition><CartPage /></PageTransition>} />
-                        <Route path="/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
 
                         {/* Protected Unified Pages */}
                         {/* Admin only */}
                         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                             <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
                             <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
+                            <Route path="/admin/doctor-management" element={<PageTransition><DoctorManagementPage /></PageTransition>} />
+                            <Route path="/admin/reference-ranges" element={<PageTransition><ReferenceRangesPage /></PageTransition>} />
+                            <Route path="/admin/test-parameters" element={<PageTransition><TestParametersPage /></PageTransition>} />
                         </Route>
 
                         {/* Technician only */}
@@ -126,7 +131,7 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/booking" element={<PageTransition><BookingPage /></PageTransition>} />
                             <Route path="/booking/:id" element={<PageTransition><BookingPage /></PageTransition>} />
                             <Route path="/my-bookings" element={<PageTransition><MyBookingsPage /></PageTransition>} />
-                            <Route path="/bookings" element={<PageTransition><MyBookingsPage /></PageTransition>} />
+                            <Route path="/bookings" element={<Navigate to="/my-bookings" replace />} />
                             <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
                             <Route path="/family-members" element={<PageTransition><FamilyMembersPage /></PageTransition>} />
                             <Route path="/my-addresses" element={<PageTransition><AddressBookPage /></PageTransition>} />
@@ -139,6 +144,7 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/reports" element={<PageTransition><ReportsPage /></PageTransition>} />
                             <Route path="/smart-reports" element={<PageTransition><SmartReportsPage /></PageTransition>} />
                             <Route path="/my-reports" element={<Navigate to="/reports" replace />} />
+                            <Route path="/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
                         </Route>
                     </Route>
 

@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, PerspectiveCamera, Environment } from '@react-three/drei';
+import { Float, PerspectiveCamera, Environment, Lightformer } from '@react-three/drei';
 import React, { useRef, useMemo, Suspense } from 'react';
 import * as THREE from 'three';
 
@@ -119,7 +119,35 @@ const DNAHelix3D: React.FC<{ className?: string }> = React.memo(({ className }) 
                         <Helix count={65} radius={3.2} height={20} />
                     </Float>
 
-                    <Environment preset="city" />
+                    <Environment frames={Infinity} resolution={256}>
+                        {/* Soft studio light background */}
+                        <mesh scale={100}>
+                            <sphereGeometry args={[1, 64, 64]} />
+                            <meshBasicMaterial side={THREE.BackSide} color="#0d1117" />
+                        </mesh>
+                        
+                        {/* Key light */}
+                        <Lightformer 
+                            intensity={4} 
+                            rotation-x={Math.PI / 2} 
+                            position={[0, 5, -9]} 
+                            scale={[10, 10, 1]} 
+                        />
+                        
+                        {/* Side highlights */}
+                        <Lightformer 
+                            intensity={2} 
+                            rotation-y={Math.PI / 2} 
+                            position={[-5, 2, -1]} 
+                            scale={[20, 0.5, 1]} 
+                        />
+                        <Lightformer 
+                            intensity={2} 
+                            rotation-y={-Math.PI / 2} 
+                            position={[10, 1, 0]} 
+                            scale={[20, 1, 1]} 
+                        />
+                    </Environment>
                 </Suspense>
             </Canvas>
         </div>

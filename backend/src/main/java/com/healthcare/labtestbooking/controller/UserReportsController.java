@@ -88,6 +88,15 @@ public class UserReportsController {
 
     @GetMapping("/{reportId}/pdf")
     public ResponseEntity<byte[]> getReportPdf(@PathVariable Long reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new com.healthcare.labtestbooking.exception.ResourceNotFoundException("Report not found"));
+        
+        Long currentUserId = userService.getCurrentUserId();
+        if (report.getBooking() == null || report.getBooking().getPatient() == null ||
+                !report.getBooking().getPatient().getId().equals(currentUserId)) {
+            throw new com.healthcare.labtestbooking.exception.ResourceNotFoundException("Report not found");
+        }
+
         byte[] pdf = reportGeneratorService.generatePdfReport(reportId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=report-" + reportId + ".pdf")
@@ -99,6 +108,15 @@ public class UserReportsController {
     public ResponseEntity<ApiResponse<Void>> shareReport(
             @PathVariable Long reportId,
             @Valid @RequestBody ShareReportRequest request) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new com.healthcare.labtestbooking.exception.ResourceNotFoundException("Report not found"));
+        
+        Long currentUserId = userService.getCurrentUserId();
+        if (report.getBooking() == null || report.getBooking().getPatient() == null ||
+                !report.getBooking().getPatient().getId().equals(currentUserId)) {
+            throw new com.healthcare.labtestbooking.exception.ResourceNotFoundException("Report not found");
+        }
+
         reportService.shareReport(reportId, request.getEmail(), request.getAccessType());
         return ResponseEntity.ok(ApiResponse.success("Report shared successfully", null));
     }
@@ -139,7 +157,7 @@ public class UserReportsController {
         if (booking.getStatus() == BookingStatus.PROCESSING) {
             return booking.getCreatedAt().plusHours(24);
         }
-        if (booking.getStatus() == BookingStatus.BOOKED || booking.getStatus() == BookingStatus.CONFIRMED) {
+        if (booking.getStatus() == BookingStatus.BOOKED) {
             return booking.getCreatedAt().plusHours(48);
         }
         return null;

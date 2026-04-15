@@ -1,4 +1,16 @@
-export type BookingStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'SAMPLE_COLLECTED';
+export type BookingStatus =
+    | 'BOOKED'
+    | 'SAMPLE_COLLECTED'
+    | 'PROCESSING'
+    | 'REFLEX_PENDING'
+    | 'PENDING_VERIFICATION'
+    | 'VERIFIED'
+    | 'COMPLETED'
+    | 'CANCELLED'
+    // legacy values kept for backward compatibility with older local/mock data
+    | 'PENDING_CONFIRMATION'
+    | 'CONFIRMED'
+    | 'PENDING';
 
 export interface CreateBookingRequest {
     testId?: number;

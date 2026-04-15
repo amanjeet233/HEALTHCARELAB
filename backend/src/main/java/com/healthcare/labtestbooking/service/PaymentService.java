@@ -38,13 +38,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+    private static final String MOCK_GATEWAY = "MOCK_GATEWAY";
 
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
     private final GatewayPaymentRepository gatewayPaymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
-        private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+    private final ExternalPaymentGatewayClient externalPaymentGatewayClient;
 
     @Value("${app.payment.webhook.secret}")
     private String webhookSecret;
@@ -203,7 +205,7 @@ public class PaymentService {
         GatewayPayment payment = GatewayPayment.builder()
                 .order(orderRepository.findById(request.getOrderId()).orElse(null))
                 .amount(request.getAmount())
-                .gateway(request.getGateway())
+                .gateway(MOCK_GATEWAY)
                 .transactionId(transactionId)
                 .status(PaymentStatus.PENDING)
                 .paymentLink(paymentLink)
@@ -250,11 +252,11 @@ public class PaymentService {
     }
 
     private boolean processExternalPayment(PaymentRequest request) {
-        return true;
+        return externalPaymentGatewayClient.executePayment(request);
     }
 
     private boolean processExternalRefund(BigDecimal amount, PaymentMethod paymentMethod) {
-        return true;
+        return externalPaymentGatewayClient.executeRefund(amount, paymentMethod);
     }
 
     private PaymentMethod resolvePaymentMethod(String rawMethod) {

@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.entity.Payment;
 import com.healthcare.labtestbooking.entity.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,14 +17,19 @@ import java.util.Optional;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
+    @EntityGraph(attributePaths = {"booking", "booking.patient", "booking.test", "booking.testPackage"})
     List<Payment> findByBookingId(Long bookingId);
 
+    @EntityGraph(attributePaths = {"booking", "booking.patient", "booking.test", "booking.testPackage"})
     List<Payment> findByBookingIdOrderByPaymentDateDesc(Long bookingId);
 
+    @EntityGraph(attributePaths = {"booking", "booking.patient", "booking.test", "booking.testPackage"})
     List<Payment> findByBookingPatientIdOrderByPaymentDateDesc(Long patientId);
 
+    @EntityGraph(attributePaths = {"booking", "booking.patient", "booking.test", "booking.testPackage"})
     Page<Payment> findByBookingIdOrderByPaymentDateDesc(Long bookingId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"booking", "booking.patient", "booking.test", "booking.testPackage"})
     Page<Payment> findByBookingPatientIdOrderByPaymentDateDesc(Long patientId, Pageable pageable);
 
     Optional<Payment> findByTransactionId(String transactionId);

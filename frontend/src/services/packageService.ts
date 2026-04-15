@@ -16,16 +16,6 @@ export interface TestPackageResponse {
     isPopular?: boolean;
 }
 
-export interface PackageAnalytics {
-    packageId: number;
-    packageName: string;
-    totalBookings: number;
-    totalRevenue: number;
-    averageRating: number;
-    popularityScore: number;
-    monthlyTrend: Array<{ month: string; bookings: number }>;
-}
-
 export interface PopularPackage {
     id: number;
     name: string;
@@ -54,7 +44,12 @@ const normalizePackage = (pkg: any): TestPackageResponse => ({
 
 export const packageService = {
     getAllPackages: async (params?: { page?: number; size?: number; category?: string }): Promise<TestPackageResponse[]> => {
-        const response = await api.get('/api/lab-tests/packages', { params });
+        let response;
+        try {
+            response = await api.get('/api/test-packages', { params });
+        } catch {
+            response = await api.get('/api/lab-tests/packages', { params });
+        }
         let data: any[] = [];
         if (response.data?.content) {
             data = response.data.content;
@@ -67,7 +62,12 @@ export const packageService = {
     },
 
     getPackageById: async (id: number): Promise<TestPackageResponse> => {
-        const response = await api.get(`/api/lab-tests/packages/${id}`);
+        let response;
+        try {
+            response = await api.get(`/api/test-packages/${id}`);
+        } catch {
+            response = await api.get(`/api/lab-tests/packages/${id}`);
+        }
         return normalizePackage(response.data?.data || response.data);
     },
 
@@ -78,55 +78,14 @@ export const packageService = {
     },
 
     /**
-     * Get package analytics and performance metrics
-     */
-    getPackageAnalytics: async (packageId?: number): Promise<PackageAnalytics[]> => {
-        try {
-            const endpoint = packageId ? `/api/packages/analytics/${packageId}` : '/api/packages/analytics';
-            const response = await api.get(endpoint);
-            return response.data?.data || response.data || [];
-        } catch (error) {
-            console.error('Error fetching package analytics:', error);
-            return [];
-        }
-    },
-
-    /**
      * Get popular packages ranked by bookings
      */
     getPopularPackages: async (limit: number = 10): Promise<PopularPackage[]> => {
         try {
-            const response = await api.get('/api/packages/popular', { params: { limit } });
+            const response = await api.get('/api/test-packages/popular', { params: { limit } });
             return response.data?.data || response.data || [];
         } catch (error) {
             console.error('Error fetching popular packages:', error);
-            return [];
-        }
-    },
-
-    /**
-     * Get package performance metrics for admin
-     */
-    getPackagePerformance: async (params?: { period?: string }): Promise<any> => {
-        try {
-            const response = await api.get('/api/packages/performance', { params });
-            return response.data?.data || response.data;
-        } catch (error) {
-            console.error('Error fetching package performance:', error);
-            return null;
-        }
-    },
-
-    /**
-     * Get package comparison data
-     */
-    comparePackages: async (packageIds: number[]): Promise<TestPackageResponse[]> => {
-        try {
-            const response = await api.post('/api/packages/compare', { packageIds });
-            const data = response.data?.data || response.data || [];
-            return data.map(normalizePackage);
-        } catch (error) {
-            console.error('Error comparing packages:', error);
             return [];
         }
     }

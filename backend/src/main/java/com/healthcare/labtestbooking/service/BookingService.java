@@ -69,11 +69,8 @@ public class BookingService {
         map.put(BookingStatus.SAMPLE_COLLECTED,      EnumSet.of(BookingStatus.PROCESSING));
         map.put(BookingStatus.PROCESSING,            EnumSet.of(BookingStatus.PENDING_VERIFICATION));
         map.put(BookingStatus.PENDING_VERIFICATION,  EnumSet.of(BookingStatus.VERIFIED, BookingStatus.PROCESSING));
-        map.put(BookingStatus.VERIFIED,              EnumSet.of(BookingStatus.COMPLETED));
         map.put(BookingStatus.COMPLETED,             Collections.emptySet());
         map.put(BookingStatus.CANCELLED,             Collections.emptySet());
-        //noinspection deprecation
-        map.put(BookingStatus.CONFIRMED,             EnumSet.of(BookingStatus.CANCELLED));
         ALLOWED_TRANSITIONS = Collections.unmodifiableMap(map);
     }
 
@@ -186,6 +183,7 @@ public class BookingService {
         Booking booking = Booking.builder()
                 .bookingReference(bookingRef)
                 .patient(patient)
+                .legacyUserId(patient.getId())
                 .test(labTest)
                 .testPackage(testPackage)
                 .bookingDate(request.getBookingDate())

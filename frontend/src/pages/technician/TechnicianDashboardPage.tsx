@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 // Status badge config
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BOOKED:               { label: 'Pending',        bg: '#FFF7ED', color: '#C2410C' },
-  CONFIRMED:            { label: 'Confirmed',      bg: '#EFF6FF', color: '#1D4ED8' },
   REFLEX_PENDING:       { label: 'Reflex Pending', bg: '#EEF2FF', color: '#3730A3' },
   SAMPLE_COLLECTED:     { label: 'Collected',      bg: '#F0FDF4', color: '#16A34A' },
   PROCESSING:           { label: 'Processing',     bg: '#F5F3FF', color: '#7C3AED' },
@@ -92,7 +91,7 @@ const TechnicianDashboardPage: React.FC = () => {
       }
 
       const collectibleBookings = normalizedBookings.filter((b: any) =>
-        b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING'
+        b.status === 'BOOKED' || b.status === 'REFLEX_PENDING'
       );
       if (collectibleBookings.length === 0) {
         setConsentByBookingId({});
@@ -241,7 +240,7 @@ const TechnicianDashboardPage: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const todayBookings = bookings.filter(b => b.bookingDate === today);
   const pendingBookings = bookings.filter(b =>
-    (b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING') && b.bookingDate >= today
+    (b.status === 'BOOKED' || b.status === 'REFLEX_PENDING') && b.bookingDate >= today
   );
   const completedBookings = bookings.filter(b => b.status === 'SAMPLE_COLLECTED' || b.status === 'COMPLETED');
   const rejectedTabBookings = rejectedBookings;
@@ -322,7 +321,7 @@ const TechnicianDashboardPage: React.FC = () => {
           <div className="space-y-3">
             {displayBookings.map((booking: any) => {
               const s = STATUS_CONFIG[booking.status] || STATUS_CONFIG.BOOKED;
-              const canCollect = booking.status === 'BOOKED' || booking.status === 'CONFIRMED' || booking.status === 'REFLEX_PENDING';
+              const canCollect = booking.status === 'BOOKED' || booking.status === 'REFLEX_PENDING';
               const canProcess = booking.status === 'SAMPLE_COLLECTED';
               const canReject = booking.status === 'BOOKED' || booking.status === 'SAMPLE_COLLECTED';
               const consentState = consentByBookingId[booking.id];

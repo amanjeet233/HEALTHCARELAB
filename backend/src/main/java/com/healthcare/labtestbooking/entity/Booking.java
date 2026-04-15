@@ -36,6 +36,13 @@ public class Booking {
     @EqualsAndHashCode.Exclude
     private User patient;
 
+    /**
+     * Legacy column retained in DB schema for backward compatibility.
+     * Keep it synchronized with patient_id to satisfy NOT NULL constraint.
+     */
+    @Column(name = "user_id", nullable = false)
+    private Long legacyUserId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "test_id")
     @ToString.Exclude
@@ -63,7 +70,6 @@ public class Booking {
     @Column(name = "patient_display_name", length = 150)
     private String patientDisplayName;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private BookingStatus status = BookingStatus.BOOKED;
@@ -84,7 +90,6 @@ public class Booking {
     @EqualsAndHashCode.Exclude
     private User medicalOfficer;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private CollectionType collectionType = CollectionType.LAB;
@@ -160,6 +165,9 @@ public class Booking {
 
     @PrePersist
     protected void onCreate() {
+        if (legacyUserId == null && patient != null) {
+            legacyUserId = patient.getId();
+        }
         createdAt = LocalDateTime.now();
     }
 }

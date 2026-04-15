@@ -3,37 +3,32 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Loader } from 'lucide-react';
+import { testParameterService, type TestParameter } from '../../services/testParameterService';
 
 const schema = yup.object({
-  name: yup.string().required('Parameter name is required'),
-  description: yup.string().optional(),
-  unit: yup.string().required('Unit is required'),
-  referenceValue: yup.number().optional(),
-  referenceMin: yup.number().optional(),
-  referenceMax: yup.number().optional(),
-  dataType: yup.string().required('Data type is required'),
-  isActive: yup.boolean().optional()
+  parameterName: yup.string().required('Parameter name is required'),
+  unit: yup.string().optional(),
+  normalRangeMin: yup.number().nullable().optional(),
+  normalRangeMax: yup.number().nullable().optional(),
+  normalRangeText: yup.string().optional(),
+  criticalLow: yup.number().nullable().optional(),
+  criticalHigh: yup.number().nullable().optional(),
+  displayOrder: yup.number().nullable().optional(),
+  category: yup.string().optional(),
+  isCritical: yup.boolean().optional()
 });
 
-interface TestParameter {
-  id?: number;
-  name: string;
-  description?: string;
-  unit: string;
-  referenceValue?: number;
-  referenceMin?: number;
-  referenceMax?: number;
-  dataType: string;
-  isActive?: boolean;
-}
+type TestParameterFormValues = yup.InferType<typeof schema>;
 
 interface TestParameterFormProps {
+  testId: number;
   parameterData?: TestParameter;
   onSuccess?: () => void;
   onClose?: () => void;
 }
 
 export const TestParameterForm: React.FC<TestParameterFormProps> = ({
+  testId,
   parameterData,
   onSuccess,
   onClose
@@ -41,30 +36,41 @@ export const TestParameterForm: React.FC<TestParameterFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit } = useForm<TestParameterFormValues>({
     resolver: yupResolver(schema),
     defaultValues: {
-      name: parameterData?.name || '',
-      description: parameterData?.description || '',
+      parameterName: parameterData?.parameterName || '',
       unit: parameterData?.unit || '',
-      referenceValue: parameterData?.referenceValue || 0,
-      referenceMin: parameterData?.referenceMin || 0,
-      referenceMax: parameterData?.referenceMax || 0,
-      dataType: parameterData?.dataType || 'NUMERIC',
-      isActive: parameterData?.isActive !== false
+      normalRangeMin: parameterData?.normalRangeMin ?? null,
+      normalRangeMax: parameterData?.normalRangeMax ?? null,
+      normalRangeText: parameterData?.normalRangeText || '',
+      criticalLow: parameterData?.criticalLow ?? null,
+      criticalHigh: parameterData?.criticalHigh ?? null,
+      displayOrder: parameterData?.displayOrder ?? null,
+      category: parameterData?.category || '',
+      isCritical: Boolean(parameterData?.isCritical)
     }
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: TestParameterFormValues) => {
     setLoading(true);
     setError('');
     try {
-      // TODO: Implement API call to save test parameter
-      // await testParameterService.saveTestParameter(parameterData?.id, data);
-      reset();
+      const payload: TestParameter = {
+        ...data,
+        id: parameterData?.id,
+        testId
+      };
+
+      if (parameterData?.id) {
+        await testParameterService.update(parameterData.id, payload);
+      } else {
+        await testParameterService.create(payload);
+      }
+
       onSuccess?.();
-    } catch (err) {
-      setError((err as any).message || 'Failed to save test parameter');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to save test parameter');
     } finally {
       setLoading(false);
     }
@@ -83,183 +89,174 @@ export const TestParameterForm: React.FC<TestParameterFormProps> = ({
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Parameter Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Parameter Name *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Parameter Name *</label>
           <Controller
-            name="name"
+            name="parameterName"
             control={control}
-            render={({ field, fieldState: { error } }) => (
+            render={({ field, fieldState: { error: fieldError } }) => (
               <>
                 <input
                   {...field}
                   type="text"
-                  placeholder="e.g., White Blood Cell Count"
+                  placeholder="e.g., Hemoglobin"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    error ? 'border-red-500' : 'border-gray-300'
+                    fieldError ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
-                {error && <p className="text-sm text-red-600 mt-1">{error.message}</p>}
+                {fieldError && <p className="text-sm text-red-600 mt-1">{fieldError.message}</p>}
               </>
             )}
           />
         </div>
 
-        {/* Description */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+            <Controller
+              name="unit"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="text"
+                  placeholder="e.g., g/dL"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="text"
+                  placeholder="e.g., Blood"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Reference and Critical Range</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              name="normalRangeMin"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  value={field.value ?? ''}
+                  type="number"
+                  step="0.01"
+                  placeholder="Normal min"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              )}
+            />
+            <Controller
+              name="normalRangeMax"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  value={field.value ?? ''}
+                  type="number"
+                  step="0.01"
+                  placeholder="Normal max"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              )}
+            />
+            <Controller
+              name="criticalLow"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  value={field.value ?? ''}
+                  type="number"
+                  step="0.01"
+                  placeholder="Critical low"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              )}
+            />
+            <Controller
+              name="criticalHigh"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  value={field.value ?? ''}
+                  type="number"
+                  step="0.01"
+                  placeholder="Critical high"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              )}
+            />
+          </div>
+        </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description (Optional)
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Range Notes</label>
           <Controller
-            name="description"
+            name="normalRangeText"
             control={control}
             render={({ field }) => (
               <textarea
                 {...field}
-                placeholder="Enter parameter description..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                placeholder="Optional human readable range notes"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             )}
           />
         </div>
 
-        {/* Unit */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Unit *
-          </label>
-          <Controller
-            name="unit"
-            control={control}
-            render={({ field, fieldState: { error } }) => (
-              <>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+            <Controller
+              name="displayOrder"
+              control={control}
+              render={({ field }) => (
                 <input
                   {...field}
-                  type="text"
-                  placeholder="e.g., cells/mcL"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    error ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  value={field.value ?? ''}
+                  type="number"
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
-                {error && <p className="text-sm text-red-600 mt-1">{error.message}</p>}
-              </>
-            )}
-          />
-        </div>
-
-        {/* Data Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Data Type *
-          </label>
-          <Controller
-            name="dataType"
-            control={control}
-            render={({ field, fieldState: { error } }) => (
-              <>
-                <select
-                  {...field}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    error ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="NUMERIC">Numeric</option>
-                  <option value="TEXT">Text</option>
-                  <option value="BOOLEAN">Boolean</option>
-                  <option value="DATE">Date</option>
-                </select>
-                {error && <p className="text-sm text-red-600 mt-1">{error.message}</p>}
-              </>
-            )}
-          />
-        </div>
-
-        {/* Reference Values */}
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">Reference Range (Optional)</h4>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                Min Value
-              </label>
-              <Controller
-                name="referenceMin"
-                control={control}
-                render={({ field }) => (
+              )}
+            />
+          </div>
+          <div className="flex items-end pb-2">
+            <Controller
+              name="isCritical"
+              control={control}
+              render={({ field }) => (
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    {...field}
-                    type="number"
-                    step="0.01"
-                    placeholder="Min"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    checked={Boolean(field.value)}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-300"
                   />
-                )}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                Reference Value
-              </label>
-              <Controller
-                name="referenceValue"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    type="number"
-                    step="0.01"
-                    placeholder="Reference"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                Max Value
-              </label>
-              <Controller
-                name="referenceMax"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    type="number"
-                    step="0.01"
-                    placeholder="Max"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-              />
-            </div>
+                  <span className="text-sm text-gray-700">Critical marker parameter</span>
+                </label>
+              )}
+            />
           </div>
         </div>
 
-        {/* Active Status */}
-        <div>
-          <Controller
-            name="isActive"
-            control={control}
-            render={({ field }) => (
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  {...field}
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">Active</span>
-              </label>
-            )}
-          />
-        </div>
-
-        {/* Buttons */}
         <div className="flex gap-3 pt-4 border-t border-gray-200">
           <button
             type="submit"
@@ -281,3 +278,4 @@ export const TestParameterForm: React.FC<TestParameterFormProps> = ({
     </div>
   );
 };
+

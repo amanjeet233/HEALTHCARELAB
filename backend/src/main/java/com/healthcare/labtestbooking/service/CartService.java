@@ -62,8 +62,16 @@ public class CartService {
     }
 
     public Cart getOrCreateCart(Long userId) {
-        return cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE)
-                .orElseGet(() -> createNewCart(userId));
+        Cart cart = cartRepository.findByUserIdAndStatus(userId, CartStatus.ACTIVE).orElse(null);
+        
+        if (cart != null && cart.getExpiryAt() != null && cart.getExpiryAt().isBefore(LocalDateTime.now())) {
+            log.info("Active cart for user {} has expired. Marking as EXPIRED.", userId);
+            cart.setStatus(CartStatus.EXPIRED);
+            cartRepository.save(cart);
+            cart = null; // Forces creation of a new cart below
+        }
+
+        return cart != null ? cart : createNewCart(userId);
     }
 
     private Cart createNewCart(Long userId) {

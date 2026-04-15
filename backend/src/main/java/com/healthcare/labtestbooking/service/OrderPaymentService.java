@@ -1,5 +1,6 @@
 package com.healthcare.labtestbooking.service;
 
+import com.healthcare.labtestbooking.event.PaymentSucceededEvent;
 import com.healthcare.labtestbooking.entity.GatewayPayment;
 import com.healthcare.labtestbooking.entity.Order;
 import com.healthcare.labtestbooking.entity.enums.OrderStatus;
@@ -28,6 +29,7 @@ public class OrderPaymentService {
     private final OrderRepository orderRepository;
     private final GatewayPaymentRepository gatewayPaymentRepository;
     private final OrderStatusHistoryService orderStatusHistoryService;
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * Initiate payment for an order
@@ -53,12 +55,12 @@ public class OrderPaymentService {
         }
 
         try {
-            // Generate mock Razorpay order ID
-            String mockRazorpayOrderId = "order_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-            String mockPaymentLink = "https://checkout.razorpay.com/?key=" + mockRazorpayOrderId;
+            // Generate mock gateway order ID
+            String mockGatewayOrderId = "MOCK_ORD_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+            String mockPaymentLink = "/api/payments/mock/checkout?gatewayOrderId=" + mockGatewayOrderId;
 
             // Store in Order
-            order.setRazorpayOrderId(mockRazorpayOrderId);
+            order.setGatewayOrderId(mockGatewayOrderId);
             order.setPaymentStatus(PaymentStatus.PENDING);
             orderRepository.save(order);
 
@@ -66,8 +68,8 @@ public class OrderPaymentService {
             GatewayPayment gatewayPayment = GatewayPayment.builder()
                     .order(order)
                     .amount(order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO)
-                    .gateway("RAZORPAY")
-                    .transactionId(mockRazorpayOrderId)
+                    .gateway("MOCK_GATEWAY")
+                    .transactionId(mockGatewayOrderId)
                     .status(PaymentStatus.PENDING)
                     .paymentLink(mockPaymentLink)
                     .createdAt(LocalDateTime.now())
@@ -76,18 +78,18 @@ public class OrderPaymentService {
 
             GatewayPayment savedPayment = gatewayPaymentRepository.save(gatewayPayment);
 
-            log.info("Payment initiated for order: {} with mock order: {}", orderId, mockRazorpayOrderId);
+            log.info("Payment initiated for order: {} with mock gateway order: {}", orderId, mockGatewayOrderId);
 
             return PaymentInitiationResponse.builder()
                     .paymentId(savedPayment.getId())
                     .orderId(orderId)
-                    .razorpayOrderId(mockRazorpayOrderId)
+                    .gatewayOrderId(mockGatewayOrderId)
                     .amount(order.getTotalAmount())
                     .amountInPaise(order.getTotalAmount().multiply(BigDecimal.valueOf(100)).longValue())
                     .currency("INR")
                     .orderReference(order.getOrderReference())
                     .paymentLink(mockPaymentLink)
-                    .keyId("rzp_test_mock_key")
+                    .keyId("mock_key_id")
                     .build();
 
         } catch (Exception e) {
@@ -100,22 +102,22 @@ public class OrderPaymentService {
      * Handle payment success (called from webhook or frontend callback)
      */
     public void handlePaymentSuccess(
-            String razorpayOrderId,
-            String razorpayPaymentId,
+            String gatewayOrderId,
+            String gatewayPaymentId,
             String signature) {
 
-        log.info("Processing payment success for order: {}, payment: {}", razorpayOrderId, razorpayPaymentId);
+        log.info("Processing gateway payment success for order: {}, payment: {}", gatewayOrderId, gatewayPaymentId);
 
         try {
-            Order order = orderRepository.findByRazorpayOrderId(razorpayOrderId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Order not found for razorpay order: " + razorpayOrderId));
+            Order order = orderRepository.findByGatewayOrderId(gatewayOrderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found for gateway order: " + gatewayOrderId));
 
-            GatewayPayment gatewayPayment = gatewayPaymentRepository.findByTransactionId(razorpayOrderId)
+            GatewayPayment gatewayPayment = gatewayPaymentRepository.findByTransactionId(gatewayOrderId)
                     .orElseThrow(() -> new ResourceNotFoundException("Payment record not found"));
 
             // Update payment
             gatewayPayment.setStatus(PaymentStatus.SUCCESS);
-            gatewayPayment.setRazorpayPaymentId(razorpayPaymentId != null ? razorpayPaymentId : "mock_payment_" + UUID.randomUUID());
+            gatewayPayment.setGatewayPaymentId(gatewayPaymentId != null ? gatewayPaymentId : "mock_payment_" + UUID.randomUUID());
             gatewayPayment.setUpdatedAt(LocalDateTime.now());
             gatewayPaymentRepository.save(gatewayPayment);
 
@@ -129,9 +131,20 @@ public class OrderPaymentService {
             orderStatusHistoryService.recordStatusChange(
                     order.getId(),
                     OrderStatus.PAYMENT_COMPLETED,
-                    "Payment received - ID: " + (razorpayPaymentId != null ? razorpayPaymentId : "mock"),
+                    "Payment received - ID: " + (gatewayPaymentId != null ? gatewayPaymentId : "mock"),
                     "PAYMENT_WEBHOOK"
             );
+
+            if (order.getUser() != null) {
+                domainEventPublisher.publish(new PaymentSucceededEvent(
+                        order.getId(),
+                        order.getUser().getId(),
+                        gatewayOrderId,
+                        gatewayPaymentId != null ? gatewayPaymentId : "mock_payment",
+                        order.getTotalAmount(),
+                        LocalDateTime.now()
+                ));
+            }
 
             log.info("Payment processed successfully for order: {}", order.getId());
 
@@ -144,14 +157,14 @@ public class OrderPaymentService {
     /**
      * Handle payment failure
      */
-    public void handlePaymentFailure(String razorpayOrderId, String reason) {
-        log.warn("Processing payment failure for order: {}", razorpayOrderId);
+    public void handlePaymentFailure(String gatewayOrderId, String reason) {
+        log.warn("Processing gateway payment failure for order: {}", gatewayOrderId);
 
         try {
-            Order order = orderRepository.findByRazorpayOrderId(razorpayOrderId)
+            Order order = orderRepository.findByGatewayOrderId(gatewayOrderId)
                     .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-            GatewayPayment gatewayPayment = gatewayPaymentRepository.findByTransactionId(razorpayOrderId)
+            GatewayPayment gatewayPayment = gatewayPaymentRepository.findByTransactionId(gatewayOrderId)
                     .orElse(null);
 
             if (gatewayPayment != null) {
@@ -189,7 +202,7 @@ public class OrderPaymentService {
                 .orderStatus(order.getStatus())
                 .paymentStatus(order.getPaymentStatus())
                 .amount(order.getTotalAmount())
-                .razorpayOrderId(order.getRazorpayOrderId())
+                .gatewayOrderId(order.getGatewayOrderId())
                 .build();
     }
 
@@ -200,7 +213,7 @@ public class OrderPaymentService {
     public static class PaymentInitiationResponse {
         private Long paymentId;
         private Long orderId;
-        private String razorpayOrderId;
+        private String gatewayOrderId;
         private BigDecimal amount;
         private long amountInPaise;
         private String currency;
@@ -217,6 +230,6 @@ public class OrderPaymentService {
         private OrderStatus orderStatus;
         private PaymentStatus paymentStatus;
         private BigDecimal amount;
-        private String razorpayOrderId;
+        private String gatewayOrderId;
     }
 }

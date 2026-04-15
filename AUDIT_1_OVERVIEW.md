@@ -67,7 +67,7 @@ Patient / Admin / Technician / Medical Officer
               ↓
         PDF Reports (iText/Apache PDF)
               ↓
-      Razorpay Payment Gateway
+      Mock Payment Gateway
               ↓
     Email/SMS Notifications
 ```
@@ -82,7 +82,7 @@ Patient / Admin / Technician / Medical Officer
 - Browse lab tests and packages (public catalog)
 - Add items to cart
 - Book tests with date/time slot selection
-- Make payments (Razorpay integration)
+- Make payments (mock gateway integration)
 - View booking history and status
 - Download verified reports
 - Share reports via secure public links (7-day expiry)
@@ -234,8 +234,8 @@ Patient / Admin / Technician / Medical Officer
 5. Patient confirms booking
    ✅ Working - Order creation from cart
 
-6. Payment initiation (Razorpay)
-   ✅ Working - PaymentController, RazorpayService
+6. Payment initiation (Mock gateway)
+   ✅ Working - PaymentController, PaymentService (mock-only)
 
 7. Payment success → Order status: PAYMENT_COMPLETED
    ✅ Working - Payment status updates, webhooks
@@ -310,7 +310,7 @@ Patient / Admin / Technician / Medical Officer
 | Test Packages | ✅ | | | 90% |
 | Cart Management | ✅ | | | 85% |
 | Booking System | ✅ | | | 90% |
-| Payment Integration (Razorpay) | ✅ | | | 85% |
+| Payment Integration (Mock) | ✅ | | | 90% |
 | Technician Workflow | ⚠️ | | | 70% |
 | MO Workflow (Verification) | ✅ | | | 80% |
 | Admin Dashboard | ✅ | | | 80% |
@@ -344,11 +344,11 @@ Based on code analysis, the following potential issues were identified:
    - Impact: May cause confusion in status transitions, potential data inconsistency
    - Severity: Medium
 
-2. **Payment Webhook Stub Implementation**
-   - Location: `OrderController.java:151-160` - `handleRazorpayWebhook` returns success without processing
-   - Description: Webhook handler logs but doesn't actually process payment callbacks
-   - Impact: Payment status may not update correctly on Razorpay callbacks
-   - Severity: High
+2. **Payment Webhook Handling (Generic)**
+   - Location: `OrderController.java` - `/api/orders/payment/webhook` currently processes generic mock statuses
+   - Description: Handler is mock-first and not tied to an external gateway provider
+   - Impact: Suitable for current mock-only flow; external-provider signature validation is intentionally not implemented
+   - Severity: Low
 
 3. **Missing Rate Limiting Configuration**
    - Location: `SecurityConfig.java:40` - RateLimitingFilter referenced but config not visible

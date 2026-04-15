@@ -108,9 +108,11 @@ const BookingPage: React.FC = () => {
   const { cart, fetchCart, clearCart } = useCart();
   const { currentUser } = useAuth();
 
-  const [wizardStep, setWizardStep] = useState<WizardStep>('booking');
+  const hasConfirmedBooking = Boolean(state.booking && (state.booking.id || state.booking.bookingReference)) || Boolean(state.booking);
+  console.log('[BookingPage] Render State:', { wizardStep: hasConfirmedBooking ? 'confirmation' : 'booking', hasConfirmedBooking, stateBooking: !!state.booking, id });
+  const [wizardStep, setWizardStep] = useState<WizardStep>(hasConfirmedBooking ? 'confirmation' : 'booking');
   const [bookingStep, setBookingStep] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!hasConfirmedBooking);
   const [paying, setPaying] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberResponse[]>([]);
   const [showAddFamilyForm, setShowAddFamilyForm] = useState(false);
@@ -125,9 +127,9 @@ const BookingPage: React.FC = () => {
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<{ code: string; discount: number } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodUi>('credit-card');
-  const [confirmedBookingId, setConfirmedBookingId] = useState<number | null>(null);
+  const [confirmedBookingId, setConfirmedBookingId] = useState<number | null>(state.booking?.id ?? null);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingResponse | null>(state.booking || null);
-  const [confirmationNumber, setConfirmationNumber] = useState<string>('');
+  const [confirmationNumber, setConfirmationNumber] = useState<string>(state.booking?.bookingReference || state.booking?.reference || '');
 
   const [personType, setPersonType] = useState<PersonType>('self');
   const [familyMemberId, setFamilyMemberId] = useState<number | null>(null);
@@ -175,6 +177,27 @@ const BookingPage: React.FC = () => {
   useEffect(() => {
     const loadBookingDetails = async () => {
       if (!id) return;
+
+      // If we already have booking data from navigation state, use it directly
+      if (hasConfirmedBooking && state.booking) {
+        setScheduledDate(state.booking.bookingDate || state.booking.collectionDate || '');
+        setScheduledTime(state.booking.timeSlot || state.booking.scheduledTime || '');
+        if (state.booking.familyMemberId) {
+          setPersonType('family');
+          setFamilyMemberId(state.booking.familyMemberId);
+        }
+        setLoading(false);
+        // Background refresh from server (non-blocking)
+        if (Number(id) > 0) {
+          bookingService.getBookingById(Number(id)).then((fresh) => {
+            setConfirmedBooking(fresh);
+            setConfirmedBookingId(fresh.id);
+            setConfirmationNumber(fresh.bookingReference || fresh.reference || `HLTH-${fresh.id}`);
+          }).catch(() => { /* keep location state data */ });
+        }
+        return;
+      }
+
       if (Number(id) < 0) {
         try {
           const localPending = JSON.parse(localStorage.getItem(LOCAL_PENDING_BOOKINGS_KEY) || '[]');
@@ -206,7 +229,8 @@ const BookingPage: React.FC = () => {
           setFamilyMemberId(booking.familyMemberId);
         }
       } catch (error) {
-        console.error(error);
+        console.error('Failed to load booking:', error);
+        notify.error('Could not load booking details.');
       } finally {
         setLoading(false);
       }
@@ -510,7 +534,7 @@ const BookingPage: React.FC = () => {
             bookingId: createdBooking.id,
             amount: total,
             paymentMethod: mapPaymentMethod(paymentMethod),
-            paymentGateway: 'RAZORPAY',
+            paymentGateway: 'MOCK',
             transactionId: `TXN-${Date.now()}`
           });
           paymentCompleted = true;
@@ -606,34 +630,38 @@ const BookingPage: React.FC = () => {
   };
 
   const handleDownloadReceipt = () => {
-    const bookingForReceipt = confirmedBooking || {
-      id: confirmedBookingId || Date.now(),
-      bookingReference: confirmationNumber || `HLTH-${confirmedBookingId || Date.now()}`,
-      reference: confirmationNumber || `HLTH-${confirmedBookingId || Date.now()}`,
-      patientName,
-      patientEmail: currentUser?.email,
-      testName: selectedItem?.testName || selectedItem?.name || itemName,
-      packageName: selectedItem?.packageName,
-      bookingDate: scheduledDate,
-      collectionDate: scheduledDate,
-      timeSlot: scheduledTime,
-      scheduledTime,
-      collectionType: collectionMode,
-      collectionAddress: collectionMode === 'HOME'
+    // Build receipt data: prefer server-confirmed booking data, fall back to local values
+    const base = confirmedBooking || {} as Partial<BookingResponse>;
+    const bookingForReceipt = {
+      id: base.id || confirmedBookingId || Date.now(),
+      bookingReference: base.bookingReference || confirmationNumber || `HLTH-${confirmedBookingId || Date.now()}`,
+      reference: base.reference || base.bookingReference || confirmationNumber,
+      patientName: base.patientName || patientName,
+      patientEmail: base.patientEmail || currentUser?.email || '',
+      patientPhone: (base as any).patientPhone || (currentUser as any)?.phone || (currentUser as any)?.phoneNumber || '',
+      testName: base.testName || base.labTestName || selectedItem?.testName || selectedItem?.name || itemName,
+      packageName: base.packageName || selectedItem?.packageName,
+      bookingDate: base.bookingDate || scheduledDate,
+      collectionDate: base.collectionDate || base.bookingDate || scheduledDate,
+      timeSlot: base.timeSlot || scheduledTime,
+      scheduledTime: base.scheduledTime || base.timeSlot || scheduledTime,
+      collectionType: base.collectionType || collectionMode,
+      collectionAddress: base.collectionAddress || (collectionMode === 'HOME'
         ? (selectedAddress
           ? `${selectedAddress.street}, ${selectedAddress.city || ''}, ${selectedAddress.state || ''} ${selectedAddress.postalCode || ''}`.replace(/\s+/g, ' ').trim()
           : '')
-        : 'Lab Visit - Address not required',
-      status: 'CONFIRMED' as const,
-      amount: total,
-      totalAmount: originalPrice,
-      finalAmount: total,
-      discount: baseDiscount + promoDiscount,
-      paymentStatus: 'PAID'
+        : 'Lab Visit'),
+      status: base.status || 'BOOKED',
+      amount: Number(base.finalAmount || base.amount || total || 0),
+      totalAmount: Number(base.totalAmount || base.amount || originalPrice || 0),
+      finalAmount: Number(base.finalAmount || base.amount || total || 0),
+      discount: Number(base.discount || baseDiscount + promoDiscount || 0),
+      paymentStatus: base.paymentStatus || 'PAID',
+      createdAt: base.createdAt || new Date().toISOString()
     };
 
     const pdf = generateBookingReceipt(bookingForReceipt as BookingResponse);
-    const filename = `Professional_Healthcare_Receipt_${bookingForReceipt.bookingReference || bookingForReceipt.id}.pdf`;
+    const filename = `Healthcare_Receipt_${bookingForReceipt.bookingReference || bookingForReceipt.id}.pdf`;
     downloadPDF(pdf, filename);
     notify.success('Receipt downloaded');
   };
@@ -774,8 +802,10 @@ const BookingPage: React.FC = () => {
                                                               onClick={handleAddFamilyMember}
                                                               className="flex items-center gap-1 px-3 py-1.5 rounded-xl border-2 border-white bg-white/50 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:bg-white transition-all"
                                                           >
-                                                              <Plus size={14} />
-                                                              {showAddFamilyForm ? 'Close Form' : 'Add Family Member'}
+                                                              <div className="flex items-center gap-1">
+                                                                <Plus size={14} />
+                                                                {showAddFamilyForm ? 'Close Form' : 'Add Family Member'}
+                                                              </div>
                                                           </button>
                                                       </div>
                                                       {showAddFamilyForm && (

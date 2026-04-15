@@ -73,7 +73,7 @@ public class PaymentController {
                 .bookingId(bookingId)
                 .amount(request.getAmount() == null ? BigDecimal.ZERO : request.getAmount())
                 .paymentMethod(request.getPaymentMethod() == null ? "CARD" : request.getPaymentMethod())
-                .paymentGateway("RAZORPAY")
+                .paymentGateway("MOCK")
                 .transactionId(request.getTransactionId())
                 .build();
 

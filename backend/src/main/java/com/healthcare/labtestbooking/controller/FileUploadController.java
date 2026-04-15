@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +22,7 @@ import java.util.*;
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
 @Slf4j
+@PreAuthorize("hasAnyRole('TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
 public class FileUploadController {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

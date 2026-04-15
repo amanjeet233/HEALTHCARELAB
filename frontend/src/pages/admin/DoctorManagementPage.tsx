@@ -4,7 +4,7 @@ import { adminService } from '../../services/adminService';
 import { doctorService } from '../../services/doctorService';
 import { DoctorAssignmentForm } from '../../components/admin/DoctorAssignmentForm';
 import { DoctorAvailabilityPanel } from '../../components/admin/DoctorAvailabilityPanel';
-import { ConfirmationModal } from '../../components/common/ConfirmationModal';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
 
 interface Doctor {
   id: number;
@@ -143,11 +143,14 @@ export const DoctorManagementPage: React.FC = () => {
       {/* Delete Confirmation */}
       {deleteConfirm && (
         <ConfirmationModal
+          isOpen={Boolean(deleteConfirm)}
           title="Remove Test Assignment"
-          message={`Remove "${deleteConfirm.testName}" from this doctor?`}
+          description={`Remove "${deleteConfirm.testName}" from this doctor?`}
           onConfirm={handleDeleteAssignment}
           onCancel={() => setDeleteConfirm(null)}
-          isLoading={deleting}
+          confirmText={deleting ? 'Removing...' : 'Remove'}
+          cancelText="Cancel"
+          confirmColor="bg-danger hover:bg-red-700 focus:ring-danger"
         />
       )}
 
@@ -258,3 +261,5 @@ export const DoctorManagementPage: React.FC = () => {
     </div>
   );
 };
+
+export default DoctorManagementPage;

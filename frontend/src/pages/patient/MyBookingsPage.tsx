@@ -25,8 +25,6 @@ import GlassCard from '../../components/common/GlassCard';
 import GlassButton from '../../components/common/GlassButton';
 import './MyBookingsPage.css';
 
-const LOCAL_PENDING_BOOKINGS_KEY = 'healthlab.pendingBookings';
-
 const MyBookingsPage: React.FC = () => {
     const navigate = useNavigate();
 
@@ -51,19 +49,6 @@ const MyBookingsPage: React.FC = () => {
     const [bookingToReschedule, setBookingToReschedule] = useState<number | null>(null);
     const [isRescheduling, setIsRescheduling] = useState(false);
 
-    const getLocalPendingBookings = (): BookingResponse[] => {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(LOCAL_PENDING_BOOKINGS_KEY) || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch {
-            return [];
-        }
-    };
-
-    const setLocalPendingBookings = (items: BookingResponse[]) => {
-        localStorage.setItem(LOCAL_PENDING_BOOKINGS_KEY, JSON.stringify(items));
-    };
-
     const mergeWithLocalBookings = (
         serverBookings: BookingResponse[],
         statusFilter: string,
@@ -71,20 +56,7 @@ const MyBookingsPage: React.FC = () => {
         from: string,
         to: string
     ): BookingResponse[] => {
-        const localPending = getLocalPendingBookings();
-        const normalizedLocal = localPending.map((b: any) => ({
-            ...b,
-            id: Number(b.id),
-            bookingReference: b.bookingReference || b.reference || `LOCAL-${Math.abs(Number(b.id) || Date.now())}`,
-            reference: b.reference || b.bookingReference,
-            testName: b.testName || b.labTestName || b.packageName || 'Diagnostic Test',
-            collectionDate: b.collectionDate || b.bookingDate,
-            bookingDate: b.bookingDate || b.collectionDate,
-            status: (b.status || 'PENDING_CONFIRMATION') as BookingStatus
-        })) as BookingResponse[];
-
-        const seenIds = new Set((serverBookings || []).map((b) => Number(b.id)));
-        let merged = [...(serverBookings || []), ...normalizedLocal.filter((b) => !seenIds.has(Number(b.id)))];
+        let merged = [...(serverBookings || [])];
 
         if (statusFilter !== 'All') {
             const expected = statusFilter.toUpperCase();
@@ -153,10 +125,9 @@ const MyBookingsPage: React.FC = () => {
                 setTotalPages(response.totalPages || 1);
             } catch (error) {
                 console.error(error);
-                // Keep offline/local pending bookings visible even when server fails.
-                setBookings(mergeWithLocalBookings([], activeTab, debouncedSearch, fromDate, toDate));
+                setBookings([]);
                 setTotalPages(1);
-                notify.error('Could not load server bookings. Showing local bookings.');
+                notify.error('Could not load bookings from server.');
             } finally {
                 setIsLoading(false);
             }
@@ -167,7 +138,7 @@ const MyBookingsPage: React.FC = () => {
 
     const upcomingBookings = useMemo(() => {
         return bookings.filter(b => 
-            b.status === 'CONFIRMED' || b.status === 'PENDING_CONFIRMATION' || b.status === 'SAMPLE_COLLECTED'
+            b.status === 'BOOKED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
         );
     }, [bookings]);
 
@@ -177,22 +148,15 @@ const MyBookingsPage: React.FC = () => {
         );
     }, [bookings]);
 
-    const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED').length;
+    const confirmedCount = bookings.filter(b =>
+        b.status === 'BOOKED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
+    ).length;
     const completedCount = bookings.filter(b => b.status === 'COMPLETED').length;
 
     const handleCancelBooking = async () => {
         if (!bookingToCancel) return;
         setIsCanceling(true);
         try {
-            if (Number(bookingToCancel) < 0) {
-                const localItems = getLocalPendingBookings().filter((b) => Number(b.id) !== Number(bookingToCancel));
-                setLocalPendingBookings(localItems);
-                setBookings((prev) => prev.filter((b) => Number(b.id) !== Number(bookingToCancel)));
-                notify.success('Local booking removed.');
-                setCancelModalVisible(false);
-                setBookingToCancel(null);
-                return;
-            }
             await bookingService.cancelBooking(bookingToCancel);
             notify.success('Booking cancelled successfully.');
             setCancelModalVisible(false);
@@ -212,28 +176,6 @@ const MyBookingsPage: React.FC = () => {
         if (!bookingToReschedule || !rescheduleDate || !rescheduleTime) return;
         setIsRescheduling(true);
         try {
-            if (Number(bookingToReschedule) < 0) {
-                const localItems = getLocalPendingBookings();
-                const updated = localItems.map((b) =>
-                    Number(b.id) === Number(bookingToReschedule)
-                        ? { ...b, bookingDate: rescheduleDate, collectionDate: rescheduleDate, timeSlot: rescheduleTime, scheduledTime: rescheduleTime }
-                        : b
-                );
-                setLocalPendingBookings(updated as BookingResponse[]);
-                setBookings((prev) =>
-                    prev.map((b) =>
-                        Number(b.id) === Number(bookingToReschedule)
-                            ? { ...b, bookingDate: rescheduleDate, collectionDate: rescheduleDate, timeSlot: rescheduleTime, scheduledTime: rescheduleTime }
-                            : b
-                    )
-                );
-                notify.success('Local booking rescheduled.');
-                setRescheduleModalVisible(false);
-                setBookingToReschedule(null);
-                setRescheduleDate('');
-                setRescheduleTime('');
-                return;
-            }
             await bookingService.rescheduleBooking(bookingToReschedule, rescheduleDate, rescheduleTime);
             notify.success('Booking rescheduled successfully.');
             setRescheduleModalVisible(false);
@@ -326,7 +268,7 @@ const MyBookingsPage: React.FC = () => {
                             className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 rounded-xl px-4 py-2.5 text-sm font-black uppercase tracking-wider text-slate-700 appearance-none cursor-pointer"
                         >
                             <option value="All">All Status</option>
-                            <option value="Confirmed">Confirmed</option>
+                            <option value="Booked">Booked</option>
                             <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                         </select>

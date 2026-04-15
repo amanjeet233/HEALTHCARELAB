@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Loader, AlertCircle } from 'lucide-react';
 import { adminService, ReferenceRange } from '../../services/adminService';
 import { ReferenceRangeForm } from '../../components/admin/ReferenceRangeForm';
-import { ConfirmationModal } from '../../components/common/ConfirmationModal';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
 
 export const ReferenceRangesPage: React.FC = () => {
   const [ranges, setRanges] = useState<ReferenceRange[]>([]);
@@ -96,12 +96,14 @@ export const ReferenceRangesPage: React.FC = () => {
       {/* Delete Confirmation */}
       {deleteConfirm && (
         <ConfirmationModal
+          isOpen={Boolean(deleteConfirm)}
           title="Delete Reference Range"
-          message={`Are you sure you want to delete the reference range for "${deleteConfirm.parameterName}"? This action cannot be undone.`}
+          description={`Are you sure you want to delete the reference range for "${deleteConfirm.parameterName}"? This action cannot be undone.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteConfirm(null)}
-          isLoading={deleting}
-          destructive
+          confirmText={deleting ? 'Deleting...' : 'Delete'}
+          cancelText="Cancel"
+          confirmColor="bg-danger hover:bg-red-700 focus:ring-danger"
         />
       )}
 
@@ -205,3 +207,5 @@ export const ReferenceRangesPage: React.FC = () => {
     </div>
   );
 };
+
+export default ReferenceRangesPage;

@@ -3,7 +3,18 @@ import PropTypes from 'prop-types';
 import { FaHourglassHalf, FaCheckCircle, FaTimesCircle, FaCheckDouble, FaSyringe } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
-export type BadgeStatus = 'PENDING' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'SAMPLE_COLLECTED';
+export type BadgeStatus =
+    | 'PENDING'
+    | 'PENDING_CONFIRMATION'
+    | 'CONFIRMED'
+    | 'BOOKED'
+    | 'REFLEX_PENDING'
+    | 'PROCESSING'
+    | 'PENDING_VERIFICATION'
+    | 'VERIFIED'
+    | 'CANCELLED'
+    | 'COMPLETED'
+    | 'SAMPLE_COLLECTED';
 
 /**
  * Props for the StatusBadge component.
@@ -38,6 +49,31 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
             icon: <FaCheckCircle className="mr-1.5 h-3 w-3" />,
             label: 'Confirmed',
         },
+        BOOKED: {
+            colors: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+            icon: <FaCheckCircle className="mr-1.5 h-3 w-3" />,
+            label: 'Booked',
+        },
+        REFLEX_PENDING: {
+            colors: 'bg-violet-50 text-violet-700 border-violet-100',
+            icon: <FaHourglassHalf className="mr-1.5 h-3 w-3" />,
+            label: 'Reflex',
+        },
+        PROCESSING: {
+            colors: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+            icon: <FaSyringe className="mr-1.5 h-3 w-3" />,
+            label: 'Processing',
+        },
+        PENDING_VERIFICATION: {
+            colors: 'bg-amber-50 text-amber-700 border-amber-100',
+            icon: <FaHourglassHalf className="mr-1.5 h-3 w-3" />,
+            label: 'Verify',
+        },
+        VERIFIED: {
+            colors: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            icon: <FaCheckDouble className="mr-1.5 h-3 w-3" />,
+            label: 'Verified',
+        },
         CANCELLED: {
             colors: 'bg-rose-50 text-rose-600 border-rose-100',
             icon: <FaTimesCircle className="mr-1.5 h-3 w-3" />,
@@ -69,7 +105,19 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
 };
 
 StatusBadge.propTypes = {
-    status: PropTypes.oneOf(['PENDING', 'PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'SAMPLE_COLLECTED']).isRequired,
+    status: PropTypes.oneOf([
+        'PENDING',
+        'PENDING_CONFIRMATION',
+        'CONFIRMED',
+        'BOOKED',
+        'REFLEX_PENDING',
+        'PROCESSING',
+        'PENDING_VERIFICATION',
+        'VERIFIED',
+        'CANCELLED',
+        'COMPLETED',
+        'SAMPLE_COLLECTED'
+    ]).isRequired,
     className: PropTypes.string,
 } as any;
 

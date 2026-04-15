@@ -61,7 +61,7 @@ public class DashboardService {
                              && today.equals(b.getBookingDate()))
                 .count());
         stats.put("pendingCollection", bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.BOOKED || b.getStatus() == BookingStatus.CONFIRMED)
+                .filter(b -> b.getStatus() == BookingStatus.BOOKED)
                 .count());
         
         return stats;

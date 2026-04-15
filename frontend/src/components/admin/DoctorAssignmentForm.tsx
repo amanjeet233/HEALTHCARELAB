@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Loader } from 'lucide-react';
 import { adminService } from '../../services/adminService';
-import { labTest } from '../../services/labTest';
+import { labTestService } from '../../services/labTest';
 
 const schema = yup.object({
   doctorId: yup.number().required('Doctor is required'),
@@ -34,8 +34,8 @@ export const DoctorAssignmentForm: React.FC<DoctorAssignmentFormProps> = ({
   useEffect(() => {
     const loadTests = async () => {
       try {
-        const data = await labTest.getLabTests();
-        setTests(data);
+        const response = await labTestService.getLabTests({ page: 0, size: 200, sort: 'testName,asc' });
+        setTests(response.tests || []);
       } catch (err) {
         console.error('Error loading tests:', err);
       }
@@ -116,7 +116,7 @@ export const DoctorAssignmentForm: React.FC<DoctorAssignmentFormProps> = ({
                   <option value="">Choose a test...</option>
                   {tests.map(test => (
                     <option key={test.id} value={test.id}>
-                      {test.name}
+                      {test.testName || test.name}
                     </option>
                   ))}
                 </select>

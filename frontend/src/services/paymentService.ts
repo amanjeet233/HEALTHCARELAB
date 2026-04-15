@@ -4,7 +4,6 @@ export interface PaymentInitiateRequest {
     bookingId: number;
     amount: number;
     paymentMethod: 'CARD' | 'UPI' | 'NET_BANKING';
-    paymentGateway?: string;
     transactionId?: string;
 }
 

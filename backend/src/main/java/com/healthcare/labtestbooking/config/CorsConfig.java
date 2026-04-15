@@ -1,6 +1,7 @@
 package com.healthcare.labtestbooking.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -14,16 +15,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:5174,http://127.0.0.1:5173}")
+    private String allowedOriginsCsv;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] allowedOrigins = java.util.Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
+
         registry.addMapping("/**")
-            // ✅ Allow frontend development origins
-            .allowedOrigins(
-                "http://localhost:5173",      // Vite default
-                "http://localhost:3000",      // Alternative React dev
-                "http://localhost:5174",      // Secondary Vite port
-                "http://127.0.0.1:5173"       // Localhost alternative
-            )
+            .allowedOrigins(allowedOrigins)
             // ✅ Allow all HTTP methods
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
             // ✅ Allow all headers (Content-Type, Authorization, etc.)

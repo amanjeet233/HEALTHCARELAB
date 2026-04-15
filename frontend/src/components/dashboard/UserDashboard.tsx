@@ -32,7 +32,7 @@ const UserDashboard: React.FC = () => {
                 const response = await bookingService.getMyBookings({ size: 5, sort: 'bookingDate,desc' });
                 setBookings(response.bookings || []);
                 setStats({
-                    upcoming: response.bookings.filter(b => b.status === 'PENDING' || b.status === 'CONFIRMED').length,
+                    upcoming: response.bookings.filter(b => b.status === 'BOOKED' || b.status === 'REFLEX_PENDING').length,
                     completed: response.bookings.filter(b => b.status === 'COMPLETED' || b.status === 'SAMPLE_COLLECTED').length,
                     reports: response.bookings.filter(b => b.status === 'COMPLETED').length
                 });

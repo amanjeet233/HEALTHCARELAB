@@ -40,7 +40,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-                log.info("Register request for email: {}", request.getEmail());
+                log.info("Received registration request");
                 AuthResponse response = authService.register(request);
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(ApiResponse.success("User registered successfully", response));
@@ -55,7 +55,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-                log.info("Login request for email: {}", request.getEmail());
+                log.info("Received login request");
                 AuthResponse response = authService.login(request);
                 return ResponseEntity.ok(ApiResponse.success("Login successful", response));
         }
@@ -68,7 +68,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestParam String email) {
-                log.info("Password reset request for email: {}", email);
+                log.info("Password reset request for user");
                 String message = authService.requestPasswordReset(email);
                 return ResponseEntity.ok(ApiResponse.success(message, "Check your email for reset instructions"));
         }
@@ -128,7 +128,7 @@ public class AuthController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<ApiResponse<String>> resendVerificationEmail(@RequestParam String email) {
-                log.info("Resend verification email request for: {}", email);
+                log.info("Received request to generate password reset token");
                 emailVerificationService.sendVerificationEmail(email);
                 return ResponseEntity.ok(ApiResponse.success("Verification email sent",
                                 "Check your inbox for the verification link"));

@@ -59,7 +59,7 @@ public class GatewayPaymentService {
             GatewayPayment gatewayPayment = payment.get();
 
             // Simulate payment processing
-            // In production, this would call Razorpay or Stripe API
+            // In production, this would call the actual payment gateway API
             Thread.sleep(2000); // Simulate API call
 
             // Update payment status

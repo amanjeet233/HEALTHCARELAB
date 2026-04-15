@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -20,10 +21,22 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
 
     private final RedisTemplate<String, String> redisTemplate;
     private static final String RATE_LIMIT_PREFIX = "rate_limit:";
-    private static final int MAX_REQUESTS_LOGIN = 5;
-    private static final int MAX_REQUESTS_REGISTER = 3;
-    private static final int MAX_REQUESTS_PAYMENTS = 10;
-    private static final int MAX_REQUESTS_DEFAULT = 100;
+    
+    @Value("${app.rate-limit.login-requests-per-minute:5}")
+    private int maxRequestsLogin;
+
+    @Value("${app.rate-limit.register-requests-per-minute:3}")
+    private int maxRequestsRegister;
+
+    @Value("${app.rate-limit.payment-requests-per-minute:10}")
+    private int maxRequestsPayments;
+
+    @Value("${app.rate-limit.default-requests-per-minute:100}")
+    private int maxRequestsDefault;
+
+    @Value("${app.rate-limit.enabled:true}")
+    private boolean rateLimitEnabled;
+
     private static final long WINDOW_SIZE_MS = 60000; // 1 minute
 
     public RateLimitingInterceptor(@Autowired(required = false) RedisTemplate<String, String> redisTemplate) {
@@ -37,19 +50,28 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         String clientIp = getClientIp(request);
         String path = request.getRequestURI();
 
+        if (!rateLimitEnabled) {
+            return true;
+        }
+
+        // Whitelist localhost for development stability
+        if (clientIp.equals("127.0.0.1") || clientIp.equals("0:0:0:0:0:0:0:1") || clientIp.equals("localhost") || clientIp.equals("unknown")) {
+            return true;
+        }
+
         // If Redis is unavailable (e.g. local/dev tests), skip distributed limiting.
         if (redisTemplate == null) {
             return true;
         }
         
         // Determine rate limit based on endpoint
-        int maxRequests = MAX_REQUESTS_DEFAULT;
+        int maxRequests = maxRequestsDefault;
         if (path.contains("/auth/login")) {
-            maxRequests = MAX_REQUESTS_LOGIN;
+            maxRequests = maxRequestsLogin;
         } else if (path.contains("/auth/register")) {
-            maxRequests = MAX_REQUESTS_REGISTER;
+            maxRequests = maxRequestsRegister;
         } else if (path.contains("/payments")) {
-            maxRequests = MAX_REQUESTS_PAYMENTS;
+            maxRequests = maxRequestsPayments;
         }
         
         // Check rate limit

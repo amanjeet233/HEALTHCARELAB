@@ -400,7 +400,7 @@ const AdminDashboard: React.FC = () => {
                                     >
                                         <option value="">STATUS</option>
                                         <option value="BOOKED">BOOKED</option>
-                                        <option value="CONFIRMED">CONFIRMED</option>
+                                        <option value="REFLEX_PENDING">REFLEX_PENDING</option>
                                         <option value="SAMPLE_COLLECTED">SAMPLE_COLLECTED</option>
                                         <option value="PROCESSING">PROCESSING</option>
                                         <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
@@ -505,7 +505,7 @@ const AdminDashboard: React.FC = () => {
                                                             }`}
                                                     >
                                                         <option value="BOOKED">BOOKED</option>
-                                                        <option value="CONFIRMED">CONFIRMED</option>
+                                                        <option value="REFLEX_PENDING">REFLEX_PENDING</option>
                                                         <option value="PROCESSING">PROCESSING</option>
                                                         <option value="SAMPLE_COLLECTED">COLLECTED</option>
                                                         <option value="PENDING_VERIFICATION">VERIFICATION</option>

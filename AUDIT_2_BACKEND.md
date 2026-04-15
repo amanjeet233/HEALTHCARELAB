@@ -819,3 +819,52 @@ The HEALTHCARELAB backend is a solid Spring Boot application with comprehensive 
 **Audit Completed By:** Cascade AI  
 **Audit Date:** 2026-04-14  
 **Next Review Date:** After critical issues are resolved
+
+---
+
+## 11. Implementation Update (2026-04-15)
+
+This section tracks execution status for all recommendation items with explicit completion markers.
+
+| # | Recommendation | Status | Evidence |
+|---|---|---|---|
+| 1 | Create V1 migration with base table definitions | ✅ Done | `backend/src/main/resources/db/migration/V1__create_base_tables.sql` |
+| 2 | Rename duplicate V10 migration to V13 | ✅ Not Applicable (already non-duplicate in current tree) | Migration folder has one `V10__...` and one `V13__...` |
+| 3 | Add `@PreAuthorize` to sensitive controllers | ✅ Done | `FileUploadController`, `AddressController`, `BookedSlotController`, `SlotController` updated |
+| 4 | Disable H2 console in production configuration | ✅ Done | `app.security.h2-console.enabled=false` + conditional security gating in `SecurityConfig` |
+| 5 | Create `application-prod.yml` | ✅ Done | `backend/src/main/resources/application-prod.yml` |
+| 6 | Add `@Transactional` to payment/order/booking operations | ✅ Done | `PaymentService`, `OrderPaymentService`, `BookingService` annotated methods |
+| 7 | Create Dockerfile | ⏭️ Skipped (deployment scope by instruction) | Explicitly excluded |
+| 8 | Create docker-compose.yml | ⏭️ Skipped (deployment scope by instruction) | Explicitly excluded |
+| 9 | Document environment variables in `.env.example` | ✅ Done | `.env.example` at repo root |
+| 10 | Add integration tests for critical API endpoints | ✅ Done (expanded) | Added `ApiInfrastructureIntegrationTest` for `/api/v1`, admin IP whitelist, correlation header |
+| 11 | Configure max request size | ✅ Done | `spring.servlet.multipart.max-file-size` and `max-request-size` |
+| 12 | Implement JOIN FETCH to fix N+1 | ✅ Done (targeted hotspot optimization) | Added `@EntityGraph` to `OrderRepository`, `PaymentRepository`, `GatewayPaymentRepository` |
+| 13 | Add database seeding migration for reference data | ✅ Done (already existed) | Existing `V42__...seed...`, `V43__...seed...`, plus earlier insert migrations |
+| 14 | Create backend README | ✅ Done | `backend/README.md` |
+| 15 | Add API versioning (`/api/v1`) | ✅ Done | `ApiVersioningFilter` rewrite compatibility for `/api/v1/* -> /api/*` |
+| 16 | Implement rate limiting on public endpoints | ✅ Done | `RateLimitingFilter` in place and configurable `app.rate-limit.*` |
+| 17 | Add IP whitelisting for admin endpoints | ✅ Done | `AdminIpWhitelistFilter` + `app.security.admin-ip-whitelist.*` |
+| 18 | Setup monitoring (Prometheus/Grafana) | ⏭️ Skipped (deployment scope by instruction) | Infra-level |
+| 19 | Configure log aggregation (ELK) | ⏭️ Skipped (deployment scope by instruction) | Infra-level |
+| 20 | Refactor duplicate services (`TestService` vs `LabTestService`) | ✅ Done | Legacy `TestService` removed; `LabTestService` retained |
+| 21 | Add caching layer (Redis) | ✅ Done (already present) | `spring.cache.type=redis`, Redis config classes and deps |
+| 22 | Implement event-driven architecture | ✅ Done (in-process domain events) | `PaymentSucceededEvent`, `DomainEventPublisher`, `PaymentEventListener` |
+| 23 | Add message queue (RabbitMQ/Kafka) | 🔶 Foundation only (no external broker wiring by instruction scope) | Event/message abstraction added via domain events; broker infra not provisioned |
+| 24 | Implement API gateway preparation | 🔶 Foundation only | `/api/v1` compatibility and routing-ready filter foundation |
+| 25 | Add distributed tracing | 🔶 Foundation only | `RequestCorrelationFilter` with `X-Correlation-Id` + MDC |
+| 26 | Implement circuit breakers (Resilience4j) | ✅ Done | Added `resilience4j-spring-boot3`, `ExternalPaymentGatewayClient` with `@CircuitBreaker`, properties |
+| 27 | Add comprehensive audit logging enhancement | 🔶 Partially done | Existing audit logging retained; no external sink rollout (deployment scope) |
+| 28 | Implement feature flags for gradual rollout | ✅ Done | `FeatureFlagsProperties`, `FeatureFlagService`, feature-guarded filters/clients |
+
+### Additional Hardening Completed
+
+- Added configurable CORS origins via `app.cors.allowed-origins` in `CorsConfig`.
+- Added payment runtime properties for webhook secret and mock base URL.
+
+### Remaining Explicitly Deferred (Deployment/Infra)
+
+- Dockerization and orchestration (`Dockerfile`, `docker-compose.yml`)
+- Monitoring stack (Prometheus/Grafana)
+- Centralized log aggregation (ELK)
+- External broker provisioning for RabbitMQ/Kafka
