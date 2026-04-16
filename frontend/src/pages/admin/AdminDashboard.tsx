@@ -461,45 +461,56 @@ const AdminDashboard: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-8 py-5">
-                                                {isAssigning === b.id ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <select
-                                                            className="text-[10px] font-black uppercase tracking-widest bg-white border border-primary/20 rounded-xl px-4 py-2 outline-none focus:border-primary shadow-sm"
-                                                            onChange={(e) => handleAssignTechnician(b.id, parseInt(e.target.value))}
-                                                            defaultValue=""
-                                                        >
-                                                            <option value="" disabled>SELECT AGENT</option>
-                                                            {technicians.map((t: any) => (
-                                                                <option key={t.id} value={t.id}>{t.name}</option>
-                                                            ))}
-                                                        </select>
+                                                {(() => {
+                                                    const isUnassigned = !b.technicianId || b.technicianName === 'Unassigned';
+                                                    if (isAssigning === b.id) {
+                                                        return (
+                                                            <div className="flex items-center gap-2">
+                                                                <select
+                                                                    className="text-[10px] font-black uppercase tracking-widest bg-white border border-primary/20 rounded-xl px-4 py-2 outline-none focus:border-primary shadow-sm"
+                                                                    onChange={(e) => handleAssignTechnician(b.id, parseInt(e.target.value))}
+                                                                    defaultValue=""
+                                                                >
+                                                                    <option value="" disabled>SELECT AGENT</option>
+                                                                    {technicians.map((t: any) => (
+                                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button
+                                                                    onClick={() => setIsAssigning(null)}
+                                                                    className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                                                                >
+                                                                    IGNORE
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    if (!isUnassigned) {
+                                                        return (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-extrabold text-text/80 uppercase text-[11px] tracking-tight">{b.technicianName}</span>
+                                                                    <button
+                                                                        onClick={() => setIsAssigning(b.id)}
+                                                                        className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline text-left mt-0.5"
+                                                                    >
+                                                                        REASSIGN AGENT
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    return (
                                                         <button
-                                                            onClick={() => setIsAssigning(null)}
-                                                            className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                                                            onClick={() => setIsAssigning(b.id)}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-cta text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cta/90 transition-all shadow-md active:scale-95"
                                                         >
-                                                            IGNORE
+                                                            <UserCheck className="w-3.5 h-3.5" /> ASSIGN
                                                         </button>
-                                                    </div>
-                                                ) : b.technicianId ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-extrabold text-text/80 uppercase text-[11px] tracking-tight">{b.technicianName}</span>
-                                                            <button
-                                                                onClick={() => setIsAssigning(b.id)}
-                                                                className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline text-left mt-0.5"
-                                                            >
-                                                                REASSIGN AGENT
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setIsAssigning(b.id)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-cta text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cta/90 transition-all shadow-md active:scale-95"
-                                                    >
-                                                        <UserCheck className="w-3.5 h-3.5" /> DEPLOY AGENT
-                                                    </button>
-                                                )}
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-8 py-5">
                                                 <div className="mb-2">

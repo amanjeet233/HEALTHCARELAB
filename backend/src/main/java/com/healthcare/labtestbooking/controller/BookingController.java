@@ -180,12 +180,12 @@ public class BookingController {
         }
 
         @PutMapping("/{id}/technician")
-        @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER')")
-        @Operation(summary = "Assign technician", description = "Assign a technician to a booking (ADMIN or MEDICAL_OFFICER role required)")
+        @PreAuthorize("hasAnyRole('ADMIN', 'MEDICAL_OFFICER', 'TECHNICIAN')")
+        @Operation(summary = "Assign technician", description = "Assign a technician to a booking (ADMIN, MEDICAL_OFFICER or TECHNICIAN role required)")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Technician assigned successfully"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
-                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - ADMIN role required"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - role access denied"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking or technician not found"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
@@ -194,6 +194,15 @@ public class BookingController {
                 log.info("Assign technician {} to booking {}", request.getTechnicianId(), id);
                 BookingResponse booking = bookingService.assignTechnician(id, request.getTechnicianId());
                 return ResponseEntity.ok(ApiResponse.success("Technician assigned", booking));
+        }
+
+        @GetMapping("/unassigned")
+        @PreAuthorize("hasAnyRole('ADMIN','TECHNICIAN','MEDICAL_OFFICER')")
+        @Operation(summary = "Get unassigned bookings", description = "Retrieve unassigned BOOKED/CONFIRMED bookings for admin, technician and medical officer")
+        public ResponseEntity<ApiResponse<List<BookingResponse>>> getUnassignedBookings() {
+                log.info("Fetching unassigned bookings");
+                List<BookingResponse> bookings = bookingService.getUnassignedBookings();
+                return ResponseEntity.ok(ApiResponse.success("Unassigned bookings fetched successfully", bookings));
         }
 
         @RequestMapping(value = { "/{id}/cancel", "/cancel/{id}" }, method = { RequestMethod.PUT, RequestMethod.POST })

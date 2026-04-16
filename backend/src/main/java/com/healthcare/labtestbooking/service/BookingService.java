@@ -261,6 +261,13 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    public List<BookingResponse> getUnassignedBookings() {
+        List<BookingStatus> statuses = List.of(BookingStatus.BOOKED, BookingStatus.CONFIRMED);
+        return bookingRepository.findByTechnicianIsNullAndStatusIn(statuses).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<String> getAvailableSlots(String dateStr, Long testId) {
         LocalDate date = LocalDate.parse(dateStr);
         List<Booking> bookings = bookingRepository.findByBookingDate(date);
@@ -328,6 +335,13 @@ public class BookingService {
 
     @Transactional
     public BookingResponse assignTechnician(Long bookingId, Long technicianId) {
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.TECHNICIAN
+                && !Objects.equals(currentUser.getId(), technicianId)) {
+            throw new RuntimeException("Technicians can only claim bookings for themselves");
+        }
+
         Booking booking = bookingRepository.findById(Objects.requireNonNull(bookingId, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
 
@@ -342,7 +356,6 @@ public class BookingService {
         booking.setAssignmentType(AssignmentType.ADMIN_ASSIGNED);
         booking = bookingRepository.save(booking);
 
-        User currentUser = getCurrentUser();
         auditService.logAction(
                 currentUser.getId(), currentUser.getEmail(), currentUser.getRole().name(),
                 "TECHNICIAN_ASSIGNED",
@@ -602,7 +615,7 @@ public class BookingService {
                 .reportAvailable(Boolean.TRUE.equals(booking.getReportAvailable()))
                 .createdAt(booking.getCreatedAt())
                 .technicianId(booking.getTechnician() != null ? booking.getTechnician().getId() : null)
-                .technicianName(booking.getTechnician() != null ? booking.getTechnician().getName() : null)
+                .technicianName(booking.getTechnician() != null ? booking.getTechnician().getName() : "Unassigned")
                 .assignmentType(booking.getAssignmentType() != null ? booking.getAssignmentType().name() : null)
                 .cancellationReason(booking.getCancellationReason())
                 .rejectionReason(booking.getRejectionReason())

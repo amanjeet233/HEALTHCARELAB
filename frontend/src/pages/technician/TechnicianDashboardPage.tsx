@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Clock, CheckCircle2, Truck, Upload,
   AlertCircle, User, Phone, RefreshCw, Search, XCircle, Activity } from 'lucide-react';
-import { technicianService, getTechnicianBookings } from '../../services/technicianService';
+import { technicianService, getTechnicianBookings, getUnassignedBookings } from '../../services/technicianService';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import GlassCard from '../../components/common/GlassCard';
@@ -45,14 +45,16 @@ type ConsentStatus = {
 const TechnicianDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
+  const [availableBookings, setAvailableBookings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<number | null>(null);
+  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState<Record<number, boolean>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
   const [hasUploadedReportByBookingId, setHasUploadedReportByBookingId] = useState<Record<number, boolean>>({});
   const [rejectedBookings, setRejectedBookings] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'completed' | 'rejected'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'completed' | 'available' | 'rejected'>('today');
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectPanelId, setRejectPanelId] = useState<number | null>(null);
   const [rejectReasonByBooking, setRejectReasonByBooking] = useState<Record<number, string>>({});
@@ -67,16 +69,19 @@ const TechnicianDashboardPage: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsData, bookingsResp, rejectedResp] = await Promise.all([
+      const [statsData, bookingsResp, rejectedResp, unassignedResp] = await Promise.all([
         technicianService.getDashboardStats(),
         getTechnicianBookings(),
         technicianService.getRejectedSpecimens(),
+        getUnassignedBookings(),
       ]);
       setStats(statsData || {});
       const raw = bookingsResp.data?.data || bookingsResp.data || [];
       const normalizedBookings = Array.isArray(raw) ? raw : [];
       setBookings(normalizedBookings);
       setRejectedBookings(Array.isArray(rejectedResp) ? rejectedResp : []);
+      const unassignedRaw = unassignedResp.data?.data || unassignedResp.data || [];
+      setAvailableBookings(Array.isArray(unassignedRaw) ? unassignedRaw : []);
 
       const processingBookings = normalizedBookings.filter((b: any) => b.status === 'PROCESSING');
       if (processingBookings.length === 0) {
@@ -122,12 +127,30 @@ const TechnicianDashboardPage: React.FC = () => {
     } catch (err) {
       toast.error('Failed to load bookings');
       setBookings([]);
+      setAvailableBookings([]);
       setHasUploadedReportByBookingId({});
       setConsentByBookingId({});
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleClaimBooking = async (bookingId: number) => {
+    if (!currentUser?.id) {
+      toast.error('Unable to identify logged-in technician');
+      return;
+    }
+    setClaimingId(bookingId);
+    try {
+      await technicianService.claimBooking(bookingId, currentUser.id);
+      toast.success('Booking claimed successfully');
+      await loadData();
+    } catch {
+      toast.error('Failed to claim booking');
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -248,9 +271,11 @@ const TechnicianDashboardPage: React.FC = () => {
     (b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING') && b.bookingDate >= today
   );
   const completedBookings = bookings.filter(b => b.status === 'SAMPLE_COLLECTED' || b.status === 'COMPLETED');
+  const availableOpenBookings = availableBookings;
   const rejectedTabBookings = rejectedBookings;
   const displayBookingsBase = activeTab === 'today' ? todayBookings
     : activeTab === 'pending' ? pendingBookings
+    : activeTab === 'available' ? availableOpenBookings
     : activeTab === 'completed' ? completedBookings
     : rejectedTabBookings;
 
@@ -314,12 +339,12 @@ const TechnicianDashboardPage: React.FC = () => {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl mb-5 w-fit">
-          {([['today', "Today's"], ['pending', 'Upcoming'], ['completed', 'Completed'], ['rejected', 'Rejected']] as const).map(([key, label]) => (
+          {([['today', "Today's"], ['pending', 'Upcoming'], ['available', 'Available'], ['completed', 'Completed'], ['rejected', 'Rejected']] as const).map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}>
-              {label} ({key === 'today' ? todayBookings.length : key === 'pending' ? pendingBookings.length : key === 'completed' ? completedBookings.length : rejectedTabBookings.length})
+              {label} ({key === 'today' ? todayBookings.length : key === 'pending' ? pendingBookings.length : key === 'available' ? availableOpenBookings.length : key === 'completed' ? completedBookings.length : rejectedTabBookings.length})
             </button>
           ))}
         </div>
@@ -382,6 +407,7 @@ const TechnicianDashboardPage: React.FC = () => {
               const pendingVerification = booking.status === 'PENDING_VERIFICATION' || booking.status === 'VERIFIED' || booking.status === 'COMPLETED';
               const showViewReport = pendingVerification || hasUploadedReport;
               const isRejectedTab = activeTab === 'rejected';
+              const isAvailableTab = activeTab === 'available';
               const displayTimeSlot = booking.timeSlot || booking.preferredTime || 'N/A';
               const displayAddress = booking.collectionAddress || booking.address?.city || booking.address || 'N/A';
               return (
@@ -449,7 +475,19 @@ const TechnicianDashboardPage: React.FC = () => {
                       </div>
                     </div>
                     {!isRejectedTab && <div className="flex flex-col gap-2 shrink-0">
-                      {showMarkCollected && (
+                      {isAvailableTab && (
+                        <button
+                          onClick={() => handleClaimBooking(booking.id)}
+                          disabled={claimingId === booking.id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-cyan-600 text-white rounded-lg text-xs font-bold hover:bg-cyan-700 transition-all disabled:opacity-50"
+                        >
+                          {claimingId === booking.id ? (
+                            <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          ) : <User className="w-3 h-3" />}
+                          Claim Booking
+                        </button>
+                      )}
+                      {!isAvailableTab && showMarkCollected && (
                         <button
                           onClick={() => handleMarkCollected(booking.id)}
                           disabled={updating === booking.id}
@@ -460,7 +498,7 @@ const TechnicianDashboardPage: React.FC = () => {
                           Mark Collected
                         </button>
                       )}
-                      {showCaptureConsent && (
+                      {!isAvailableTab && showCaptureConsent && (
                         <button
                           onClick={() => setConsentPanelId(consentPanelId === booking.id ? null : booking.id)}
                           className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all">
@@ -468,7 +506,7 @@ const TechnicianDashboardPage: React.FC = () => {
                           Capture Consent
                         </button>
                       )}
-                      {canReject && (
+                      {!isAvailableTab && canReject && (
                         <button
                           onClick={() => setRejectPanelId(rejectPanelId === booking.id ? null : booking.id)}
                           className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 transition-all">
@@ -476,7 +514,7 @@ const TechnicianDashboardPage: React.FC = () => {
                           Reject Sample
                         </button>
                       )}
-                      {canProcess && (
+                      {!isAvailableTab && canProcess && (
                         <button
                           onClick={() => handleMarkProcessing(booking.id)}
                           disabled={updating === booking.id}
@@ -487,7 +525,7 @@ const TechnicianDashboardPage: React.FC = () => {
                           Start Processing
                         </button>
                       )}
-                      {canUpload && (
+                      {!isAvailableTab && canUpload && (
                         <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 cursor-pointer transition-all disabled:opacity-50">
                           {uploadingFiles[booking.id] ? (
                             <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -498,7 +536,7 @@ const TechnicianDashboardPage: React.FC = () => {
                           <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => handleFileUpload(booking.id, e)} disabled={uploadingFiles[booking.id]} />
                         </label>
                       )}
-                      {showViewReport && (
+                      {!isAvailableTab && showViewReport && (
                          <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg text-xs font-bold">
                            <CheckCircle2 className="w-3 h-3" /> View Report
                          </div>
@@ -506,7 +544,7 @@ const TechnicianDashboardPage: React.FC = () => {
                     </div>}
                   </div>
 
-                  {!isRejectedTab && showCaptureConsent && consentPanelId === booking.id && (
+                  {!isRejectedTab && !isAvailableTab && showCaptureConsent && consentPanelId === booking.id && (
                     <div className="mt-4 border-t border-slate-200 pt-4">
                       <div className="grid gap-3">
                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
@@ -552,7 +590,7 @@ const TechnicianDashboardPage: React.FC = () => {
                     </div>
                   )}
 
-                  {!isRejectedTab && rejectPanelId === booking.id && (
+                  {!isRejectedTab && !isAvailableTab && rejectPanelId === booking.id && (
                     <div className="mt-4 border-t border-slate-200 pt-4">
                       <div className="grid gap-3">
                         <div>
