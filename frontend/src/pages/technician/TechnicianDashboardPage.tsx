@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin, Clock, CheckCircle2, Truck, Upload,
   AlertCircle, User, Phone, RefreshCw, Search, XCircle, Activity } from 'lucide-react';
 import { technicianService, getTechnicianBookings, getUnassignedBookings } from '../../services/technicianService';
@@ -42,8 +43,19 @@ type ConsentStatus = {
   collectorName?: string;
 };
 
-const TechnicianDashboardPage: React.FC = () => {
+type TechnicianDashboardPageProps = {
+  forcedTab?: 'today' | 'pending' | 'completed';
+  lockTab?: boolean;
+  pageHeading?: React.ReactNode;
+  breadcrumbLabel?: string;
+};
+
+const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({ forcedTab, lockTab = false, pageHeading, breadcrumbLabel }) => {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const querySearch = searchParams.get('search') || '';
   const [bookings, setBookings] = useState<any[]>([]);
   const [availableBookings, setAvailableBookings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
@@ -54,7 +66,12 @@ const TechnicianDashboardPage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
   const [hasUploadedReportByBookingId, setHasUploadedReportByBookingId] = useState<Record<number, boolean>>({});
   const [rejectedBookings, setRejectedBookings] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'completed' | 'available' | 'rejected'>('today');
+  const routeTab = useMemo<'today' | 'pending' | 'completed'>(() => {
+    if (location.pathname === '/technician/queue') return 'pending';
+    if (location.pathname === '/technician/collected') return 'completed';
+    return 'today';
+  }, [location.pathname]);
+  const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'completed' | 'available' | 'rejected'>(forcedTab || routeTab);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectPanelId, setRejectPanelId] = useState<number | null>(null);
   const [rejectReasonByBooking, setRejectReasonByBooking] = useState<Record<number, string>>({});
@@ -153,6 +170,18 @@ const TechnicianDashboardPage: React.FC = () => {
   };
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    setSearchTerm(querySearch);
+  }, [querySearch]);
+
+  useEffect(() => {
+    setActiveTab(routeTab);
+  }, [routeTab]);
+
+  useEffect(() => {
+    if (forcedTab) setActiveTab(forcedTab);
+  }, [forcedTab]);
 
   const handleMarkCollected = async (bookingId: number) => {
     setUpdating(bookingId);
@@ -297,9 +326,16 @@ const TechnicianDashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
+    <div className="max-w-[1140px] w-full mx-auto px-5 md:px-6 lg:px-8 py-5 md:py-6 min-h-screen">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div className="max-w-2xl">
+          {breadcrumbLabel && (
+            <div className="mb-2 text-xs font-bold text-slate-500">
+              <Link to="/technician" className="hover:text-cyan-700 transition-colors">Home</Link>
+              <span className="mx-1.5 text-slate-400">&gt;</span>
+              <span className="text-slate-700">{breadcrumbLabel}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2.5 mb-3">
             <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
               <Truck className="w-5 h-5 text-cyan-600" />
@@ -308,48 +344,58 @@ const TechnicianDashboardPage: React.FC = () => {
               TECHNICIAN / OPERATIONS
             </span>
           </div>
-          <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5 uppercase">
-            Lab <span className="text-cyan-600">Queue</span>
+          <h1 className="text-[clamp(1.5rem,1.05rem+1.5vw,2.3rem)] font-black text-[#164E63] tracking-tight mb-2 uppercase">
+            {pageHeading || <>Lab <span className="text-cyan-600">Queue</span></>}
           </h1>
-          <p className="text-[clamp(0.84rem,0.8rem+0.3vw,1rem)] text-cyan-900/60 font-medium leading-relaxed">
+          <p className="text-[clamp(0.78rem,0.76rem+0.28vw,0.92rem)] text-cyan-900/60 font-medium leading-relaxed">
             Welcome, {currentUser?.name || currentUser?.email?.split('@')[0]}. Track collection, consent, and report uploads.
           </p>
         </div>
-        <GlassButton onClick={loadData} className="h-full px-6 py-3.5" icon={<RefreshCw className="w-3.5 h-3.5" />}>
-          REFRESH
-        </GlassButton>
+        <div className="flex flex-wrap gap-2">
+          <GlassButton onClick={loadData} className="h-full px-4.5 py-2.5" icon={<RefreshCw className="w-3.5 h-3.5" />}>
+            REFRESH
+          </GlassButton>
+        </div>
       </header>
 
       <div>
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
           {statCards.map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white/60 backdrop-blur-md rounded-xl border border-white/70 p-4 shadow-sm">
+            <div key={label} className="bg-white/60 backdrop-blur-md rounded-xl border border-white/70 p-3 md:p-3.5 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: color + '15' }}>
                   <Icon className="w-4 h-4" style={{ color }} />
                 </div>
               </div>
-              <div className="text-2xl font-black text-slate-900">{loading ? '—' : value}</div>
-              <div className="text-xs text-slate-500 font-medium mt-0.5">{label}</div>
+              <div className="text-[clamp(1.05rem,0.95rem+0.5vw,1.35rem)] font-black text-slate-900">{loading ? '—' : value}</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">{label}</div>
             </div>
           ))}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl mb-5 w-fit">
-          {([['today', "Today's"], ['pending', 'Upcoming'], ['available', 'Available'], ['completed', 'Completed'], ['rejected', 'Rejected']] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {label} ({key === 'today' ? todayBookings.length : key === 'pending' ? pendingBookings.length : key === 'available' ? availableOpenBookings.length : key === 'completed' ? completedBookings.length : rejectedTabBookings.length})
-            </button>
-          ))}
-        </div>
+        {!lockTab && (
+          <div className="flex gap-1 bg-slate-100/70 p-1 rounded-xl mb-4 w-fit">
+            {([['today', "Today's"], ['pending', 'Upcoming'], ['available', 'Available'], ['completed', 'Completed'], ['rejected', 'Rejected']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setActiveTab(key);
+                  if (key === 'today') navigate('/technician/today');
+                  else if (key === 'pending') navigate('/technician/queue');
+                  else if (key === 'completed') navigate('/technician/collected');
+                }}
+                className={`px-3 md:px-3.5 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold transition-all ${
+                  activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}>
+                {label} ({key === 'today' ? todayBookings.length : key === 'pending' ? pendingBookings.length : key === 'available' ? availableOpenBookings.length : key === 'completed' ? completedBookings.length : rejectedTabBookings.length})
+              </button>
+            ))}
+          </div>
+        )}
 
-        <GlassCard className="mb-7 border-cyan-100/30">
+        <GlassCard className="mb-4 border-cyan-100/30">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[260px]">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Search Queue</label>
@@ -360,7 +406,7 @@ const TechnicianDashboardPage: React.FC = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by patient, booking ID or test"
-                  className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 focus:ring-4 focus:ring-cyan-500/5 rounded-xl pl-10 pr-3 py-2.5 text-sm font-medium transition-all"
+                  className="w-full bg-white/50 border border-white/50 focus:border-cyan-400/50 focus:ring-4 focus:ring-cyan-500/5 rounded-xl pl-10 pr-3 py-2 text-[13px] font-medium transition-all"
                 />
               </div>
             </div>

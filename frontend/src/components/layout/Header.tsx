@@ -1,6 +1,6 @@
 import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users } from 'lucide-react';
+import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users, Shield, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
@@ -68,6 +68,7 @@ const Header: React.FC = () => {
   const userEmail = toSafeString(currentUser?.email, '');
   const userInitial = userName.charAt(0).toUpperCase() || 'U';
   const role = currentUser?.role;
+  const isOpsRole = Boolean(isAuthenticated && role && role !== 'PATIENT');
 
   const isAdminDashboard = role === 'ADMIN' && location.pathname.startsWith('/admin');
 
@@ -101,7 +102,7 @@ const Header: React.FC = () => {
   // Handle Autocomplete Fetch
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (debouncedSearch.trim().length < 2 || isAdminDashboard) {
+      if (debouncedSearch.trim().length < 2 || isOpsRole) {
         setSuggestions([]);
         setIsSearchOpen(false);
         return;
@@ -124,7 +125,7 @@ const Header: React.FC = () => {
       }
     };
     fetchSuggestions();
-  }, [debouncedSearch, isAdminDashboard]);
+  }, [debouncedSearch, isOpsRole]);
 
   // Handle click outside to close search dropdown
   useEffect(() => {
@@ -141,11 +142,12 @@ const Header: React.FC = () => {
     e.preventDefault();
     if (searchQuery.trim().length > 0) {
       setIsSearchOpen(false);
-      if (isAdminDashboard) {
-        // For now, redirect to search in admin bookings
-        // We set the query in the URL and let AdminDashboard handle it (if it does)
-        // Or just navigate to bookings management with the search param
+      if (role === 'ADMIN') {
         navigate(`/admin?search=${encodeURIComponent(searchQuery.trim())}`);
+      } else if (role === 'MEDICAL_OFFICER') {
+        navigate(`/medical-officer/verification?search=${encodeURIComponent(searchQuery.trim())}`);
+      } else if (role === 'TECHNICIAN') {
+        navigate(`/technician?search=${encodeURIComponent(searchQuery.trim())}`);
       } else {
         navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(searchQuery.trim())}`);
       }
@@ -176,6 +178,52 @@ const Header: React.FC = () => {
     { label: 'Settings', icon: Settings, path: '/settings' },
   ];
 
+  const technicianMenuItems = [
+    { label: 'Dashboard', icon: Settings, path: '/technician' },
+    { label: 'My Profile', icon: User, path: '/technician/profile' },
+  ];
+
+  const medicalOfficerMenuItems = [
+    { label: 'Dashboard', icon: Settings, path: '/medical-officer' },
+    { label: 'Verification', icon: Settings, path: '/medical-officer/verification' },
+    { label: 'My Profile', icon: User, path: '/medical-officer/profile' },
+  ];
+
+  const adminMenuItems = [
+    { label: 'Profile', icon: User, path: '/admin/profile' },
+    { label: 'Audit Logs', icon: FileText, path: '/admin/audit-logs' },
+  ];
+
+  const quickAccessOps = role === 'ADMIN'
+    ? [
+        { label: 'Bookings', icon: Calendar, path: '/admin/bookings', color: 'text-[#0D7C7C]' },
+        { label: 'Users', icon: Users, path: '/admin/users', color: 'text-[#1D4ED8]' },
+        { label: 'Staff', icon: Shield, path: '/admin/staff', color: 'text-[#0F766E]' },
+        { label: 'Promo Codes', icon: Gift, path: '/admin/promo-codes', color: 'text-[#EC4899]' },
+      ]
+    : role === 'MEDICAL_OFFICER'
+      ? [
+          { label: 'Verification', icon: ClipboardList, path: '/medical-officer/verification', color: 'text-[#D97706]' },
+          { label: 'Assignments', icon: Users, path: '/medical-officer/assignments', color: 'text-[#0D7C7C]' },
+          { label: 'Pipeline', icon: Activity, path: '/medical-officer/pipeline', color: 'text-[#7C3AED]' },
+          { label: 'Profile', icon: User, path: '/medical-officer/profile', color: 'text-[#1D4ED8]' },
+        ]
+      : role === 'TECHNICIAN'
+        ? [
+            { label: 'Today', icon: Calendar, path: '/technician/today', color: 'text-[#0D7C7C]' },
+            { label: 'Queue', icon: ClipboardList, path: '/technician/queue', color: 'text-[#1D4ED8]' },
+            { label: 'Collected', icon: FileText, path: '/technician/collected', color: 'text-[#0F766E]' },
+          ]
+        : [];
+
+  const isMenuItemActive = (path: string): boolean => {
+    const [basePath] = path.split('?');
+    if (basePath === '/admin' || basePath === '/technician' || basePath === '/medical-officer') {
+      return location.pathname.startsWith(basePath);
+    }
+    return location.pathname === basePath;
+  };
+
   const handleProfileMouseEnter = () => {
     if (profileMenuTimeoutRef.current) {
       clearTimeout(profileMenuTimeoutRef.current);
@@ -187,7 +235,7 @@ const Header: React.FC = () => {
   const handleProfileMouseLeave = () => {
     profileMenuTimeoutRef.current = setTimeout(() => {
       setShowProfileMenu(false);
-    }, 1500); 
+    }, 260);
   };
 
   return (
@@ -215,7 +263,12 @@ const Header: React.FC = () => {
             <Search className="absolute left-4 w-4 h-4 text-slate-400 group-focus-within:text-[#0D7C7C]" strokeWidth={3} />
             <input
               type="text"
-              placeholder={isAdminDashboard ? "SEARCH SYSTEM REGISTRY..." : "SEARCH TESTS OR PACKAGES..."}
+              placeholder={
+                role === 'ADMIN' ? 'SEARCH SYSTEM REGISTRY...' :
+                role === 'MEDICAL_OFFICER' ? 'SEARCH VERIFICATION QUEUE...' :
+                role === 'TECHNICIAN' ? 'SEARCH COLLECTION QUEUE...' :
+                'SEARCH TESTS OR PACKAGES...'
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => { if (suggestions.length > 0) setIsSearchOpen(true) }}
@@ -288,47 +341,42 @@ const Header: React.FC = () => {
             </button>
           ))}
 
-          {isAuthenticated && role === 'ADMIN' && (
-            <>
-              <button onClick={() => navigate('/admin')} className="flex flex-col items-center group transition-all active:scale-90">
-                <Settings className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-all" strokeWidth={3} />
-                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Dashboard</span>
-              </button>
-              <button onClick={() => navigate('/admin/audit-logs')} className="flex flex-col items-center group transition-all active:scale-90">
-                <FileText className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-all" strokeWidth={3} />
-                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Audit Logs</span>
-              </button>
-            </>
-          )}
-
-          {isAuthenticated && role === 'TECHNICIAN' && (
-            <button onClick={() => navigate('/technician')} className="flex flex-col items-center group transition-all active:scale-90">
-              <Plus className="w-5 h-5 text-[#0D7C7C] group-hover:scale-110 transition-all" strokeWidth={3} />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">My Collections</span>
-            </button>
-          )}
-
-          {isAuthenticated && role === 'MEDICAL_OFFICER' && (
-            <button onClick={() => navigate('/medical-officer')} className="flex flex-col items-center group transition-all active:scale-90">
-              <ClipboardList className="w-5 h-5 text-[#D97706] group-hover:scale-110 transition-all" strokeWidth={3} />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">Review Queue</span>
-            </button>
+          {isOpsRole && (
+            <div className="hidden md:flex items-center gap-4 lg:gap-6">
+              {quickAccessOps.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={`ops-quick-${item.label}`}
+                    to={item.path}
+                    className="flex flex-col items-center group transition-all active:scale-90 cursor-pointer"
+                  >
+                    <Icon className={`w-5 h-5 ${item.color} group-hover:scale-110 transition-all`} strokeWidth={3} />
+                    <span className={`text-[10px] font-bold uppercase tracking-tighter mt-1 whitespace-nowrap ${item.color}`}>
+                      {item.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
           )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsCartOpen(true)}
-            className="relative p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-          >
-            <ShoppingCart className="w-5 h-5" strokeWidth={3} />
-            {cartItemCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white">
-                {cartItemCount}
-              </span>
-            )}
-          </motion.button>
+          {!isOpsRole && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+            >
+              <ShoppingCart className="w-5 h-5" strokeWidth={3} />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white">
+                  {cartItemCount}
+                </span>
+              )}
+            </motion.button>
+          )}
 
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
@@ -353,11 +401,11 @@ const Header: React.FC = () => {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute top-full right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50"
+                      className="absolute top-full right-0 mt-2.5 w-64 bg-white/95 backdrop-blur-xl rounded-xl border border-slate-100 shadow-2xl overflow-hidden z-50"
                     >
-                      <div className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue px-4 py-3 text-white">
-                        <p className="font-extrabold text-[1.05rem] tracking-tight leading-none mb-1">{userName}</p>
-                        <div className="text-[10px] font-semibold px-2 py-0.5 rounded mt-1 w-fit"
+                      <div className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue px-3.5 py-3 text-white">
+                        <p className="font-extrabold text-[0.95rem] tracking-tight leading-none mb-1">{userName}</p>
+                        <div className="text-[9px] font-semibold px-2 py-0.5 rounded mt-1.5 w-fit"
                           style={{
                             background: role === 'ADMIN' ? '#FEF2F2' :
                                         role === 'TECHNICIAN' ? '#EFF6FF' :
@@ -371,9 +419,10 @@ const Header: React.FC = () => {
                            role === 'ADMIN' ? 'Admin' : 'Patient'}
                         </div>
                       </div>
-                      <div className="py-1.5">
+                      <div className="py-1">
                         {(!role || role === 'PATIENT') && profileMenuItems.map((item, idx) => {
                           const Icon = item.icon;
+                          const active = isMenuItemActive(item.path);
                           return (
                             <button
                               key={`pmenu-${idx}`}
@@ -381,44 +430,88 @@ const Header: React.FC = () => {
                                 setShowProfileMenu(false);
                                 navigate(item.path);
                               }}
-                              className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors"
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
                             >
                               <div className="flex items-center gap-3">
-                                <Icon size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
+                                <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
+                              <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
                             </button>
                           );
                         })}
 
-                        {role === 'ADMIN' && (
-                          <>
-                            <button onClick={() => { setShowProfileMenu(false); navigate('/admin') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                        {role === 'ADMIN' && adminMenuItems.map((item, idx) => {
+                          const Icon = item.icon;
+                          const active = isMenuItemActive(item.path);
+                          return (
+                            <button
+                              key={`admin-menu-${idx}`}
+                              onClick={() => {
+                                setShowProfileMenu(false);
+                                navigate(item.path);
+                              }}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                            >
                               <div className="flex items-center gap-3">
-                                <Settings size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
-                                <span className="uppercase tracking-tight">Dashboard</span>
+                                <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
+                                <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
+                              <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
                             </button>
-                            <button onClick={() => { setShowProfileMenu(false); navigate('/admin/audit-logs') }} className="w-full text-left px-4 py-2 text-[10.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C] flex items-center justify-between group transition-colors">
+                          );
+                        })}
+
+                        {role === 'TECHNICIAN' && technicianMenuItems.map((item, idx) => {
+                          const Icon = item.icon;
+                          const active = isMenuItemActive(item.path);
+                          return (
+                            <button
+                              key={`tech-menu-${idx}`}
+                              onClick={() => {
+                                setShowProfileMenu(false);
+                                navigate(item.path);
+                              }}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                            >
                               <div className="flex items-center gap-3">
-                                <FileText size={13} className="text-slate-400 group-hover:text-[#0D7C7C]" />
-                                <span className="uppercase tracking-tight">Audit Logs</span>
+                                <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
+                                <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
-                              <ArrowRight size={10} className="opacity-0 group-hover:opacity-100" />
+                              <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
                             </button>
-                          </>
-                        )}
-                        <div className="h-px bg-gray-50 my-1 mx-2" />
+                          );
+                        })}
+
+                        {role === 'MEDICAL_OFFICER' && medicalOfficerMenuItems.map((item, idx) => {
+                          const Icon = item.icon;
+                          const active = isMenuItemActive(item.path);
+                          return (
+                            <button
+                              key={`mo-menu-${idx}`}
+                              onClick={() => {
+                                setShowProfileMenu(false);
+                                navigate(item.path);
+                              }}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
+                                <span className="uppercase tracking-tight">{item.label}</span>
+                              </div>
+                              <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
+                            </button>
+                          );
+                        })}
+                        <div className="h-px bg-slate-100 my-1 mx-2" />
                         <button
                           onClick={() => {
                             setShowProfileMenu(false);
                             logout();
                           }}
-                          className="w-full text-left px-4 py-2.5 text-[10.5px] font-extrabold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors uppercase tracking-tight"
+                          className="w-full text-left px-3.5 py-2 text-[10px] font-extrabold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors uppercase tracking-tight"
                         >
-                          <LogOut size={13} />
+                          <LogOut size={12} />
                           Logout
                         </button>
                       </div>

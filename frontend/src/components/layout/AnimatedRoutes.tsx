@@ -45,6 +45,10 @@ const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
 const ProfilePage = lazy(() => import('../../pages/patient/ProfilePage'));
 const NotificationCenter = lazy(() => import('../../pages/patient/NotificationCenter'));
 const AdminDashboard = lazy(() => import('../../pages/admin/AdminDashboard'));
+const AdminBookingsPage = lazy(() => import('../../pages/admin/AdminBookingsPage'));
+const AdminUsersPage = lazy(() => import('../../pages/admin/AdminUsersPage'));
+const AdminStaffPage = lazy(() => import('../../pages/admin/AdminStaffPage'));
+const AdminProfilePage = lazy(() => import('../../pages/admin/AdminProfilePage'));
 const DoctorManagementPage = lazy(() => import('../../pages/admin/DoctorManagementPage'));
 const ReferenceRangesPage = lazy(() => import('../../pages/admin/ReferenceRangesPage'));
 const TestParametersPage = lazy(() => import('../../pages/admin/TestParametersPage'));
@@ -62,7 +66,15 @@ const WomenWellnessPage = lazy(() => import('../../pages/WomenWellnessPage'));
 const ScreeningsPage = lazy(() => import('../../pages/ScreeningsPage'));
 const LoginPage = lazy(() => import('../../pages/LoginPage'));
 const TechnicianDashboardPage = lazy(() => import('../../pages/technician/TechnicianDashboardPage'));
+const TechnicianTodayPage = lazy(() => import('../../pages/technician/TechnicianTodayPage'));
+const TechnicianQueuePage = lazy(() => import('../../pages/technician/TechnicianQueuePage'));
+const TechnicianCollectedPage = lazy(() => import('../../pages/technician/TechnicianCollectedPage'));
+const TechnicianProfilePage = lazy(() => import('../../pages/technician/TechnicianProfilePage'));
 const MedicalOfficerDashboardPage = lazy(() => import('../../pages/medical/MedicalOfficerDashboardPage'));
+const MedicalOfficerVerificationPage = lazy(() => import('../../pages/medical/MedicalOfficerVerificationPage'));
+const MedicalOfficerAssignmentsPage = lazy(() => import('../../pages/medical/MedicalOfficerAssignmentsPage'));
+const MedicalOfficerPipelinePage = lazy(() => import('../../pages/medical/MedicalOfficerPipelinePage'));
+const MedicalOfficerProfilePage = lazy(() => import('../../pages/medical/MedicalOfficerProfilePage'));
 const PublicReportView = lazy(() => import('../../pages/public/PublicReportView'));
 
 import MainLayout from './MainLayout';
@@ -110,6 +122,10 @@ const AnimatedRoutes: React.FC = () => {
                         {/* Admin only */}
                         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                             <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+                          <Route path="/admin/bookings" element={<PageTransition><AdminBookingsPage /></PageTransition>} />
+                          <Route path="/admin/users" element={<PageTransition><AdminUsersPage /></PageTransition>} />
+                          <Route path="/admin/staff" element={<PageTransition><AdminStaffPage /></PageTransition>} />
+                          <Route path="/admin/profile" element={<PageTransition><AdminProfilePage /></PageTransition>} />
                             <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
                           <Route path="/admin/promo-codes" element={<PageTransition><PromoCodesPage /></PageTransition>} />
                           <Route path="/admin/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
@@ -121,11 +137,19 @@ const AnimatedRoutes: React.FC = () => {
                         {/* Technician only */}
                         <Route element={<ProtectedRoute allowedRoles={['TECHNICIAN']} />}>
                             <Route path="/technician" element={<PageTransition><TechnicianDashboardPage /></PageTransition>} />
+                          <Route path="/technician/today" element={<PageTransition><TechnicianTodayPage /></PageTransition>} />
+                          <Route path="/technician/queue" element={<PageTransition><TechnicianQueuePage /></PageTransition>} />
+                          <Route path="/technician/collected" element={<PageTransition><TechnicianCollectedPage /></PageTransition>} />
+                          <Route path="/technician/profile" element={<PageTransition><TechnicianProfilePage /></PageTransition>} />
                         </Route>
 
                         {/* Medical Officer only */}
                         <Route element={<ProtectedRoute allowedRoles={['MEDICAL_OFFICER']} />}>
                             <Route path="/medical-officer" element={<PageTransition><MedicalOfficerDashboardPage /></PageTransition>} />
+                          <Route path="/medical-officer/verification" element={<PageTransition><MedicalOfficerVerificationPage /></PageTransition>} />
+                          <Route path="/medical-officer/assignments" element={<PageTransition><MedicalOfficerAssignmentsPage /></PageTransition>} />
+                          <Route path="/medical-officer/pipeline" element={<PageTransition><MedicalOfficerPipelinePage /></PageTransition>} />
+                          <Route path="/medical-officer/profile" element={<PageTransition><MedicalOfficerProfilePage /></PageTransition>} />
                         </Route>
 
                         {/* Patient + Admin (shared protected routes) */}
