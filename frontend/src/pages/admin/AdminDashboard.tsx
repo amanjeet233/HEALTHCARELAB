@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield, Users, Activity, Settings, Bell, UserPlus, Trash2, RefreshCw, ClipboardList, UserCheck, ArrowRight, Search, AlertTriangle, Eye, X } from 'lucide-react';
 import SystemStatsCards from '../../components/admin/SystemStatsCards';
@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { notify } from '../../utils/toast';
 
 const AdminDashboard: React.FC = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState<SystemStats | null>(null);
     const [searchParams] = useSearchParams();
     const querySearch = searchParams.get('search') || '';
@@ -266,6 +267,12 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate('/admin/promo-codes')}
+                            className="flex items-center gap-2.5 px-5 py-3.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all active:scale-95 shadow-lg shadow-primary/20"
+                        >
+                            Promo Codes
+                        </button>
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}

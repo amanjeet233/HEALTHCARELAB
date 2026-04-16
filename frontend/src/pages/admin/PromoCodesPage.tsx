@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, 
@@ -16,7 +17,10 @@ import {
     ArrowRight,
     SearchX,
     Sparkles,
-    Ticket
+    Ticket,
+    Plus,
+    Pencil,
+    Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { promoCodeService } from '../../services/PromoCodeService';
@@ -31,6 +35,8 @@ interface FilterOptions {
 }
 
 const PromoCodesPage: React.FC = () => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin/');
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [filteredCodes, setFilteredCodes] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,10 +47,22 @@ const PromoCodesPage: React.FC = () => {
   });
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [expandedPromo, setExpandedPromo] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    code: '',
+    description: '',
+    discountType: 'PERCENTAGE' as 'PERCENTAGE' | 'FLAT',
+    discountValue: 10,
+    minCartValue: 0,
+    maxDiscount: 0,
+    expiryDate: ''
+  });
 
   useEffect(() => {
     fetchPromoCodes();
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     applyFilters();
@@ -53,7 +71,9 @@ const PromoCodesPage: React.FC = () => {
   const fetchPromoCodes = async () => {
     setLoading(true);
     try {
-      const codes = await promoCodeService.getAvailablePromoCodes();
+      const codes = isAdminRoute
+        ? await promoCodeService.getAdminPromoCodes()
+        : await promoCodeService.getAvailablePromoCodes();
       setPromoCodes(codes);
     } catch (error) {
       console.error('Error fetching promo codes:', error);
@@ -108,6 +128,87 @@ const PromoCodesPage: React.FC = () => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const resetEditor = () => {
+    setEditingPromoId(null);
+    setForm({
+      code: '',
+      description: '',
+      discountType: 'PERCENTAGE',
+      discountValue: 10,
+      minCartValue: 0,
+      maxDiscount: 0,
+      expiryDate: ''
+    });
+  };
+
+  const startEdit = (promo: PromoCode) => {
+    setEditingPromoId(String(promo.id));
+    setForm({
+      code: promo.code,
+      description: promo.description || '',
+      discountType: promo.discount_type,
+      discountValue: promo.discount_value || 0,
+      minCartValue: promo.min_cart_value || 0,
+      maxDiscount: promo.max_discount || 0,
+      expiryDate: promo.expiry_date ? promo.expiry_date.slice(0, 10) : ''
+    });
+    setShowEditor(true);
+  };
+
+  const handleSavePromo = async () => {
+    if (!form.code.trim()) {
+      toast.error('Promo code is required');
+      return;
+    }
+    if (!form.expiryDate) {
+      toast.error('Expiry date is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        code: form.code.trim().toUpperCase(),
+        description: form.description,
+        discountType: form.discountType,
+        discountValue: Number(form.discountValue || 0),
+        minCartValue: Number(form.minCartValue || 0),
+        maxDiscount: Number(form.maxDiscount || 0),
+        expiryDate: form.expiryDate,
+        isActive: true
+      };
+
+      if (editingPromoId) {
+        await promoCodeService.updatePromoCode(editingPromoId, payload);
+        toast.success('Promo code updated');
+      } else {
+        await promoCodeService.createPromoCode(payload);
+        toast.success('Promo code created');
+      }
+
+      setShowEditor(false);
+      resetEditor();
+      await fetchPromoCodes();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to save promo code');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePromo = async (id: string) => {
+    if (!confirm('Delete this promo code?')) {
+      return;
+    }
+    try {
+      await promoCodeService.deletePromoCode(id);
+      toast.success('Promo code deleted');
+      await fetchPromoCodes();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to delete promo code');
+    }
+  };
+
   const getDiscountText = (promo: PromoCode) => {
     if (promo.discount_type === 'PERCENTAGE') {
       return `${promo.discount_value}% OFF`;
@@ -154,7 +255,7 @@ const PromoCodesPage: React.FC = () => {
               </p>
           </div>
 
-          <div className="flex flex-wrap gap-4 flex-1 max-w-2xl">
+            <div className="flex flex-wrap gap-4 flex-1 max-w-2xl">
               <GlassCard className="flex-1 py-6 flex flex-col items-center justify-center text-center border-white">
                    <Tag className="text-emerald-500 mb-3" size={20} />
                    <span className="text-3xl font-black text-[#164E63] tracking-tighter leading-none mb-1">{promoCodes.length}</span>
@@ -167,8 +268,94 @@ const PromoCodesPage: React.FC = () => {
                    </span>
                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Max Intensity</span>
               </GlassCard>
+              {isAdminRoute && (
+                <GlassButton
+                  className="px-6 py-4"
+                  icon={<Plus size={18} />}
+                  onClick={() => {
+                    if (showEditor) {
+                      setShowEditor(false);
+                      resetEditor();
+                    } else {
+                      resetEditor();
+                      setShowEditor(true);
+                    }
+                  }}
+                >
+                  {showEditor ? 'CLOSE EDITOR' : 'NEW PROMO'}
+                </GlassButton>
+              )}
           </div>
       </header>
+
+      {isAdminRoute && showEditor && (
+        <GlassCard className="mb-8 border-white/40">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <input
+              value={form.code}
+              onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
+              placeholder="Code"
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider text-[#164E63] outline-none"
+            />
+            <input
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Description"
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-bold text-[#164E63] outline-none"
+            />
+            <select
+              value={form.discountType}
+              onChange={(e) => setForm((prev) => ({ ...prev, discountType: e.target.value as 'PERCENTAGE' | 'FLAT' }))}
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider text-[#164E63] outline-none"
+            >
+              <option value="PERCENTAGE">PERCENTAGE</option>
+              <option value="FLAT">FLAT</option>
+            </select>
+            <input
+              type="number"
+              value={form.discountValue}
+              onChange={(e) => setForm((prev) => ({ ...prev, discountValue: Number(e.target.value || 0) }))}
+              placeholder="Discount"
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-bold text-[#164E63] outline-none"
+            />
+            <input
+              type="number"
+              value={form.minCartValue}
+              onChange={(e) => setForm((prev) => ({ ...prev, minCartValue: Number(e.target.value || 0) }))}
+              placeholder="Min cart value"
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-bold text-[#164E63] outline-none"
+            />
+            <input
+              type="number"
+              value={form.maxDiscount}
+              onChange={(e) => setForm((prev) => ({ ...prev, maxDiscount: Number(e.target.value || 0) }))}
+              placeholder="Max discount"
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-bold text-[#164E63] outline-none"
+            />
+            <input
+              type="date"
+              value={form.expiryDate}
+              onChange={(e) => setForm((prev) => ({ ...prev, expiryDate: e.target.value }))}
+              className="bg-white/50 border border-white rounded-xl px-4 py-3 text-xs font-bold text-[#164E63] outline-none"
+            />
+            <div className="flex items-center gap-2">
+              <GlassButton className="py-3 px-4" onClick={handleSavePromo} disabled={saving}>
+                {saving ? 'SAVING...' : editingPromoId ? 'UPDATE' : 'CREATE'}
+              </GlassButton>
+              <GlassButton
+                variant="secondary"
+                className="py-3 px-4"
+                onClick={() => {
+                  setShowEditor(false);
+                  resetEditor();
+                }}
+              >
+                CANCEL
+              </GlassButton>
+            </div>
+          </div>
+        </GlassCard>
+      )}
 
       <GlassCard className="mb-12 border-white/40">
         <div className="flex flex-col lg:flex-row items-center gap-8">
@@ -295,6 +482,22 @@ const PromoCodesPage: React.FC = () => {
                            onClick={() => setExpandedPromo(expandedPromo === promo.id ? null : promo.id)}
                            icon={<ChevronDown size={20} className={`transition-transform duration-300 ${expandedPromo === promo.id ? 'rotate-180' : ''}`} />}
                          />
+                         {isAdminRoute && (
+                           <>
+                             <GlassButton
+                               variant="secondary"
+                               className="py-4 px-4"
+                               onClick={() => startEdit(promo)}
+                               icon={<Pencil size={16} />}
+                             />
+                             <GlassButton
+                               variant="secondary"
+                               className="py-4 px-4"
+                               onClick={() => handleDeletePromo(String(promo.id))}
+                               icon={<Trash2 size={16} />}
+                             />
+                           </>
+                         )}
                       </div>
                    </div>
 

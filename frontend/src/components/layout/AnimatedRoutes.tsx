@@ -111,6 +111,8 @@ const AnimatedRoutes: React.FC = () => {
                         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                             <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
                             <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
+                          <Route path="/admin/promo-codes" element={<PageTransition><PromoCodesPage /></PageTransition>} />
+                          <Route path="/admin/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
                             <Route path="/admin/doctor-management" element={<PageTransition><DoctorManagementPage /></PageTransition>} />
                             <Route path="/admin/reference-ranges" element={<PageTransition><ReferenceRangesPage /></PageTransition>} />
                             <Route path="/admin/test-parameters" element={<PageTransition><TestParametersPage /></PageTransition>} />

@@ -45,13 +45,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @EntityGraph(attributePaths = {"test"})
     List<Booking> findByBookingDateBetween(LocalDate startDate, LocalDate endDate);
 
-    @EntityGraph(attributePaths = {"technician"})
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     List<Booking> findByTechnicianId(Long technicianId);
 
        @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
        List<Booking> findByTechnicianIsNullAndStatusIn(List<BookingStatus> statuses);
 
-    @EntityGraph(attributePaths = {"technician"})
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
     Page<Booking> findByTechnicianId(Long technicianId, Pageable pageable);
 
     List<Booking> findByMedicalOfficerId(Long medicalOfficerId);

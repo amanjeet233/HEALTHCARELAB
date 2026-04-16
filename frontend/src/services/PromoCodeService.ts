@@ -26,6 +26,61 @@ class PromoCodeService {
     }
   }
 
+  async getAdminPromoCodes(): Promise<PromoCode[]> {
+    const response = await api.get('/api/promos');
+    const data = response?.data?.data || [];
+    return (Array.isArray(data) ? data : []).map((p: any) => ({
+      id: String(p.id),
+      code: p.code,
+      description: p.description,
+      discount_type: String(p.discount_type || 'FLAT').toUpperCase(),
+      discount_value: Number(p.discount_value || 0),
+      max_discount: p.max_discount != null ? Number(p.max_discount) : undefined,
+      min_cart_value: p.min_cart_value != null ? Number(p.min_cart_value) : undefined,
+      expiry_date: p.expiry_date,
+      is_active: Boolean(p.is_active),
+      usage_limit: p.usage_limit != null ? Number(p.usage_limit) : undefined,
+      used_count: p.used_count != null ? Number(p.used_count) : undefined,
+      created_at: p.created_at,
+      updated_at: p.updated_at
+    }));
+  }
+
+  async createPromoCode(payload: {
+    code: string;
+    description: string;
+    discountType: 'PERCENTAGE' | 'FLAT';
+    discountValue: number;
+    minCartValue?: number;
+    maxDiscount?: number;
+    expiryDate: string;
+    isActive?: boolean;
+  }): Promise<PromoCode> {
+    const response = await api.post('/api/promos', payload);
+    return response?.data?.data as PromoCode;
+  }
+
+  async updatePromoCode(
+    id: number | string,
+    payload: {
+      code?: string;
+      description?: string;
+      discountType?: 'PERCENTAGE' | 'FLAT';
+      discountValue?: number;
+      minCartValue?: number;
+      maxDiscount?: number;
+      expiryDate?: string;
+      isActive?: boolean;
+    }
+  ): Promise<PromoCode> {
+    const response = await api.put(`/api/promos/${id}`, payload);
+    return response?.data?.data as PromoCode;
+  }
+
+  async deletePromoCode(id: number | string): Promise<void> {
+    await api.delete(`/api/promos/${id}`);
+  }
+
   async getPromoCodeByCode(code: string): Promise<PromoCode | null> {
     const promos = await this.getAvailablePromoCodes();
     return promos.find((p: any) => (p.code || p.couponCode) === code) || null;
