@@ -25,17 +25,27 @@ public class CorsConfig implements WebMvcConfigurer {
                 .filter(s -> !s.isEmpty())
                 .toArray(String[]::new);
 
-        registry.addMapping("/**")
-            .allowedOrigins(allowedOrigins)
-            // ✅ Allow all HTTP methods
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
-            // ✅ Allow all headers (Content-Type, Authorization, etc.)
-            .allowedHeaders("*")
-            // ✅ Allow credentials (cookies, basic auth)
-            .allowCredentials(true)
-            // ✅ Cache preflight requests for 1 hour
-            .maxAge(3600)
-            // ✅ Expose custom headers to frontend
-            .exposedHeaders("Authorization", "Content-Type", "X-Total-Count", "X-Page-Count");
+        boolean hasWildcardOrigin = java.util.Arrays.stream(allowedOrigins)
+                .anyMatch("*"::equals);
+
+        var mapping = registry.addMapping("/**");
+        if (hasWildcardOrigin) {
+            // `*` + allowCredentials(true) is invalid for allowedOrigins; use patterns instead.
+            mapping.allowedOriginPatterns("*");
+        } else {
+            mapping.allowedOrigins(allowedOrigins);
+        }
+
+        mapping
+                // ✅ Allow all HTTP methods
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                // ✅ Allow all headers (Content-Type, Authorization, etc.)
+                .allowedHeaders("*")
+                // ✅ Allow credentials (cookies, basic auth)
+                .allowCredentials(true)
+                // ✅ Cache preflight requests for 1 hour
+                .maxAge(3600)
+                // ✅ Expose custom headers to frontend
+                .exposedHeaders("Authorization", "Content-Type", "X-Total-Count", "X-Page-Count");
     }
 }

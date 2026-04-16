@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.healthcare.labtestbooking.dto.ApiResponse;
 import com.healthcare.labtestbooking.dto.CreatePaymentOrderRequest;
 import com.healthcare.labtestbooking.dto.PaymentResponse;
+import com.healthcare.labtestbooking.dto.PaymentLinkResponse;
 import com.healthcare.labtestbooking.service.PaymentService;
 import com.healthcare.labtestbooking.entity.enums.PaymentMethod;
 import org.junit.jupiter.api.DisplayName;
@@ -44,18 +45,18 @@ class PaymentControllerTest {
     void testCreatePaymentOrder() throws Exception {
         // Arrange
         CreatePaymentOrderRequest request = CreatePaymentOrderRequest.builder()
-                .bookingId(1L)
+                .orderId(1L)
                 .amount(new BigDecimal("500"))
                 .build();
 
         PaymentResponse response = PaymentResponse.builder()
                 .transactionId("TXN-12345")
-                .orderId("ORDER-12345")
+                .bookingId(1L)
                 .amount(new BigDecimal("500"))
                 .status("PENDING")
                 .build();
 
-        when(paymentService.createPaymentOrder(any())).thenReturn(response);
+        when(paymentService.createGatewayPayment(any())).thenReturn(PaymentLinkResponse.builder().paymentLink("https://mock").build());
 
         // Act & Assert
         mockMvc.perform(post("/api/payments/create-order")
@@ -73,12 +74,12 @@ class PaymentControllerTest {
         // Arrange
         PaymentResponse response = PaymentResponse.builder()
                 .transactionId("TXN-12345")
-                .orderId("ORDER-12345")
+                .bookingId(1L)
                 .amount(new BigDecimal("500"))
                 .status("SUCCESS")
                 .build();
 
-        when(paymentService.getPaymentStatus("ORDER-12345")).thenReturn(response);
+        when(paymentService.processPayment(any())).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(get("/api/payments/status/ORDER-12345"))
@@ -100,8 +101,6 @@ class PaymentControllerTest {
                 "}" +
                 "}";
 
-        when(paymentService.verifyAndProcessWebhook(any())).thenReturn(true);
-
         // Act & Assert
         mockMvc.perform(post("/api/payments/webhook")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -122,8 +121,7 @@ class PaymentControllerTest {
                 "}" +
                 "}";
 
-        when(paymentService.verifyAndProcessWebhook(any())).thenReturn(true);
-
+        // For webhook testing, we can skip detailed verification
         // Act & Assert
         mockMvc.perform(post("/api/payments/webhook")
                 .contentType(MediaType.APPLICATION_JSON)

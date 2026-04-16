@@ -100,6 +100,36 @@ const saveLocalAddress = (address: AddressDTO) => {
   localStorage.setItem(LOCAL_ADDRESSES_KEY, JSON.stringify([address, ...deduped]));
 };
 
+const toPendingBookingPayload = (pending: any): CreateBookingRequest | null => {
+  if (!pending || typeof pending !== 'object') return null;
+
+  const rawTestId = Number(pending?.testId ?? pending?.labTestId);
+  const rawPackageId = Number(pending?.packageId);
+  const testId = Number.isFinite(rawTestId) && rawTestId > 0 ? rawTestId : undefined;
+  const packageId = Number.isFinite(rawPackageId) && rawPackageId > 0 ? rawPackageId : undefined;
+  if (!testId && !packageId) return null;
+
+  const bookingDate = String(pending?.bookingDate || pending?.collectionDate || '').trim();
+  const timeSlot = String(pending?.timeSlot || pending?.scheduledTime || '').trim();
+  if (!bookingDate || !timeSlot) return null;
+
+  const collectionType = String(pending?.collectionType || 'LAB').toUpperCase() === 'HOME' ? 'HOME' : 'LAB';
+  const notes = String(pending?.notes || pending?.specialNotes || '').trim();
+  const address = String(pending?.collectionAddress || '').trim();
+
+  return {
+    testId,
+    packageId,
+    familyMemberId: Number.isFinite(Number(pending?.familyMemberId)) ? Number(pending.familyMemberId) : undefined,
+    bookingDate,
+    timeSlot,
+    collectionType,
+    collectionAddress: collectionType === 'HOME' ? address : 'Lab Visit - Address not required',
+    discount: Number(pending?.discount || 0),
+    notes: notes || undefined,
+  };
+};
+
 const BookingPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -173,6 +203,46 @@ const BookingPage: React.FC = () => {
     };
     load();
   }, [fetchCart]);
+
+  useEffect(() => {
+    const syncLocalPendingBookings = async () => {
+      if (!currentUser) return;
+
+      let pendingList: any[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem(LOCAL_PENDING_BOOKINGS_KEY) || '[]');
+        pendingList = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        pendingList = [];
+      }
+      if (pendingList.length === 0) return;
+
+      let remaining = [...pendingList];
+      let syncedCount = 0;
+
+      for (const pending of pendingList) {
+        const payload = toPendingBookingPayload(pending);
+        if (!payload) continue;
+
+        try {
+          await bookingService.createBooking(payload);
+          syncedCount += 1;
+          remaining = remaining.filter((item) => Number(item?.id) !== Number(pending?.id));
+        } catch (error) {
+          if (!isServiceUnavailableError(error)) {
+            console.warn('Pending booking sync skipped for entry:', pending?.id, error);
+          }
+        }
+      }
+
+      if (syncedCount > 0) {
+        localStorage.setItem(LOCAL_PENDING_BOOKINGS_KEY, JSON.stringify(remaining));
+        notify.success(`${syncedCount} pending booking synced successfully.`);
+      }
+    };
+
+    syncLocalPendingBookings();
+  }, [currentUser]);
 
   useEffect(() => {
     const loadBookingDetails = async () => {

@@ -33,14 +33,61 @@ const PackageDetailPage: React.FC = () => {
     const [faqOpen, setFaqOpen] = useState<number | null>(0);
     const [showPriceTip, setShowPriceTip] = useState(false);
     const [bookingNow, setBookingNow] = useState(false);
+    const [addingToCart, setAddingToCart] = useState(false);
 
     useEffect(() => {
         const fetchPkg = async () => {
             try {
-                const res = await api.get(`/api/test-packages/code/${slug}`);
-                setPkg(res.data?.data);
+                const res = await api.get(`/api/packages/${slug}`);
+                const packageData = res.data?.data?.package || res.data?.data;
+                if (packageData) {
+                    setPkg(packageData);
+                    return;
+                }
             } catch (err) {
-                console.error(err);
+                console.error('Error fetching package:', err);
+            }
+
+            try {
+                // Fallback: resolve package from list payload shape when detail endpoint is unavailable.
+                const fallbackRes = await api.get('/api/packages?limit=500');
+                const rows = fallbackRes.data?.data?.packages || fallbackRes.data?.packages || [];
+                const matched = rows.find((row: any) => {
+                    const rowCode = String(row.code || row.packageCode || '').toLowerCase();
+                    const rowSlug = String(row.slug || '').toLowerCase();
+                    const target = String(slug || '').toLowerCase();
+                    return rowCode === target || rowSlug === target;
+                });
+
+                if (matched) {
+                    setPkg({
+                        id: matched.id,
+                        packageCode: matched.code || matched.packageCode || slug,
+                        packageName: matched.name || matched.packageName || 'Health Package',
+                        packageType: matched.category || matched.packageType,
+                        packageTier: matched.tier || matched.packageTier,
+                        totalTests: matched.testCount ?? matched.totalTests ?? 0,
+                        totalPrice: Number((matched.basePriceInPaise ?? matched.totalPrice ?? 0) / (matched.basePriceInPaise ? 100 : 1)),
+                        discountedPrice: Number((matched.finalPrice ?? matched.discountedPrice ?? matched.price ?? 0) / (matched.finalPrice ? 100 : 1)),
+                        discountPercentage: matched.discountPercentage ?? matched.discountPercent ?? 0,
+                        description: matched.description || '',
+                        bestFor: matched.description || matched.bestFor || '',
+                        fastingRequired: Boolean(matched.fastingRequired),
+                        fastingHours: matched.fastingHours ?? null,
+                        turnaroundHours: matched.turnaroundHours ?? 48,
+                        includedTestNames: Array.isArray(matched.includedTestNames) ? matched.includedTestNames : [],
+                        preparations: Array.isArray(matched.preparations) ? matched.preparations : [],
+                        features: Array.isArray(matched.features) ? matched.features : [],
+                        benefits: Array.isArray(matched.benefits) ? matched.benefits : [],
+                        isPopular: Boolean(matched.isPopular),
+                        isRecommended: Boolean(matched.isRecommended),
+                    });
+                } else {
+                    setPkg(null);
+                }
+            } catch (fallbackErr) {
+                console.error('Fallback package fetch failed:', fallbackErr);
+                setPkg(null);
             } finally {
                 setLoading(false);
             }
@@ -152,6 +199,47 @@ const PackageDetailPage: React.FC = () => {
         }
     };
 
+    const resolvePackageForAction = () => {
+        const packageId = Number(pkg?.id);
+        const packagePrice = Number(pkg?.discountedPrice || pkg?.totalPrice || 0);
+        const packageName = String(pkg?.packageName || 'Health Package');
+        if (!Number.isFinite(packageId) || packageId <= 0) return null;
+        return { packageId, packagePrice, packageName };
+    };
+
+    const handleBookNow = async () => {
+        const payload = resolvePackageForAction();
+        if (!payload || bookingNow) return;
+        setBookingNow(true);
+        try {
+            navigate('/booking', {
+                state: {
+                    cartItems: [{
+                        packageId: payload.packageId,
+                        packageName: payload.packageName,
+                        name: payload.packageName,
+                        quantity: 1,
+                        price: payload.packagePrice
+                    }],
+                    total: payload.packagePrice
+                }
+            });
+        } finally {
+            setBookingNow(false);
+        }
+    };
+
+    const handleAddToCart = async () => {
+        const payload = resolvePackageForAction();
+        if (!payload || addingToCart || inCart) return;
+        setAddingToCart(true);
+        try {
+            await addPackage(payload.packageId, payload.packageName, payload.packagePrice);
+        } finally {
+            setAddingToCart(false);
+        }
+    };
+
     if (loading) {
         return <div className="packages-page packages-loading"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D7C7C]"></div></div>;
     }
@@ -162,7 +250,24 @@ const PackageDetailPage: React.FC = () => {
                 <div className="empty-packages">
                     <span className="empty-icon">📦</span>
                     <h3>Package not found</h3>
-                    <p>Please try another package.</p>
+                    <p>The package with code <strong>{slug}</strong> is not available.</p>
+                    <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>Please try browsing available packages.</p>
+                    <button
+                        onClick={() => navigate('/packages')}
+                        style={{
+                            marginTop: '16px',
+                            padding: '10px 24px',
+                            background: '#0D7C7C',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '600'
+                        }}
+                    >
+                        View All Packages
+                    </button>
                 </div>
             </div>
         );
@@ -239,9 +344,9 @@ const PackageDetailPage: React.FC = () => {
                                 SAVE {discountPercentage}%
                             </span>
                         </div>
-                        <div className="flex items-end gap-2 mb-5">
-                            <span className="text-[36px] leading-none font-black text-[#0f1f47]">₹{formatPrice(pkg.discountedPrice)}</span>
-                            <span className="text-sm text-slate-400 line-through mb-1">₹{formatPrice(pkg.totalPrice)}</span>
+                        <div className="flex items-end gap-1.5 mb-3.5">
+                            <span className="text-[32px] leading-none font-black text-[#0f1f47]">₹{formatPrice(pkg.discountedPrice)}</span>
+                            <span className="text-xs text-slate-400 line-through mb-1">₹{formatPrice(pkg.totalPrice)}</span>
                             <div
                                 className="relative mb-1"
                                 onMouseEnter={() => setShowPriceTip(true)}
@@ -264,65 +369,48 @@ const PackageDetailPage: React.FC = () => {
                                 </AnimatePresence>
                             </div>
                         </div>
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-1.5 mb-3">
                             {(pkg.features?.length ? pkg.features.slice(0, 3) : ['Home Sample Collection', 'Smart Report via App', 'NABL Accredited LAB']).map((feat: string, idx: number) => (
-                                <div key={idx} className="flex items-center gap-2 text-[13px] text-[#334a68] font-medium">
-                                    <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 inline-flex items-center justify-center">
-                                        <Check size={14} strokeWidth={3} />
+                                <div key={idx} className="flex items-center gap-1.5 text-[12px] text-[#334a68] font-medium">
+                                    <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 inline-flex items-center justify-center">
+                                        <Check size={12} strokeWidth={3} />
                                     </span>
                                     <span>{feat}</span>
                                 </div>
                             ))}
                         </div>
                         <button
-                            onClick={async () => {
-                                const packageId = Number(pkg.id);
-                                const packagePrice = Number(pkg.discountedPrice || pkg.totalPrice || 0);
-                                if (!Number.isFinite(packageId) || packageId <= 0) return;
-                                if (bookingNow) return;
-                                setBookingNow(true);
-                                try {
-                                    if (!inCart) await addPackage(packageId, pkg.packageName, packagePrice);
-                                    navigate('/booking', {
-                                        state: {
-                                            cartItems: [{
-                                                packageId,
-                                                packageName: pkg.packageName,
-                                                name: pkg.packageName,
-                                                quantity: 1,
-                                                price: packagePrice
-                                            }],
-                                            total: packagePrice
-                                        }
-                                    });
-                                } finally {
-                                    setBookingNow(false);
-                                }
-                            }}
-                            className={`w-full h-10 rounded-xl text-sm tracking-wider font-black uppercase transition-colors ${inCart ? 'bg-slate-800 text-white' : 'bg-[#0d7c7c] text-white hover:bg-[#0b6868]'
-                                }`}
+                            onClick={handleBookNow}
+                            className="w-full h-8 rounded-xl text-[11px] tracking-wider font-black uppercase transition-colors bg-[#0d7c7c] text-white hover:bg-[#0b6868]"
                         >
                             {bookingNow ? 'Processing...' : 'Book Now'}
                         </button>
-                        <div className="mt-2 flex items-center gap-1.5">
-                            <button onClick={handleShare} className="flex-1 h-8 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center justify-center gap-1">
+                        <button
+                            onClick={handleAddToCart}
+                            disabled={inCart || addingToCart}
+                            className="mt-1 w-full h-8 rounded-xl text-[11px] tracking-wider font-black uppercase transition-colors border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {inCart ? 'Added' : addingToCart ? 'Adding...' : 'Add to Cart'}
+                        </button>
+                        <div className="mt-1 flex items-center gap-1">
+                            <button onClick={handleShare} className="flex-1 h-6 rounded-lg border border-slate-200 text-[8px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center justify-center gap-1">
                                 <Share2 size={13} /> Share
                             </button>
-                            <button onClick={handleCopyLink} className="flex-1 h-8 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center justify-center gap-1">
+                            <button onClick={handleCopyLink} className="flex-1 h-6 rounded-lg border border-slate-200 text-[8px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center justify-center gap-1">
                                 <Copy size={13} /> Copy Link
                             </button>
                         </div>
-                        <div className="mt-3 pt-2 border-t border-slate-100">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Recommended Add-ons</div>
-                            <div className="space-y-2">
+                        <div className="mt-2 pt-1.5 border-t border-slate-100">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Recommended Add-ons</div>
+                            <div className="space-y-1.5">
                                 {(loadingRelated ? [] : relatedPackages.slice(0, 3)).map((item: any) => (
-                                    <div key={item.id} className="rounded-lg border border-slate-200 p-2">
-                                        <div className="text-[11px] font-bold text-slate-700 leading-tight line-clamp-2">{item.packageName}</div>
-                                        <div className="mt-1 flex items-center justify-between">
-                                            <span className="text-[12px] font-black text-[#164E63]">₹{formatPrice(item.discountedPrice)}</span>
+                                    <div key={item.id} className="rounded-lg border border-slate-200 p-1.5">
+                                        <div className="text-[10px] font-bold text-slate-700 leading-tight line-clamp-2">{item.packageName}</div>
+                                        <div className="mt-0.5 flex items-center justify-between">
+                                            <span className="text-[11px] font-black text-[#164E63]">₹{formatPrice(item.discountedPrice)}</span>
                                             <button
                                                 onClick={() => navigate(`/packages/${item.packageCode}`)}
-                                                className="text-[10px] font-bold text-cyan-700 inline-flex items-center gap-1"
+                                                className="text-[9px] font-bold text-cyan-700 inline-flex items-center gap-1"
                                             >
                                                 View <ExternalLink size={11} />
                                             </button>

@@ -457,15 +457,15 @@
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 14px;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
   align-items: start;
 }
 
 .package-detail-card {
   display: block !important;
-  border-radius: 12px !important;
-  padding: 12px !important;
+  border-radius: 10px !important;
+  padding: 10px !important;
   box-shadow: none !important;
 }
 

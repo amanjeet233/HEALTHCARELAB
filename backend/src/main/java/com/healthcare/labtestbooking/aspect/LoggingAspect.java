@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -170,15 +171,8 @@ public class LoggingAspect {
                 log.info("Status Code: [{}] {}", statusIndicator, statusCode);
             }
 
-            // Truncate response if too long
             if (result != null) {
-                String resultStr = result.toString();
-                if (resultStr.length() > 300) {
-                    log.debug("Response Body: {} ... (truncated, see debug for full)",
-                            resultStr.substring(0, 300));
-                } else {
-                    log.debug("Response Body: {}", resultStr);
-                }
+                log.debug("Response Body: {}", summarizeResponse(result));
             }
 
             log.info("================================================");
@@ -187,5 +181,43 @@ public class LoggingAspect {
         } catch (Exception e) {
             log.debug("Error logging outgoing response", e);
         }
+    }
+
+    /**
+     * Build a shallow response summary so logging never walks lazy JPA proxies.
+     */
+    private String summarizeResponse(Object result) {
+        try {
+            if (result instanceof ResponseEntity<?> responseEntity) {
+                Object body = responseEntity.getBody();
+                return String.format("ResponseEntity(status=%s, body=%s)",
+                        responseEntity.getStatusCode(),
+                        summarizeObject(body));
+            }
+            return summarizeObject(result);
+        } catch (Exception ex) {
+            return "<unavailable: " + ex.getClass().getSimpleName() + ">";
+        }
+    }
+
+    private String summarizeObject(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof CharSequence text) {
+            int max = 160;
+            return text.length() > max ? text.subSequence(0, max) + "..." : text.toString();
+        }
+        if (value instanceof Collection<?> collection) {
+            return value.getClass().getSimpleName() + "(size=" + collection.size() + ")";
+        }
+        if (value instanceof Map<?, ?> map) {
+            return value.getClass().getSimpleName() + "(size=" + map.size() + ")";
+        }
+        if (value.getClass().isArray()) {
+            return value.getClass().getComponentType().getSimpleName() + "[]";
+        }
+        // For DTO/entity objects, log type only to avoid triggering lazy loaders.
+        return value.getClass().getSimpleName();
     }
 }

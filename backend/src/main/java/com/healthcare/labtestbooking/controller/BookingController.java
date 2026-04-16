@@ -197,6 +197,7 @@ public class BookingController {
         }
 
         @RequestMapping(value = { "/{id}/cancel", "/cancel/{id}" }, method = { RequestMethod.PUT, RequestMethod.POST })
+        @PreAuthorize("isAuthenticated()")
         @Operation(summary = "Cancel booking", description = "Cancel an existing booking")
         @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Booking cancelled successfully"),
@@ -204,7 +205,9 @@ public class BookingController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Booking not found"),
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<ApiResponse<BookingResponse>> cancelBooking(@PathVariable Long id) {
+        public ResponseEntity<ApiResponse<BookingResponse>> cancelBooking(
+                        @PathVariable Long id,
+                        @RequestBody(required = false) Map<String, String> body) {
                 log.info("Cancel booking: {}", id);
                 BookingResponse booking = bookingService.cancelBooking(id);
                 return ResponseEntity.ok(ApiResponse.success("Booking cancelled successfully", booking));

@@ -11,6 +11,7 @@ import SkeletonBlock from '../../components/common/SkeletonBlock';
 // Status badge config
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BOOKED:               { label: 'Pending',        bg: '#FFF7ED', color: '#C2410C' },
+  CONFIRMED:            { label: 'Pending',        bg: '#FFF7ED', color: '#C2410C' },
   REFLEX_PENDING:       { label: 'Reflex Pending', bg: '#EEF2FF', color: '#3730A3' },
   SAMPLE_COLLECTED:     { label: 'Collected',      bg: '#F0FDF4', color: '#16A34A' },
   PROCESSING:           { label: 'Processing',     bg: '#F5F3FF', color: '#7C3AED' },
@@ -244,7 +245,7 @@ const TechnicianDashboardPage: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const todayBookings = bookings.filter(b => b.bookingDate === today);
   const pendingBookings = bookings.filter(b =>
-    (b.status === 'BOOKED' || b.status === 'REFLEX_PENDING') && b.bookingDate >= today
+    (b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING') && b.bookingDate >= today
   );
   const completedBookings = bookings.filter(b => b.status === 'SAMPLE_COLLECTED' || b.status === 'COMPLETED');
   const rejectedTabBookings = rejectedBookings;

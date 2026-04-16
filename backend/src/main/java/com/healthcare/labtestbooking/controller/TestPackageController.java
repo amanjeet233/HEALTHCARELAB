@@ -48,32 +48,77 @@ public class TestPackageController {
 
     @GetMapping
     @Operation(summary = "Get all active test packages")
-    public ResponseEntity<ApiResponse<List<TestPackage>>> getAllPackages() {
-        return ResponseEntity.ok(ApiResponse.success("Packages fetched successfully",
-                testPackageService.getActivePackages()));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllPackages() {
+        List<Map<String, Object>> packages = testPackageService.getActivePackages().stream()
+                .map(this::toPackageMap)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched successfully", packages));
     }
 
     @GetMapping("/paged")
     @Operation(summary = "Get all packages with pagination")
-    public ResponseEntity<ApiResponse<Page<TestPackage>>> getAllPackagesPaged(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAllPackagesPaged(
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success("Packages fetched",
-                testPackageService.getActivePackages(pageable)));
+        org.springframework.data.domain.Page<TestPackage> page = testPackageService.getActivePackages(pageable);
+        List<Map<String, Object>> packages = page.getContent().stream()
+                .map(this::toPackageMap)
+                .collect(java.util.stream.Collectors.toList());
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("packages", packages);
+        result.put("totalPages", page.getTotalPages());
+        result.put("totalElements", page.getTotalElements());
+        result.put("currentPage", page.getNumber());
+        result.put("pageSize", page.getSize());
+        return ResponseEntity.ok(ApiResponse.success("Packages fetched", result));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get test package by ID")
-    public ResponseEntity<ApiResponse<TestPackage>> getPackageById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPackageById(@PathVariable Long id) {
         return testPackageService.getPackageById(id)
-                .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", p)))
+                .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", toPackageMap(p))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/code/{code}")
     @Operation(summary = "Get test package by code")
-    public ResponseEntity<ApiResponse<TestPackage>> getPackageByCode(@PathVariable String code) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPackageByCode(@PathVariable String code) {
         return testPackageService.getPackageByCode(code)
-                .map(p -> ResponseEntity.ok(ApiResponse.success("Package found", p)))
+                .map(p -> {
+                    Map<String, Object> packageData = new java.util.LinkedHashMap<>();
+                    packageData.put("id", p.getId());
+                    packageData.put("packageCode", p.getPackageCode());
+                    packageData.put("packageName", p.getPackageName());
+                    packageData.put("packageType", p.getPackageType() != null ? p.getPackageType().name() : null);
+                    packageData.put("packageTier", p.getPackageTier() != null ? p.getPackageTier().name() : null);
+                    packageData.put("totalTests", p.getTotalTests());
+                    packageData.put("totalPrice", p.getTotalPrice());
+                    packageData.put("discountedPrice", p.getDiscountedPrice());
+                    packageData.put("discountPercentage", p.getDiscountPercentage());
+                    packageData.put("description", p.getDescription());
+                    packageData.put("bestFor", p.getBestFor());
+                    packageData.put("fastingRequired", p.getFastingRequired());
+                    packageData.put("fastingHours", p.getFastingHours());
+                    packageData.put("sampleTypes", p.getSampleTypes());
+                    packageData.put("turnaroundHours", p.getTurnaroundHours());
+                    packageData.put("benefits", p.getBenefits() != null ? p.getBenefits() : new java.util.ArrayList<>());
+                    packageData.put("features", p.getFeatures() != null ? p.getFeatures() : new java.util.ArrayList<>());
+                    packageData.put("preparations", p.getPreparations() != null ? p.getPreparations() : new java.util.ArrayList<>());
+                    packageData.put("includedTestNames", p.getIncludedTestNames() != null ? p.getIncludedTestNames() : new java.util.ArrayList<>());
+                    packageData.put("ageGroup", p.getAgeGroup() != null ? p.getAgeGroup().name() : null);
+                    packageData.put("genderApplicable", p.getGenderApplicable() != null ? p.getGenderApplicable().name() : null);
+                    packageData.put("doctorConsultations", p.getDoctorConsultations());
+                    packageData.put("imagingIncluded", p.getImagingIncluded());
+                    packageData.put("geneticTesting", p.getGeneticTesting());
+                    packageData.put("isActive", p.getIsActive());
+                    packageData.put("isPopular", p.getIsPopular());
+                    packageData.put("isRecommended", p.getIsRecommended());
+                    packageData.put("displayOrder", p.getDisplayOrder());
+                    packageData.put("badgeText", p.getBadgeText());
+                    packageData.put("iconUrl", p.getIconUrl());
+                    packageData.put("imageUrl", p.getImageUrl());
+                    return ResponseEntity.ok(ApiResponse.success("Package found", packageData));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -310,5 +355,43 @@ public class TestPackageController {
     public ResponseEntity<ApiResponse<Void>> deletePackageTest(@PathVariable Long id) {
         packageTestService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ==================== Helper Methods ====================
+    
+    private Map<String, Object> toPackageMap(TestPackage p) {
+        Map<String, Object> packageData = new java.util.LinkedHashMap<>();
+        packageData.put("id", p.getId());
+        packageData.put("packageCode", p.getPackageCode());
+        packageData.put("packageName", p.getPackageName());
+        packageData.put("packageType", p.getPackageType() != null ? p.getPackageType().name() : null);
+        packageData.put("packageTier", p.getPackageTier() != null ? p.getPackageTier().name() : null);
+        packageData.put("totalTests", p.getTotalTests());
+        packageData.put("totalPrice", p.getTotalPrice());
+        packageData.put("discountedPrice", p.getDiscountedPrice());
+        packageData.put("discountPercentage", p.getDiscountPercentage());
+        packageData.put("description", p.getDescription());
+        packageData.put("bestFor", p.getBestFor());
+        packageData.put("fastingRequired", p.getFastingRequired());
+        packageData.put("fastingHours", p.getFastingHours());
+        packageData.put("sampleTypes", p.getSampleTypes());
+        packageData.put("turnaroundHours", p.getTurnaroundHours());
+        packageData.put("benefits", p.getBenefits() != null ? p.getBenefits() : new java.util.ArrayList<>());
+        packageData.put("features", p.getFeatures() != null ? p.getFeatures() : new java.util.ArrayList<>());
+        packageData.put("preparations", p.getPreparations() != null ? p.getPreparations() : new java.util.ArrayList<>());
+        packageData.put("includedTestNames", p.getIncludedTestNames() != null ? p.getIncludedTestNames() : new java.util.ArrayList<>());
+        packageData.put("ageGroup", p.getAgeGroup() != null ? p.getAgeGroup().name() : null);
+        packageData.put("genderApplicable", p.getGenderApplicable() != null ? p.getGenderApplicable().name() : null);
+        packageData.put("doctorConsultations", p.getDoctorConsultations());
+        packageData.put("imagingIncluded", p.getImagingIncluded());
+        packageData.put("geneticTesting", p.getGeneticTesting());
+        packageData.put("isActive", p.getIsActive());
+        packageData.put("isPopular", p.getIsPopular());
+        packageData.put("isRecommended", p.getIsRecommended());
+        packageData.put("displayOrder", p.getDisplayOrder());
+        packageData.put("badgeText", p.getBadgeText());
+        packageData.put("iconUrl", p.getIconUrl());
+        packageData.put("imageUrl", p.getImageUrl());
+        return packageData;
     }
 }

@@ -47,11 +47,11 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         Page<LabTestDTO> page = new PageImpl<>(List.of(testDTO));
-        when(labTestService.getAllActiveTests(any(Pageable.class))).thenReturn(page);
+        when(labTestService.getAllActiveTests(any())).thenReturn(page);
 
         // Act & Assert
         mockMvc.perform(get("/api/lab-tests")
@@ -71,7 +71,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         when(labTestService.getTestById(1L)).thenReturn(testDTO);
@@ -91,7 +91,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         when(labTestService.getTestByCode("BLOOD001")).thenReturn(testDTO);
@@ -110,7 +110,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("blood-test")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         when(labTestService.getTestByCode("blood-test")).thenReturn(testDTO);
@@ -129,11 +129,11 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         Page<LabTestDTO> page = new PageImpl<>(List.of(testDTO));
-        when(labTestService.searchTests(eq("blood"), any(Pageable.class))).thenReturn(page);
+        when(labTestService.searchTests(eq("blood"), any())).thenReturn(page);
 
         // Act & Assert
         mockMvc.perform(get("/api/lab-tests/search")
@@ -150,7 +150,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         when(labTestService.getPopularTests()).thenReturn(List.of(testDTO));
@@ -169,7 +169,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         when(labTestService.getTrendingTests()).thenReturn(List.of(testDTO));
@@ -188,14 +188,14 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD001")
-                .basePrice(BigDecimal.valueOf(499.00))
+                .price(BigDecimal.valueOf(499.00))
                 .build();
 
         Page<LabTestDTO> page = new PageImpl<>(List.of(testDTO));
         when(labTestService.getTestsByPriceRange(
                 eq(BigDecimal.valueOf(400)),
                 eq(BigDecimal.valueOf(600)),
-                any(Pageable.class))).thenReturn(page);
+                any())).thenReturn(page);
 
         // Act & Assert
         mockMvc.perform(get("/api/lab-tests/price-range")

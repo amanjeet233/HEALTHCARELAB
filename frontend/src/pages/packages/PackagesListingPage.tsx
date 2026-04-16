@@ -99,7 +99,7 @@ const PackagesListingPage: React.FC = () => {
       setTotalPackages(Number(res.data?.data?.total ?? rows.length ?? 0));
       const normalized = rows.map((row: any, index: number) => ({
         id: Number(row.id),
-        packageCode: row.code || String(row.id),
+        packageCode: row.code || row.packageCode || String(row.id),
         packageName: row.name,
         packageTier: (row.tier || '').toUpperCase(),
         totalTests: row.testCount ?? 0,

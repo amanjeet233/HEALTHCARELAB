@@ -59,8 +59,31 @@ export const bookingService = {
     },
 
     cancelBooking: async (id: number, reason?: string): Promise<BookingResponse> => {
-        const response = await api.delete(`/api/users/bookings/${id}`, { data: reason ? { reason } : {} });
-        return normalizeBooking(unwrap<any>(response)) as BookingResponse;
+        const payload = reason ? { reason } : {};
+        const attempts = [
+            () => api.put(`/api/bookings/${id}/cancel`, payload),
+            () => api.post(`/api/bookings/${id}/cancel`, payload),
+            () => api.put(`/api/bookings/cancel/${id}`, payload),
+            () => api.post(`/api/bookings/cancel/${id}`, payload),
+            () => api.delete(`/api/users/bookings/${id}`, { data: payload })
+        ];
+
+        let lastError: any;
+
+        for (const attempt of attempts) {
+            try {
+                const response = await attempt();
+                return normalizeBooking(unwrap<any>(response)) as BookingResponse;
+            } catch (error: any) {
+                const status = error?.response?.status;
+                if (status && ![404, 405].includes(status)) {
+                    throw error;
+                }
+                lastError = error;
+            }
+        }
+
+        throw lastError;
     },
 
     rescheduleBooking: async (id: number, newDate: string, newTime: string): Promise<BookingResponse> => {

@@ -21,10 +21,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     Optional<Booking> findByBookingReference(String bookingReference);
 
-    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
+       Optional<Booking> findDetailedById(Long id);
+
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
     List<Booking> findByPatientId(Long patientId);
 
-    @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
     Page<Booking> findByPatientId(Long patientId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"test"})
@@ -57,6 +60,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByStatusAndBookingDateBetween(BookingStatus status, LocalDate startDate, LocalDate endDate);
 
     long countByStatus(BookingStatus status);
+       long countByStatusIn(List<BookingStatus> statuses);
     long countByCriticalFlagTrueAndStatusNot(BookingStatus status);
 
     long countByTestId(Long testId);
@@ -106,11 +110,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED")
     java.math.BigDecimal sumTotalRevenue();
 
-    Page<Booking> findByStatusAndPatientDisplayNameContainingIgnoreCase(BookingStatus status, String patientName, Pageable pageable);
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
+       Page<Booking> findByStatusAndPatientDisplayNameContainingIgnoreCase(BookingStatus status, String patientName, Pageable pageable);
 
-    Page<Booking> findByPatientDisplayNameContainingIgnoreCase(String patientName, Pageable pageable);
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
+       Page<Booking> findByPatientDisplayNameContainingIgnoreCase(String patientName, Pageable pageable);
 
-    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
+       Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+
+       @Override
+       @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
+       Page<Booking> findAll(Pageable pageable);
 
     @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician"})
     List<Booking> findByCriticalFlagTrueAndStatusNotOrderByCreatedAtDesc(BookingStatus status);

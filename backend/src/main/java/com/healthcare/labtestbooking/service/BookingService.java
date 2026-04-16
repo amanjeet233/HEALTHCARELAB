@@ -65,6 +65,7 @@ public class BookingService {
     static {
         Map<BookingStatus, Set<BookingStatus>> map = new EnumMap<>(BookingStatus.class);
         map.put(BookingStatus.BOOKED,               EnumSet.of(BookingStatus.SAMPLE_COLLECTED, BookingStatus.CANCELLED));
+        map.put(BookingStatus.CONFIRMED,            EnumSet.of(BookingStatus.SAMPLE_COLLECTED, BookingStatus.CANCELLED));
         map.put(BookingStatus.REFLEX_PENDING,       EnumSet.of(BookingStatus.SAMPLE_COLLECTED, BookingStatus.CANCELLED));
         map.put(BookingStatus.SAMPLE_COLLECTED,      EnumSet.of(BookingStatus.PROCESSING));
         map.put(BookingStatus.PROCESSING,            EnumSet.of(BookingStatus.PENDING_VERIFICATION));
@@ -277,9 +278,10 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long id) {
         User user = getCurrentUser();
-        Booking booking = bookingRepository.findById(Objects.requireNonNull(id, "Booking ID must not be null"))
+        Booking booking = bookingRepository.findDetailedById(Objects.requireNonNull(id, "Booking ID must not be null"))
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
         if (!booking.getPatient().getId().equals(user.getId())
@@ -438,8 +440,10 @@ public class BookingService {
         if (booking.getTechnician() == null || !Objects.equals(booking.getTechnician().getId(), technician.getId())) {
             throw new BadRequestException("You can reject only your assigned bookings");
         }
-        if (!(booking.getStatus() == BookingStatus.BOOKED || booking.getStatus() == BookingStatus.SAMPLE_COLLECTED)) {
-            throw new BadRequestException("Specimen can only be rejected in BOOKED or SAMPLE_COLLECTED status");
+        if (!(booking.getStatus() == BookingStatus.BOOKED
+                || booking.getStatus() == BookingStatus.CONFIRMED
+                || booking.getStatus() == BookingStatus.SAMPLE_COLLECTED)) {
+            throw new BadRequestException("Specimen can only be rejected in BOOKED/CONFIRMED or SAMPLE_COLLECTED status");
         }
         if (request == null || request.getReason() == null) {
             throw new BadRequestException("Rejection reason is required");
@@ -494,6 +498,7 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<BookingResponse> getAllBookings(String patientName, BookingStatus status, Pageable pageable) {
         log.info("Fetching all bookings (admin) | Filter: patientName={}, status={} | Pagination: Page={}, Size={}",
                 patientName, status, pageable.getPageNumber(), pageable.getPageSize());
@@ -514,7 +519,8 @@ public class BookingService {
 
     public List<BookingResponse> getUpcomingBookings() {
         User user = getCurrentUser();
-        return bookingRepository.findByPatientIdAndStatus(user.getId(), BookingStatus.BOOKED).stream()
+        return bookingRepository.findByPatientId(user.getId()).stream()
+            .filter(b -> b.getStatus() == BookingStatus.BOOKED || b.getStatus() == BookingStatus.CONFIRMED)
                 .filter(b -> !b.getBookingDate().isBefore(LocalDate.now()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -539,8 +545,8 @@ public class BookingService {
         if (!booking.getPatient().getId().equals(user.getId()) && user.getRole() != UserRole.ADMIN) {
             throw new RuntimeException("You don't have permission to reschedule this booking");
         }
-        if (booking.getStatus() != BookingStatus.BOOKED) {
-            throw new RuntimeException("Can only reschedule bookings in BOOKED status");
+        if (booking.getStatus() != BookingStatus.BOOKED && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Can only reschedule bookings in BOOKED/CONFIRMED status");
         }
         if (newDate.isBefore(LocalDate.now())) {
             throw new RuntimeException("Cannot reschedule to a past date");

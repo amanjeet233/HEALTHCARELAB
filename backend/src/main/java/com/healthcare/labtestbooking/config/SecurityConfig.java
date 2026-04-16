@@ -27,6 +27,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -41,6 +42,8 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     @Value("${app.security.h2-console.enabled:false}")
     private boolean h2ConsoleEnabled;
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:5174,http://127.0.0.1:5173}")
+    private String allowedOriginsCsv;
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -63,16 +66,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000", // React frontend
-                "http://localhost:8080", // Swagger/API docs
-                "http://localhost:8081", // Alternative frontend
-                "http://localhost:5173", // Vite frontend
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:8080",
-                "http://127.0.0.1:5173",
-                "https://www.postman.com" // Postman testing
-        ));
+        List<String> allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        boolean hasWildcardOrigin = allowedOrigins.stream().anyMatch("*"::equals);
+        if (hasWildcardOrigin) {
+            // `*` + allowCredentials(true) is invalid for allowedOrigins; use patterns instead.
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            configuration.setAllowedOrigins(allowedOrigins);
+        }
+
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList(

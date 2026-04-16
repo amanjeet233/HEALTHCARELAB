@@ -32,7 +32,7 @@ public class DashboardService {
                 .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
                 .count());
         stats.put("upcomingBookings", bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.BOOKED)
+                .filter(b -> b.getStatus() == BookingStatus.BOOKED || b.getStatus() == BookingStatus.CONFIRMED)
                 .count());
         stats.put("pendingReports", bookings.stream()
                 .filter(b -> b.getStatus() == BookingStatus.PROCESSING)
@@ -61,7 +61,7 @@ public class DashboardService {
                              && today.equals(b.getBookingDate()))
                 .count());
         stats.put("pendingCollection", bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.BOOKED)
+                .filter(b -> b.getStatus() == BookingStatus.BOOKED || b.getStatus() == BookingStatus.CONFIRMED)
                 .count());
         
         return stats;
@@ -93,7 +93,7 @@ public class DashboardService {
         stats.put("totalUsers", totalUsers);
         stats.put("completedBookings", completedBookings);
         stats.put("activeUsers", activeUsers);
-        stats.put("pendingBookings", bookingRepository.countByStatus(BookingStatus.BOOKED));
+        stats.put("pendingBookings", bookingRepository.countByStatusIn(java.util.Arrays.asList(BookingStatus.BOOKED, BookingStatus.CONFIRMED)));
         stats.put("processingBookings", bookingRepository.countByStatus(BookingStatus.PROCESSING));
         stats.put("todayBookings", bookingRepository.countByBookingDate(java.time.LocalDate.now()));
         stats.put("criticalCount", bookingRepository.countByCriticalFlagTrueAndStatusNot(BookingStatus.COMPLETED));

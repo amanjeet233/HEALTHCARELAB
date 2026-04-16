@@ -141,7 +141,7 @@ const MyBookingsPage: React.FC = () => {
 
     const upcomingBookings = useMemo(() => {
         return bookings.filter(b => 
-            b.status === 'BOOKED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
+            b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
         );
     }, [bookings]);
 
@@ -152,12 +152,15 @@ const MyBookingsPage: React.FC = () => {
     }, [bookings]);
 
     const confirmedCount = bookings.filter(b =>
-        b.status === 'BOOKED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
+        b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
     ).length;
     const completedCount = bookings.filter(b => b.status === 'COMPLETED').length;
 
     const handleCancelBooking = async () => {
-        if (!bookingToCancel) return;
+        if (!bookingToCancel) {
+            notify.error('No booking selected to cancel.');
+            return;
+        }
         setIsCanceling(true);
         try {
             await bookingService.cancelBooking(bookingToCancel);
@@ -169,7 +172,11 @@ const MyBookingsPage: React.FC = () => {
             setBookings(mergeWithLocalBookings(serverList, activeTab, debouncedSearch, fromDate, toDate));
         } catch (error) {
             console.error(error);
-            notify.error('Failed to cancel booking.');
+            const backendMessage = (error as any)?.response?.data?.message
+                || (error as any)?.response?.data?.error
+                || (error as any)?.message
+                || 'Failed to cancel booking.';
+            notify.error(backendMessage);
         } finally {
             setIsCanceling(false);
         }
@@ -205,8 +212,11 @@ const MyBookingsPage: React.FC = () => {
 
     const hasActiveFilters = searchTerm || fromDate || toDate || activeTab !== 'All';
 
-    const renderUpcomingCard = (booking: BookingResponse) => (
-        <GlassCard key={booking.id} className="group hover:border-cyan-400 transition-all !p-0 overflow-hidden glass-pane hover:shadow-2xl hover:shadow-cyan-500/10">
+    const renderUpcomingCard = (booking: BookingResponse) => {
+        const canCancel = booking.status === 'BOOKED' || booking.status === 'CONFIRMED';
+
+        return (
+            <GlassCard key={booking.id} className="group hover:border-cyan-400 transition-all !p-0 overflow-hidden glass-pane hover:shadow-2xl hover:shadow-cyan-500/10">
             <div className="flex flex-col lg:flex-row items-stretch h-full">
                 <div className="p-5 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
@@ -250,12 +260,14 @@ const MyBookingsPage: React.FC = () => {
                         >
                             <RefreshCcw size={14} /> RESCHEDULE
                         </button>
-                        <button
-                            onClick={() => { setBookingToCancel(booking.id); setCancelModalVisible(true); }}
-                            className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-black text-rose-500 transition-all"
-                        >
-                            <XCircle size={14} /> CANCEL
-                        </button>
+                        {canCancel && (
+                            <button
+                                onClick={() => { setBookingToCancel(booking.id); setCancelModalVisible(true); }}
+                                className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-black text-rose-500 transition-all"
+                            >
+                                <XCircle size={14} /> CANCEL
+                            </button>
+                        )}
                     </div>
                 </div>
                 <button
@@ -265,8 +277,9 @@ const MyBookingsPage: React.FC = () => {
                     <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
                 </button>
             </div>
-        </GlassCard>
-    );
+            </GlassCard>
+        );
+    };
 
     const UpcomingVirtualRow = ({ index, style, rows }: RowComponentProps<{ rows: BookingResponse[] }>) => {
         const booking = rows[index];
@@ -349,6 +362,7 @@ const MyBookingsPage: React.FC = () => {
                         >
                             <option value="All">All Status</option>
                             <option value="Booked">Booked</option>
+                            <option value="Confirmed">Confirmed</option>
                             <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                         </select>

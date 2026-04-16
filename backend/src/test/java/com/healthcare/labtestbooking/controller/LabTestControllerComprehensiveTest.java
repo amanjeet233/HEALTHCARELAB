@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("Lab Test Controller - Comprehensive API Tests")
-class LabTestControllerTest {
+class LabTestControllerComprehensiveTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -59,8 +59,7 @@ class LabTestControllerTest {
                 .testName("Blood Test")
                 .testCode("BLOOD01")
                 .description("Complete blood count")
-                .basePrice(new BigDecimal("500"))
-                .discountedPrice(new BigDecimal("450"))
+                .price(new BigDecimal("500"))
                 .build();
 
         Page<LabTestDTO> page = new PageImpl<>(Arrays.asList(testDTO), PageRequest.of(0, 20), 1);
@@ -173,7 +172,7 @@ class LabTestControllerTest {
         // Arrange
         TestPackage pkg = TestPackage.builder()
                 .id(1L)
-                .name("Basic Health Package")
+                .packageName("Basic Health Package")
                 .totalPrice(new BigDecimal("2000"))
                 .build();
         
@@ -194,7 +193,7 @@ class LabTestControllerTest {
                 .id(1L)
                 .testName("Blood Test")
                 .testCode("BLOOD01")
-                .basePrice(new BigDecimal("500"))
+                .price(new BigDecimal("500"))
                 .build();
 
         Page<LabTestDTO> page = new PageImpl<>(Arrays.asList(testDTO), PageRequest.of(0, 18), 1);

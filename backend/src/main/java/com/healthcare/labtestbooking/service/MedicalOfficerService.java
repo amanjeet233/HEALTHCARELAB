@@ -480,7 +480,7 @@ public class MedicalOfficerService {
      */
     public List<BookingResponse> getUnassignedBookings() {
         validateMedicalOfficerAccess();
-        List<BookingStatus> eligibleStatuses = Arrays.asList(BookingStatus.BOOKED);
+                List<BookingStatus> eligibleStatuses = Arrays.asList(BookingStatus.BOOKED, BookingStatus.CONFIRMED);
         return bookingRepository.findUnassignedBookingsByStatuses(eligibleStatuses)
                 .stream()
                 .map(bookingService::mapToResponsePublic)

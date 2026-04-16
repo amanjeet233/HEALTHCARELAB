@@ -1,10 +1,8 @@
 spring:
-  profiles:
-    active: dev
   datasource:
     url: jdbc:mysql://localhost:3306/labtestbooking?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&enabledTLSProtocols=TLSv1.2,TLSv1.3
     username: root
-    password: root
+    password: Amanjeet@4321.
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
