@@ -99,8 +99,8 @@ public class DashboardService {
         stats.put("criticalCount", bookingRepository.countByCriticalFlagTrueAndStatusNot(BookingStatus.COMPLETED));
         
         java.math.BigDecimal revenue = bookingRepository.sumTotalRevenue();
-        
-        stats.put("totalRevenue", revenue.doubleValue());
+
+        stats.put("totalRevenue", revenue != null ? revenue.doubleValue() : 0.0d);
         stats.put("totalTests", labTestRepository.count());
         
         return stats;

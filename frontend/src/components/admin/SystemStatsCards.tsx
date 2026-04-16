@@ -11,7 +11,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
     const cards = [
         {
             label: 'Registered Users',
-            value: stats.activeUsers?.toLocaleString() ?? '0',
+            value: (stats?.activeUsers ?? 0).toLocaleString(),
             icon: Users,
             trend: '+12%',
             isPositive: true,
@@ -19,7 +19,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Total Bookings',
-            value: stats.totalBookings?.toLocaleString() ?? '0',
+            value: (stats?.totalBookings ?? 0).toLocaleString(),
             icon: Activity,
             trend: '+5.2%',
             isPositive: true,
@@ -27,7 +27,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Total Revenue',
-            value: `₹${((stats.totalRevenue ?? 0) / 1000).toFixed(1)}k`,
+            value: `₹${((stats?.totalRevenue ?? 0) / 1000).toFixed(1)}k`,
             icon: Banknote,
             trend: '+8.1%',
             isPositive: true,
@@ -35,7 +35,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
         },
         {
             label: 'Action Required',
-            value: stats.pendingBookings?.toString() ?? '0',
+            value: (stats?.pendingBookings ?? 0).toString(),
             icon: ShieldAlert,
             trend: '-2.4%',
             isPositive: false,
@@ -53,7 +53,7 @@ const SystemStatsCards: React.FC<Props> = ({ stats }) => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2rem] p-8 shadow-sm hover:shadow-md hover:border-primary/10 transition-all group"
+                        className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-4xl p-8 shadow-sm hover:shadow-md hover:border-primary/10 transition-all group"
                     >
                         <div className="flex justify-between items-start mb-6">
                             <div className={`p-4 rounded-2xl bg-${card.color}/10 text-${card.color} group-hover:scale-110 transition-transform`}>

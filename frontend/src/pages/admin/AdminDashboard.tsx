@@ -143,7 +143,7 @@ const AdminDashboard: React.FC = () => {
         setIsLoading(true);
         setHasError(false);
         try {
-            const [statsData, usersData, growth, revenue, bookings, logs, allBk, techs] = await Promise.all([
+            const results = await Promise.allSettled([
                 adminService.getSystemStats(),
                 adminService.getUsersPage({ page: usersPage, size: 20 }),
                 adminService.getChartData('growth'),
@@ -158,16 +158,38 @@ const AdminDashboard: React.FC = () => {
                 }),
                 adminService.getTechniciansOnly()
             ]);
-            setStats(statsData);
-            setUsers(usersData.content || []);
-            setUsersTotalPages(usersData.totalPages || 0);
-            setGrowthData(growth);
-            setRevenueData(revenue);
-            setBookingData(bookings);
-            setAuditLogs(logs);
-            setBookingsList(allBk.content || []);
-            setBookingsTotalPages(allBk.totalPages || 0);
-            setTechnicians(techs);
+
+            const [statsRes, usersRes, growthRes, revenueRes, bookingsRes, logsRes, allBkRes, techsRes] = results;
+            const allFailed = results.every((r) => r.status === 'rejected');
+
+            if (statsRes.status === 'fulfilled') {
+                setStats(statsRes.value);
+            }
+            if (usersRes.status === 'fulfilled') {
+                setUsers(usersRes.value.content || []);
+                setUsersTotalPages(usersRes.value.totalPages || 0);
+            }
+            if (growthRes.status === 'fulfilled') {
+                setGrowthData(growthRes.value || []);
+            }
+            if (revenueRes.status === 'fulfilled') {
+                setRevenueData(revenueRes.value || []);
+            }
+            if (bookingsRes.status === 'fulfilled') {
+                setBookingData(bookingsRes.value || []);
+            }
+            if (logsRes.status === 'fulfilled') {
+                setAuditLogs(logsRes.value || []);
+            }
+            if (allBkRes.status === 'fulfilled') {
+                setBookingsList(allBkRes.value.content || []);
+                setBookingsTotalPages(allBkRes.value.totalPages || 0);
+            }
+            if (techsRes.status === 'fulfilled') {
+                setTechnicians(techsRes.value || []);
+            }
+
+            setHasError(allFailed);
         } catch (err) {
             console.error('Failed to load admin dashboard data:', err);
             setHasError(true);
