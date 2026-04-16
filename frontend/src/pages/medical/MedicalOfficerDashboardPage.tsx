@@ -63,6 +63,19 @@ type TechnicianOption = {
   bookingCountForDate: number;
 };
 
+type PipelineStatus = 'BOOKED' | 'SAMPLE_COLLECTED' | 'PROCESSING' | 'PENDING_VERIFICATION' | 'VERIFIED';
+
+type PipelineBooking = {
+  id: number;
+  patientName: string;
+  testName?: string;
+  bookingDate: string;
+  timeSlot?: string;
+  technicianId?: number | null;
+  technicianName?: string | null;
+  status: string;
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 const MedicalOfficerDashboardPage: React.FC = () => {
@@ -101,6 +114,15 @@ const MedicalOfficerDashboardPage: React.FC = () => {
   const [previewAnalysis, setPreviewAnalysis] = useState<SmartAnalysis | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
+  // ── Booking Pipeline state (MO full visibility) ──────────────────
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('BOOKED');
+  const [pipelineBookings, setPipelineBookings] = useState<PipelineBooking[]>([]);
+  const [loadingPipeline, setLoadingPipeline] = useState(false);
+  const [pipelineTechnicians, setPipelineTechnicians] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingPipelineTechnicians, setLoadingPipelineTechnicians] = useState(false);
+  const [pipelineTechnicianByBooking, setPipelineTechnicianByBooking] = useState<Record<number, number>>({});
+  const [pipelineAssigningBooking, setPipelineAssigningBooking] = useState<number | null>(null);
+
   // ── Data loaders ──────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
@@ -119,6 +141,55 @@ const MedicalOfficerDashboardPage: React.FC = () => {
       toast.error('Failed to load MO data');
     } finally { setLoading(false); }
   }, [activeFilter]);
+
+  const loadPipelineBookings = useCallback(async (status: PipelineStatus) => {
+    setLoadingPipeline(true);
+    try {
+      const resp = await api.get('/api/mo/bookings', {
+        params: { status, page: 0, size: 20 }
+      });
+      const pageData = resp.data?.data || {};
+      setPipelineBookings((pageData.content || []) as PipelineBooking[]);
+    } catch {
+      toast.error('Failed to load booking pipeline');
+      setPipelineBookings([]);
+    } finally {
+      setLoadingPipeline(false);
+    }
+  }, []);
+
+  const loadPipelineTechnicians = useCallback(async () => {
+    if (pipelineTechnicians.length > 0 || loadingPipelineTechnicians) return;
+    setLoadingPipelineTechnicians(true);
+    try {
+      const resp = await api.get('/api/admin/staff/technicians-only');
+      const techs = (resp.data?.data || []).map((t: any) => ({ id: t.id, name: t.name }));
+      setPipelineTechnicians(techs);
+    } catch {
+      toast.error('Failed to load technicians');
+    } finally {
+      setLoadingPipelineTechnicians(false);
+    }
+  }, [pipelineTechnicians.length, loadingPipelineTechnicians]);
+
+  const handlePipelineAssignTechnician = async (bookingId: number) => {
+    const technicianId = pipelineTechnicianByBooking[bookingId];
+    if (!technicianId) {
+      toast.error('Please select a technician');
+      return;
+    }
+
+    setPipelineAssigningBooking(bookingId);
+    try {
+      await api.put(`/api/bookings/${bookingId}/technician`, { technicianId });
+      toast.success('Technician assigned');
+      await loadPipelineBookings(pipelineStatus);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to assign technician');
+    } finally {
+      setPipelineAssigningBooking(null);
+    }
+  };
 
   const loadUnassignedBookings = useCallback(async () => {
     setLoadingUnassigned(true);
@@ -149,6 +220,11 @@ const MedicalOfficerDashboardPage: React.FC = () => {
   }, [techniciansByDate, loadingTechsByDate]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (activeTab === 'verification') {
+      loadPipelineBookings(pipelineStatus);
+    }
+  }, [activeTab, pipelineStatus, loadPipelineBookings]);
   useEffect(() => {
     if (activeTab === 'assignments') loadUnassignedBookings();
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -708,6 +784,103 @@ const MedicalOfficerDashboardPage: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Booking Pipeline Overview */}
+            <section className="mt-8">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="text-base font-black text-slate-700 uppercase tracking-wide">Booking Pipeline</h2>
+                <button
+                  onClick={() => loadPipelineBookings(pipelineStatus)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingPipeline ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+              </div>
+
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-4 w-fit flex-wrap">
+                {(['BOOKED', 'SAMPLE_COLLECTED', 'PROCESSING', 'PENDING_VERIFICATION', 'VERIFIED'] as PipelineStatus[]).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setPipelineStatus(status)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      pipelineStatus === status ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+
+              {loadingPipeline ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse h-24" />
+                  ))}
+                </div>
+              ) : pipelineBookings.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                  <p className="text-slate-500 font-medium">No bookings found for {pipelineStatus}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pipelineBookings.map((booking) => {
+                    const assigned = booking.technicianId && booking.technicianName && booking.technicianName !== 'Unassigned';
+                    const selectedTechId = pipelineTechnicianByBooking[booking.id];
+                    return (
+                      <div key={booking.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-xs font-black text-slate-400">#{booking.id}</span>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">{booking.status}</span>
+                            </div>
+                            <p className="font-bold text-slate-800 text-sm">{booking.testName || 'Lab Test'}</p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                              <span className="flex items-center gap-1"><User className="w-3 h-3" />{booking.patientName || 'Patient'}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{booking.bookingDate}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{booking.timeSlot || 'N/A'}</span>
+                              <span>•</span>
+                              <span className={`font-bold ${assigned ? 'text-teal-700' : 'text-amber-600'}`}>
+                                {assigned ? booking.technicianName : 'Unassigned'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {pipelineStatus === 'BOOKED' && (
+                            <div className="flex flex-col sm:flex-row gap-2 md:min-w-[320px]">
+                              <select
+                                value={selectedTechId || ''}
+                                onFocus={() => void loadPipelineTechnicians()}
+                                onChange={(e) => setPipelineTechnicianByBooking(prev => ({
+                                  ...prev,
+                                  [booking.id]: Number(e.target.value)
+                                }))}
+                                className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white outline-none focus:border-teal-500"
+                              >
+                                <option value="">Select technician</option>
+                                {pipelineTechnicians.map((tech) => (
+                                  <option key={tech.id} value={tech.id}>{tech.name}</option>
+                                ))}
+                              </select>
+
+                              <button
+                                onClick={() => handlePipelineAssignTechnician(booking.id)}
+                                disabled={!selectedTechId || pipelineAssigningBooking === booking.id}
+                                className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-black uppercase tracking-wider hover:bg-teal-700 disabled:opacity-50"
+                              >
+                                {pipelineAssigningBooking === booking.id ? 'Assigning...' : 'Assign Technician'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </>
         )}
 

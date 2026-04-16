@@ -5,6 +5,9 @@ import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.DeltaCheckEntry;
 import com.healthcare.labtestbooking.dto.ReportVerificationRequest;
 import com.healthcare.labtestbooking.dto.ReportVerificationResponse;
+import com.healthcare.labtestbooking.entity.enums.BookingStatus;
+import com.healthcare.labtestbooking.repository.BookingRepository;
+import com.healthcare.labtestbooking.service.BookingService;
 import com.healthcare.labtestbooking.service.MedicalOfficerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,25 @@ import java.util.Map;
 public class MedicalOfficerController {
 
     private final MedicalOfficerService medicalOfficerService;
+    private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
+
+    @GetMapping("/bookings")
+    @PreAuthorize("hasRole('MEDICAL_OFFICER')")
+    public ResponseEntity<ApiResponse<Page<BookingResponse>>> getMOBookings(
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<BookingResponse> bookings;
+        if (status != null && !status.isBlank()) {
+            BookingStatus bs = BookingStatus.valueOf(status.toUpperCase());
+            bookings = bookingRepository.findByStatus(bs, pageable)
+                    .map(bookingService::mapToResponsePublic);
+        } else {
+            bookings = bookingRepository.findAll(pageable)
+                    .map(bookingService::mapToResponsePublic);
+        }
+        return ResponseEntity.ok(ApiResponse.success("Bookings", bookings));
+    }
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<Page<ReportVerificationResponse>>> getPendingVerifications(
