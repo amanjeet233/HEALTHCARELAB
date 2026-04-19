@@ -5,8 +5,12 @@ import com.healthcare.labtestbooking.dto.AssignTechnicianRequest;
 import com.healthcare.labtestbooking.dto.BookingRequest;
 import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.SpecimenRejectionRequest;
+import com.healthcare.labtestbooking.entity.AuditLog;
+import com.healthcare.labtestbooking.entity.Booking;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.exception.BadRequestException;
+import com.healthcare.labtestbooking.repository.AuditLogRepository;
+import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -35,6 +39,8 @@ import java.util.Map;
 public class BookingController {
 
         private final BookingService bookingService;
+        private final BookingRepository bookingRepository;
+        private final AuditLogRepository auditLogRepository;
 
         @PostMapping({ "", "/create" })
         @Operation(summary = "Create a new booking", description = "Create a new lab test booking with tests and slot information")
@@ -94,6 +100,44 @@ public class BookingController {
                 log.info("Get booking by id: {}", id);
                 BookingResponse booking = bookingService.getBookingById(id);
                 return ResponseEntity.ok(ApiResponse.success(booking));
+        }
+
+        @GetMapping("/{id}/timeline")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBookingTimeline(@PathVariable Long id) {
+                log.info("GET /api/bookings/{}/timeline", id);
+
+                List<AuditLog> logs = auditLogRepository
+                                .findByEntityNameAndEntityId("BOOKING", String.valueOf(id))
+                                .stream()
+                                .filter(l -> l.getAction() != null &&
+                                                (l.getAction().startsWith("BOOKING_STATUS") ||
+                                                                l.getAction().equals("TECHNICIAN_ASSIGNED") ||
+                                                                l.getAction().equals("REPORT_VERIFIED") ||
+                                                                l.getAction().equals("REPORT_UPLOADED") ||
+                                                                l.getAction().equals("SPECIMEN_REJECTED")))
+                                .sorted(java.util.Comparator.comparing(AuditLog::getTimestamp))
+                                .collect(java.util.stream.Collectors.toList());
+
+                List<Map<String, Object>> timeline = logs.stream().map(l -> {
+                        Map<String, Object> entry = new java.util.HashMap<>();
+                        entry.put("action", l.getAction());
+                        entry.put("timestamp", l.getTimestamp());
+                        entry.put("details", l.getNewValue());
+                        entry.put("userId", l.getUserId());
+                        return entry;
+                }).collect(java.util.stream.Collectors.toList());
+
+                Booking booking = bookingRepository.findById(id).orElse(null);
+                if (booking != null) {
+                        Map<String, Object> first = new java.util.HashMap<>();
+                        first.put("action", "BOOKED");
+                        first.put("timestamp", booking.getCreatedAt());
+                        first.put("details", "Booking created");
+                        timeline.add(0, first);
+                }
+
+                return ResponseEntity.ok(ApiResponse.success("Timeline", timeline));
         }
 
         @GetMapping("/slots")

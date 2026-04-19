@@ -6,8 +6,9 @@ import {
   ChevronDown, ChevronRight, X, SlidersHorizontal, Home
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import MedSyncTestCard, { MedSyncTestCardSkeleton, MedSyncTestCardData } from './MedSyncTestCard';
+import MedSyncTestCard, { MedSyncTestCardData } from './MedSyncTestCard';
 import { getApiErrorMessage } from '../../utils/getApiErrorMessage';
+import { SkeletonGrid, TestCardSkeleton } from '../../components/common/SkeletonLoader';
 
 /* ─────────────────────────────────────────────────────────────────
    TestListingLayout — Reusable layout for all test listing routes:
@@ -141,7 +142,7 @@ export interface TestListingLayoutProps {
 
 /* ═══════════════════════════════════════════════════════════════
    FILTER SIDEBAR
-═══════════════════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════════════════ */
 interface SidebarProps {
   typeFilter: string[];
   mustHaveFilter: string[];
@@ -376,7 +377,7 @@ const FilterSidebar: React.FC<SidebarProps> = ({
 
 /* ═══════════════════════════════════════════════════════════════
    ACTIVE FILTER PILLS
-═══════════════════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════════════════ */
 const FilterPills: React.FC<{
   typeFilter: string[];
   categoryFilter: string[];
@@ -433,7 +434,7 @@ const FilterPills: React.FC<{
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN LAYOUT
-═══════════════════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════════════════ */
 const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   title,
   breadcrumb,
@@ -623,7 +624,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   const hasBreadcrumb = !!breadcrumb;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-smooth">
+    <div className="min-h-screen bg-[#F0F9F9] text-smooth">
       <div
         className="w-full px-4 md:px-8 pt-6 pb-6"
         style={{
@@ -751,11 +752,9 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               {loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {Array.from({ length: 18 }).map((_, i) => (
-                    <MedSyncTestCardSkeleton key={i} variant="small" />
-                  ))}
-                </div>
+                <SkeletonGrid columns={6} count={18}>
+                  <TestCardSkeleton />
+                </SkeletonGrid>
               ) : serviceUnavailable ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3 text-center bg-white border border-slate-200 rounded-2xl">
                   <span className="text-4xl">⚠️</span>

@@ -8,6 +8,7 @@ import com.healthcare.labtestbooking.repository.LabTestRepository;
 import com.healthcare.labtestbooking.repository.TestPackageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +61,7 @@ public class TestPackageService {
         return testPackageRepository.findAll();
     }
 
+    @Cacheable(value = "packages")
     public List<TestPackage> getActivePackages() {
         return testPackageRepository.findByIsActiveTrue();
     }
@@ -76,14 +78,17 @@ public class TestPackageService {
 
     // ==================== Package Filtering ====================
 
+    @Cacheable(value = "packages", key = "'type_' + #type")
     public List<TestPackage> getPackagesByType(PackageType type) {
         return testPackageRepository.findByPackageTypeAndIsActiveTrueOrderByDisplayOrderAsc(type);
     }
 
+    @Cacheable(value = "packages", key = "'type_page_' + #type + '_' + #pageable.pageNumber")
     public Page<TestPackage> getPackagesByType(PackageType type, Pageable pageable) {
         return testPackageRepository.findByPackageTypeAndIsActiveTrue(type, pageable);
     }
 
+    @Cacheable(value = "packages", key = "'tier_' + #tier")
     public List<TestPackage> getPackagesByTier(PackageTier tier) {
         return testPackageRepository.findByPackageTierAndIsActiveTrueOrderByDiscountedPriceAsc(tier);
     }
@@ -111,6 +116,7 @@ public class TestPackageService {
         return testPackageRepository.findByHealthConditionContaining(condition);
     }
 
+    @Cacheable(value = "packages", key = "'popular'")
     public List<TestPackage> getPopularPackages() {
         return testPackageRepository.findByIsPopularTrueAndIsActiveTrueOrderByDisplayOrderAsc();
     }
@@ -123,6 +129,7 @@ public class TestPackageService {
         return testPackageRepository.searchPackages(keyword, pageable);
     }
 
+    @Cacheable(value = "packages", key = "T(java.util.Objects).hash(#type, #tier, #ageGroup, #gender, #minPrice, #maxPrice, #pageable.pageNumber, #pageable.pageSize)")
     public Page<TestPackage> filterPackages(PackageType type, PackageTier tier, AgeGroup ageGroup,
                                             Gender gender, BigDecimal minPrice, BigDecimal maxPrice,
                                             Pageable pageable) {
@@ -137,6 +144,7 @@ public class TestPackageService {
         return testPackageRepository.findTopSavingPackages(PageRequest.of(0, limit));
     }
 
+    @Cacheable(value = "packages", key = "'best_deals'")
     public List<TestPackage> getBestDeals() {
         return testPackageRepository.findTopSavingPackages(PageRequest.of(0, 8));
     }

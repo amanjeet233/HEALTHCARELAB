@@ -33,11 +33,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Public / infrastructure endpoints that should not require JWT parsing
+        boolean isProtectedLabTestParametersEndpoint = path.matches("^/api/lab-tests/\\d+/parameters/?$");
+
         return path.startsWith("/api/auth/")
                 || path.startsWith("/api/public/")
                 || path.startsWith("/api/health")
                 || path.startsWith("/api/labs/")           // Lab catalog is public
-                || path.startsWith("/api/lab-tests/")      // Lab tests catalog is public
+                || (path.startsWith("/api/lab-tests/") && !isProtectedLabTestParametersEndpoint) // Lab tests catalog is public except parameter entry endpoint
                 || path.startsWith("/api/doctors/")        // Doctors list is public (browsing)
                 || path.startsWith("/api/locations/")      // Locations are public (browsing)
                 || path.startsWith("/actuator/")

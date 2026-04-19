@@ -5,20 +5,28 @@ export const getPendingRequests = async () => {
     return api.get("/api/mo/pending", { params: { page: 0, size: 10 } });
 };
 
+export interface VerifyReportPayload {
+    clinicalNotes: string;
+    digitalSignature: string;
+    approved: boolean;
+    specialistType: string;
+    icdCodes?: string;
+}
+
 export const doctorService = {
     getPendingRequests,
 
     /**
      * Verify a report
      */
-    verifyReport: async (bookingId: number): Promise<any> => {
+    verifyReport: async (bookingId: number, payload?: VerifyReportPayload): Promise<any> => {
         try {
-            // Note: The backend endpoint was updated to /api/reports/verify/{id}
             const response = await api.post(`/api/mo/verify/${bookingId}`, {
-                clinicalNotes: 'Looks good',
-                digitalSignature: 'SIG_123',
-                approved: true,
-                specialistType: 'GENERAL'
+                clinicalNotes: payload?.clinicalNotes || 'Reviewed by medical officer',
+                digitalSignature: payload?.digitalSignature || 'Digitally signed',
+                approved: payload?.approved ?? true,
+                specialistType: payload?.specialistType || 'GENERAL',
+                icdCodes: payload?.icdCodes || ''
             });
             return response.data;
         } catch (error) {

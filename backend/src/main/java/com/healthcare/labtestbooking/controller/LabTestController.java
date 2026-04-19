@@ -5,8 +5,10 @@ import com.healthcare.labtestbooking.dto.LabTestDTO;
 import com.healthcare.labtestbooking.dto.TestPackageDTO;
 import com.healthcare.labtestbooking.entity.enums.TestType;
 import com.healthcare.labtestbooking.entity.TestPackage;
+import com.healthcare.labtestbooking.entity.TestParameter;
 import com.healthcare.labtestbooking.service.LabTestService;
 import com.healthcare.labtestbooking.service.TestPackageService;
+import com.healthcare.labtestbooking.service.TestParameterService;
 import com.healthcare.labtestbooking.service.TestPopularityService;
 import com.healthcare.labtestbooking.entity.TestPopularity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,8 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.concurrent.TimeUnit;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,12 +46,24 @@ public class LabTestController {
         public ResponseEntity<ApiResponse<List<LabTestDTO>>> getPopularTests() {
                 log.info("GET /api/lab-tests/popular");
                 List<LabTestDTO> tests = labTestService.getPopularTests();
-                return ResponseEntity.ok(ApiResponse.success("Popular tests retrieved", tests));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Popular tests retrieved", tests));
         }
 
         private final LabTestService labTestService;
         private final TestPackageService testPackageService;
         private final TestPopularityService testPopularityService;
+        private final TestParameterService testParameterService;
+
+        @GetMapping("/{testId}/parameters")
+        @PreAuthorize("hasAnyRole('TECHNICIAN','MEDICAL_OFFICER','ADMIN')")
+        @Operation(summary = "Get test parameters by test ID", description = "Retrieve the list of test parameters for result entry")
+        public ResponseEntity<ApiResponse<List<TestParameter>>> getParametersByTestId(@PathVariable Long testId) {
+                log.info("GET /api/lab-tests/{}/parameters", testId);
+                return ResponseEntity.ok(ApiResponse.success("Test parameters fetched successfully",
+                                testParameterService.getParametersByTestId(testId)));
+        }
         
         @GetMapping
         @Operation(summary = "Get all lab tests", description = "Retrieve all active lab tests with pagination")
@@ -59,7 +76,9 @@ public class LabTestController {
                 log.info("GET /api/lab-tests - Fetching all active tests | Page: {}, Size: {}",
                                 pageable.getPageNumber(), pageable.getPageSize());
                 Page<LabTestDTO> tests = labTestService.getAllActiveTests(pageable);
-                return ResponseEntity.ok(ApiResponse.success("Tests fetched successfully", tests));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Tests fetched successfully", tests));
         }
 
         @GetMapping("/advanced")
@@ -88,7 +107,9 @@ public class LabTestController {
         public ResponseEntity<ApiResponse<List<TestPackage>>> getBestDeals() {
                 log.info("GET /api/lab-tests/packages/best-deals");
                 List<TestPackage> bestDeals = testPackageService.getBestDeals();
-                return ResponseEntity.ok(ApiResponse.success("Best deals retrieved successfully", bestDeals));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Best deals retrieved successfully", bestDeals));
         }
 
         @GetMapping("/{id}")
@@ -186,7 +207,9 @@ public class LabTestController {
         public ResponseEntity<ApiResponse<List<LabTestDTO>>> getTrendingTests() {
                 log.info("GET /api/lab-tests/trending - Fetching top trending tests");
                 List<LabTestDTO> trendingTests = labTestService.getTrendingTests();
-                return ResponseEntity.ok(ApiResponse.success("Trending tests retrieved successfully", trendingTests));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(15, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Trending tests retrieved successfully", trendingTests));
         }
 
         @GetMapping("/price-range")
@@ -241,7 +264,9 @@ public class LabTestController {
         public ResponseEntity<ApiResponse<List<TestPackage>>> getAllPackages() {
                 log.info("GET /api/lab-tests/packages - Fetching all packages");
                 List<TestPackage> packages = testPackageService.getAllPackages();
-                return ResponseEntity.ok(ApiResponse.success("Packages fetched successfully", packages));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Packages fetched successfully", packages));
         }
 
         @GetMapping("/packages/{id}")
@@ -292,7 +317,9 @@ public class LabTestController {
         public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getCategoryCount() {
                 log.info("GET /api/lab-tests/category-counts");
                 java.util.Map<String, Long> counts = labTestService.getCategoryCount();
-                return ResponseEntity.ok(ApiResponse.success("Category counts retrieved", counts));
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES))
+                                .body(ApiResponse.success("Category counts retrieved", counts));
         }
 
         @GetMapping("/by-tag/{tag}")
@@ -305,7 +332,3 @@ public class LabTestController {
                 return ResponseEntity.ok(ApiResponse.success("Tests by tag retrieved", tests));
         }
 }
-
-
-
-

@@ -1,5 +1,85 @@
 import api from './api';
 
+type BackendNotification = {
+    id?: number | string;
+    title?: string;
+    message?: string;
+    type?: string;
+    createdAt?: string;
+    timestamp?: string;
+    isRead?: boolean;
+    read?: boolean;
+    referenceType?: string;
+    referenceId?: number | string;
+};
+
+const toNotificationType = (value: unknown): Notification['type'] => {
+    const type = String(value || '').toLowerCase();
+    if (type === 'success') return 'success';
+    if (type === 'warning') return 'warning';
+    if (type === 'critical') return 'critical';
+    return 'info';
+};
+
+const toNotificationCategory = (value: unknown): Notification['category'] => {
+    const ref = String(value || '').toUpperCase();
+    if (ref.includes('SECURITY')) return 'security';
+    if (ref.includes('APPOINTMENT') || ref.includes('BOOKING')) return 'appointment';
+    if (ref.includes('MEDICAL') || ref.includes('REPORT') || ref.includes('RESULT')) return 'medical';
+    return 'system';
+};
+
+const mapNotification = (payload: BackendNotification): Notification => {
+    const actionLink = payload.referenceType && payload.referenceId
+        ? `/booking/${payload.referenceId}`
+        : undefined;
+
+    return {
+        id: String(payload.id ?? ''),
+        title: payload.title || 'Notification',
+        message: payload.message || '',
+        type: toNotificationType(payload.type),
+        timestamp: payload.createdAt || payload.timestamp || new Date().toISOString(),
+        read: Boolean(payload.isRead ?? payload.read),
+        category: toNotificationCategory(payload.referenceType),
+        actionLink
+    };
+};
+
+const extractNotificationArray = (payload: unknown): BackendNotification[] => {
+    if (Array.isArray(payload)) {
+        return payload as BackendNotification[];
+    }
+
+    if (payload && typeof payload === 'object') {
+        const obj = payload as Record<string, unknown>;
+
+        if (Array.isArray(obj.content)) {
+            return obj.content as BackendNotification[];
+        }
+
+        if (Array.isArray(obj.data)) {
+            return obj.data as BackendNotification[];
+        }
+
+        if (obj.data && typeof obj.data === 'object') {
+            const data = obj.data as Record<string, unknown>;
+            if (Array.isArray(data.content)) {
+                return data.content as BackendNotification[];
+            }
+            if (Array.isArray(data.data)) {
+                return data.data as BackendNotification[];
+            }
+        }
+    }
+
+    return [];
+};
+
+const normalizeNotificationList = (payload: unknown): Notification[] => {
+    return extractNotificationArray(payload).map(mapNotification);
+};
+
 export interface Notification {
     id: string;
     title: string;
@@ -24,8 +104,9 @@ export const notificationService = {
      */
     getNotifications: async (): Promise<Notification[]> => {
         try {
-            const response = await api.get('/api/notifications');
-            return response.data?.data || response.data?.content || response.data || [];
+            // Request up to 200 notifications per page
+            const response = await api.get('/api/notifications', { params: { size: 200 } });
+            return normalizeNotificationList(response.data);
         } catch (error) {
             console.error('Error fetching notifications', error);
             return [];
@@ -125,7 +206,7 @@ export const notificationService = {
     getNotificationHistory: async (params?: { days?: number; limit?: number }): Promise<Notification[]> => {
         try {
             const response = await api.get('/api/notifications/history', { params });
-            return response.data?.data || response.data?.content || response.data || [];
+            return normalizeNotificationList(response.data);
         } catch (error) {
             console.error('Error fetching notification history:', error);
             return [];

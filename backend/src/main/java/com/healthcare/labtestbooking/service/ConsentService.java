@@ -92,8 +92,9 @@ public class ConsentService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public ConsentStatusResponse getConsentStatus(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findDetailedById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
         boolean consentRequired = requiresConsent(booking);

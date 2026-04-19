@@ -128,6 +128,10 @@ public class SecurityConfig {
                                 .requestMatchers("/index.html").permitAll()
                                 .requestMatchers("/api/bookings/slots").permitAll()
 
+                                // Protected lab-test endpoint used by technician result entry
+                                .requestMatchers(HttpMethod.GET, "/api/lab-tests/*/parameters")
+                                .hasAnyRole("TECHNICIAN", "MEDICAL_OFFICER", "ADMIN")
+
                                 // Public catalog endpoints
                                 .requestMatchers(HttpMethod.GET, "/api/lab-tests/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/labs/**").permitAll()

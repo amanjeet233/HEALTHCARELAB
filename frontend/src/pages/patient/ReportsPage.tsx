@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     Activity,
     AlertTriangle,
     Brain,
     Calendar,
     CalendarDays,
+    CheckCircle2,
     Download,
     FileText,
     RefreshCcw,
@@ -13,12 +14,13 @@ import {
     Stethoscope,
     ChevronRight,
     XCircle,
-    UtensilsCrossed
+    UtensilsCrossed,
+    Loader2
 } from 'lucide-react';
 import { reportService, type AIAnalysis, type ReportDisplay } from '../../services/reportService';
 import GlassCard from '../../components/common/GlassCard';
 import GlassButton from '../../components/common/GlassButton';
-import SkeletonBlock from '../../components/common/SkeletonBlock';
+import { ReportCardSkeleton } from '../../components/common/SkeletonLoader';
 import { notify } from '../../utils/toast';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -67,6 +69,7 @@ const recommendationIcon = (category: string) => {
 };
 
 const ReportsPage: React.FC = () => {
+    const navigate = useNavigate();
     const [reports, setReports] = useState<ReportDisplay[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +78,9 @@ const ReportsPage: React.FC = () => {
     const [aiAnalysisByBooking, setAiAnalysisByBooking] = useState<Record<number, AIAnalysis | null>>({});
     const [aiLoadingByBooking, setAiLoadingByBooking] = useState<Record<number, boolean>>({});
     const [showAiByBooking, setShowAiByBooking] = useState<Record<number, boolean>>({});
+    const [downloadingByBooking, setDownloadingByBooking] = useState<Record<number, boolean>>({});
+    const [activeDownloadId, setActiveDownloadId] = useState<number | null>(null);
+    const [downloadStatus, setDownloadStatus] = useState<string>('');
 
     useEffect(() => {
         void loadReports();
@@ -119,6 +125,7 @@ const ReportsPage: React.FC = () => {
 
     const verifiedCount = reports.filter((r) => r.status === 'VERIFIED' || r.status === 'COMPLETED').length;
     const pendingCount = reports.filter((r) => r.status === 'PENDING_VERIFICATION').length;
+    const verifiedReports = reports.filter((r) => r.status === 'VERIFIED' || r.status === 'COMPLETED');
 
     const clearFilters = () => {
         setSearch('');
@@ -128,11 +135,23 @@ const ReportsPage: React.FC = () => {
     const hasFilters = search.trim().length > 0 || statusFilter !== 'ALL';
 
     const handleDownload = async (bookingId: number) => {
+        if (downloadingByBooking[bookingId]) return;
+        
+        setDownloadingByBooking(prev => ({ ...prev, [bookingId]: true }));
+        setActiveDownloadId(bookingId);
+        setDownloadStatus('Preparing download...');
+
         try {
+            setDownloadStatus('Downloading PDF...');
             await reportService.downloadReport(bookingId);
-        } catch (error) {
-            console.error(error);
-            notify.error('Failed to download report.');
+            notify.success('Report downloaded successfully.');
+        } catch (error: any) {
+            console.error("Report Download Failed:", error);
+            notify.error(`Download Error: ${error.message || 'Unable to download report'}`);
+        } finally {
+            setDownloadingByBooking(prev => ({ ...prev, [bookingId]: false }));
+            setActiveDownloadId(null);
+            setDownloadStatus('');
         }
     };
 
@@ -161,18 +180,7 @@ const ReportsPage: React.FC = () => {
         return (
             <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen space-y-4">
                 {[1, 2, 3].map((idx) => (
-                    <div key={idx} className="bg-white/70 border border-white/40 rounded-3xl p-6">
-                        <SkeletonBlock className="h-6 w-56 mb-4" />
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                            <SkeletonBlock className="h-4 w-full" />
-                            <SkeletonBlock className="h-4 w-full" />
-                            <SkeletonBlock className="h-4 w-full" />
-                        </div>
-                        <div className="flex gap-2">
-                            <SkeletonBlock className="h-10 w-36" />
-                            <SkeletonBlock className="h-10 w-32" />
-                        </div>
-                    </div>
+                    <ReportCardSkeleton key={idx} />
                 ))}
             </div>
         );
@@ -182,7 +190,7 @@ const ReportsPage: React.FC = () => {
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
-                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/55 mb-4">
                         <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
                         <ChevronRight size={12} className="text-cyan-700/40" />
                         <span className="text-cyan-700">My Reports</span>
@@ -229,6 +237,24 @@ const ReportsPage: React.FC = () => {
                     </GlassButton>
                 </div>
             </header>
+
+            {verifiedReports.length > 0 && (
+                <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-black text-emerald-800">
+                            {verifiedReports.length === 1
+                                ? 'Your report is ready!'
+                                : `${verifiedReports.length} reports are ready!`}
+                        </p>
+                        <p className="text-xs text-emerald-600 mt-0.5">
+                            Verified by Medical Officer. Click Download to save your report.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <GlassCard className="mb-7 border-cyan-100/30">
                 <div className="flex flex-wrap items-center gap-4">
@@ -292,7 +318,11 @@ const ReportsPage: React.FC = () => {
                         const reportDate = report.reportDate ? new Date(report.reportDate).toLocaleString('en-IN') : 'Pending';
 
                         return (
-                            <div key={report.bookingId} className="bg-white/70 backdrop-blur-md border border-white/40 rounded-3xl p-5 shadow-lg shadow-cyan-900/5">
+                            <div 
+                                key={report.bookingId} 
+                                onClick={() => navigate(`/smart-reports/${report.bookingId}`)}
+                                className="bg-white/70 backdrop-blur-md border border-white/40 rounded-3xl p-5 shadow-lg shadow-cyan-900/5 cursor-pointer hover:bg-white/90 transition-all hover:shadow-cyan-900/10"
+                            >
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                     <div>
                                         <h3 className="text-xl font-black text-[#164E63] tracking-tight uppercase">{report.testName}</h3>
@@ -320,7 +350,7 @@ const ReportsPage: React.FC = () => {
                                                 </span>
 
                                                 <GlassButton
-                                                    onClick={() => void toggleInsights(report.bookingId)}
+                                                    onClick={(e) => { e.stopPropagation(); void toggleInsights(report.bookingId); }}
                                                     variant="outline"
                                                     size="sm"
                                                     icon={<Brain size={15} />}
@@ -330,10 +360,11 @@ const ReportsPage: React.FC = () => {
                                                 </GlassButton>
 
                                                 <GlassButton
-                                                    onClick={() => void handleDownload(report.bookingId)}
+                                                    onClick={(e) => { e.stopPropagation(); void handleDownload(report.bookingId); }}
                                                     size="sm"
                                                     icon={<Download size={16} />}
                                                     className="!rounded-lg !px-4"
+                                                    loading={downloadingByBooking[report.bookingId]}
                                                 >
                                                     Download
                                                 </GlassButton>
@@ -429,6 +460,23 @@ const ReportsPage: React.FC = () => {
                             </div>
                         );
                     })}
+                </div>
+            )}
+            {/* Global Download Overlay */}
+            {activeDownloadId && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-cyan-900/40 backdrop-blur-md pointer-events-none">
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl flex flex-col items-center max-w-xs w-full border border-cyan-100 animate-in fade-in zoom-in duration-300 pointer-events-auto">
+                        <div className="relative mb-6">
+                            <Loader2 size={48} className="text-cyan-600 animate-spin" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <FileText size={20} className="text-cyan-800" />
+                            </div>
+                        </div>
+                        <h3 className="text-lg font-black text-cyan-900 uppercase tracking-tight mb-2">Generating Report</h3>
+                        <p className="text-xs text-cyan-700 font-bold uppercase tracking-widest text-center animate-pulse">
+                            {downloadStatus}
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

@@ -1,5 +1,6 @@
 package com.healthcare.labtestbooking.service;
 
+import com.healthcare.labtestbooking.dto.NotificationResponse;
 import com.healthcare.labtestbooking.entity.Notification;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.repository.NotificationRepository;
@@ -58,14 +59,18 @@ public class NotificationInboxService {
         return saved;
     }
 
-    public Page<Notification> getUserNotifications(Pageable pageable) {
+    public Page<NotificationResponse> getUserNotifications(Pageable pageable) {
         User user = getCurrentUser();
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable);
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable)
+                .map(this::mapToResponse);
     }
 
-    public List<Notification> getUnreadNotifications() {
+    public List<NotificationResponse> getUnreadNotifications() {
         User user = getCurrentUser();
-        return notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId());
+        return notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     public long getUnreadCount() {
@@ -74,7 +79,7 @@ public class NotificationInboxService {
     }
 
     @Transactional
-    public Notification markAsRead(Long notificationId) {
+    public NotificationResponse markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
 
@@ -84,7 +89,8 @@ public class NotificationInboxService {
         }
 
         notification.setIsRead(true);
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        return mapToResponse(saved);
     }
 
     @Transactional
@@ -107,6 +113,19 @@ public class NotificationInboxService {
 
         notificationRepository.delete(notification);
         log.info("Deleted notification {} for user {}", notificationId, user.getId());
+    }
+
+    private NotificationResponse mapToResponse(Notification notification) {
+        return NotificationResponse.builder()
+                .id(notification.getId())
+                .type(notification.getType())
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .isRead(notification.getIsRead())
+                .referenceType(notification.getReferenceType())
+                .referenceId(notification.getReferenceId())
+                .createdAt(notification.getCreatedAt())
+                .build();
     }
 
     private User getCurrentUser() {

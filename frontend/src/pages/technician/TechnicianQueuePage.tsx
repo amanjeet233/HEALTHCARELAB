@@ -5,8 +5,9 @@ const TechnicianQueuePage: React.FC = () => (
   <TechnicianDashboardPage
     forcedTab="pending"
     lockTab
-    breadcrumbLabel="Collection Queue"
-    pageHeading={<>Collection <span className="text-cyan-600">Queue</span></>}
+    breadcrumbLabel="My Tasks"
+    pageSubtext="All pending tasks assigned to you."
+    pageHeading={<>My <span className="text-cyan-600">Tasks</span></>}
   />
 );
 

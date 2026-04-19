@@ -2,7 +2,7 @@
 
 .test-detail-page {
     min-height: 100vh;
-    background: linear-gradient(135deg, #F0F9F9 0%, #f1f5f9 100%);
+    background: #F0F9F9;
     padding: 16px 0;
 }
 

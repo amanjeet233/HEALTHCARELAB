@@ -64,12 +64,18 @@ export default defineConfig({
     }),
   ],
   build: {
+    chunkSizeWarningLimit: 600,
+    target: 'esnext',
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          'three-fiber': ['three', '@react-three/fiber', '@react-three/drei'],  
-          'ui-libs': ['framer-motion', 'lucide-react', 'react-icons'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react', 'react-icons'],
+          'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+          'vendor-charts': ['recharts'],
+          'vendor-pdf': ['jspdf'],
         },
       },
     },

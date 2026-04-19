@@ -72,11 +72,16 @@ public class DashboardService {
         
         long pendingVerifications = bookingRepository.countByStatus(BookingStatus.PENDING_VERIFICATION);
         long processingReports = bookingRepository.countByStatus(BookingStatus.PROCESSING);
+        long completedReports = bookingRepository.countByStatusIn(Arrays.asList(
+                BookingStatus.VERIFIED,
+                BookingStatus.COMPLETED
+        ));
+        long criticalAlerts = bookingRepository.countByCriticalFlagTrueAndStatusNot(BookingStatus.COMPLETED);
         
         stats.put("pendingVerifications", pendingVerifications);
         stats.put("processingReports", processingReports);
-        stats.put("criticalAlerts", 0L); // To be computed based on abnormal results
-        stats.put("totalVerified", 0L); // To be computed from report_verification table
+        stats.put("criticalAlerts", criticalAlerts);
+        stats.put("totalVerified", completedReports);
         
         return stats;
     }
@@ -84,7 +89,7 @@ public class DashboardService {
     public Map<String, Object> getAdminDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
         
-        long totalBookings = bookingRepository.count();
+                long totalBookings = bookingRepository.countByStatusNot(BookingStatus.CANCELLED);
         long totalUsers = userRepository.count();
         long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
         long activeUsers = userRepository.findByIsActiveTrue().size();
@@ -93,12 +98,16 @@ public class DashboardService {
         stats.put("totalUsers", totalUsers);
         stats.put("completedBookings", completedBookings);
         stats.put("activeUsers", activeUsers);
-        stats.put("pendingBookings", bookingRepository.countByStatusIn(java.util.Arrays.asList(BookingStatus.BOOKED, BookingStatus.CONFIRMED)));
+        stats.put("pendingBookings", bookingRepository.countByStatusIn(java.util.Arrays.asList(
+                BookingStatus.BOOKED,
+                BookingStatus.CONFIRMED,
+                BookingStatus.REFLEX_PENDING
+        )));
         stats.put("processingBookings", bookingRepository.countByStatus(BookingStatus.PROCESSING));
         stats.put("todayBookings", bookingRepository.countByBookingDate(java.time.LocalDate.now()));
         stats.put("criticalCount", bookingRepository.countByCriticalFlagTrueAndStatusNot(BookingStatus.COMPLETED));
         
-        java.math.BigDecimal revenue = bookingRepository.sumTotalRevenue();
+        java.math.BigDecimal revenue = bookingRepository.sumTotalBookedRevenue();
 
         stats.put("totalRevenue", revenue != null ? revenue.doubleValue() : 0.0d);
         stats.put("totalTests", labTestRepository.count());

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -30,11 +31,16 @@ public class ReportVerificationResponse {
     // New info fields
     private String patientName;
     private Long patientId;
+    private String bookingReference;
+    private String reference;
     private String testName;
     private String bookingDate;
+    private String collectionAddress;
+    private String address;
     private Boolean criticalFlag;
     private Boolean anyResultAbnormal;
     private Boolean previouslyRejected;
+    private List<Map<String, Object>> resultItems;
     private List<DeltaCheckEntry> previousResults;
     private String digitalFingerprint;
     private Integer version;

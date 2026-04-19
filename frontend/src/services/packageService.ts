@@ -1,4 +1,4 @@
-import api from './api';
+import api, { cachedGet } from './api';
 
 export interface TestPackageResponse {
     id: number;
@@ -46,9 +46,9 @@ export const packageService = {
     getAllPackages: async (params?: { page?: number; size?: number; category?: string }): Promise<TestPackageResponse[]> => {
         let response;
         try {
-            response = await api.get('/api/test-packages', { params });
+            response = await cachedGet('/api/test-packages', { params });
         } catch {
-            response = await api.get('/api/lab-tests/packages', { params });
+            response = await cachedGet('/api/lab-tests/packages', { params });
         }
         let data: any[] = [];
         if (response.data?.content) {
@@ -72,7 +72,7 @@ export const packageService = {
     },
 
     getBestDeals: async (): Promise<TestPackageResponse[]> => {
-        const response = await api.get('/api/lab-tests/packages/best-deals');
+        const response = await cachedGet('/api/lab-tests/packages/best-deals');
         const data = response.data?.data || response.data || [];
         return data.map(normalizePackage);
     },
@@ -82,7 +82,7 @@ export const packageService = {
      */
     getPopularPackages: async (limit: number = 10): Promise<PopularPackage[]> => {
         try {
-            const response = await api.get('/api/test-packages/popular', { params: { limit } });
+            const response = await cachedGet('/api/test-packages/popular', { params: { limit } });
             return response.data?.data || response.data || [];
         } catch (error) {
             console.error('Error fetching popular packages:', error);

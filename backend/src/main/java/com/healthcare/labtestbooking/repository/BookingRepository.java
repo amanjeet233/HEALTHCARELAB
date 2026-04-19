@@ -63,6 +63,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByStatusAndBookingDateBetween(BookingStatus status, LocalDate startDate, LocalDate endDate);
 
     long countByStatus(BookingStatus status);
+        long countByStatusNot(BookingStatus status);
        long countByStatusIn(List<BookingStatus> statuses);
     long countByCriticalFlagTrueAndStatusNot(BookingStatus status);
 
@@ -98,20 +99,33 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByBookingDate(LocalDate bookingDate);
 
     @Query("SELECT DATE(b.createdAt), COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
-           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED " +
+           "WHERE b.paymentStatus IN (com.healthcare.labtestbooking.entity.enums.PaymentStatus.PAID, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.SUCCESS, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.COMPLETED) " +
+           "AND b.status <> com.healthcare.labtestbooking.entity.enums.BookingStatus.CANCELLED " +
            "AND DATE(b.createdAt) BETWEEN :start AND :end " +
            "GROUP BY DATE(b.createdAt) ORDER BY DATE(b.createdAt)")
     List<Object[]> sumRevenueByCreatedDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
     @Query("SELECT DATE(b.createdAt), COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
-           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED " +
+           "WHERE b.paymentStatus IN (com.healthcare.labtestbooking.entity.enums.PaymentStatus.PAID, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.SUCCESS, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.COMPLETED) " +
+           "AND b.status <> com.healthcare.labtestbooking.entity.enums.BookingStatus.CANCELLED " +
            "AND DATE(b.createdAt) BETWEEN :start AND :end " +
            "GROUP BY DATE(b.createdAt) ORDER BY DATE(b.createdAt)")
     List<Object[]> sumRevenueByDateRange(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
     @Query("SELECT COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
-           "WHERE b.status = com.healthcare.labtestbooking.entity.enums.BookingStatus.COMPLETED")
+           "WHERE b.paymentStatus IN (com.healthcare.labtestbooking.entity.enums.PaymentStatus.PAID, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.SUCCESS, " +
+           "com.healthcare.labtestbooking.entity.enums.PaymentStatus.COMPLETED) " +
+           "AND b.status <> com.healthcare.labtestbooking.entity.enums.BookingStatus.CANCELLED")
     java.math.BigDecimal sumTotalRevenue();
+
+    @Query("SELECT COALESCE(SUM(b.finalAmount), 0) FROM Booking b " +
+           "WHERE b.status <> com.healthcare.labtestbooking.entity.enums.BookingStatus.CANCELLED")
+    java.math.BigDecimal sumTotalBookedRevenue();
 
        @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
        Page<Booking> findByStatusAndPatientDisplayNameContainingIgnoreCase(BookingStatus status, String patientName, Pageable pageable);
@@ -121,6 +135,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
        @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
        Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+
+               @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})
+        Page<Booking> findByStatusIn(List<BookingStatus> statuses, Pageable pageable);
 
        @Override
        @EntityGraph(attributePaths = {"patient", "test", "testPackage", "technician", "reportVerification", "recommendation"})

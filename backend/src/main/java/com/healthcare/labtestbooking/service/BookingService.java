@@ -21,6 +21,7 @@ import com.healthcare.labtestbooking.repository.TestPackageRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -101,6 +102,7 @@ public class BookingService {
     // ── Booking CRUD ──────────────────────────────────────────────────────────
 
     @Transactional
+    @CacheEvict(value = "adminStats", allEntries = true)
     public BookingResponse createBooking(BookingRequest request) {
         log.info("========== CREATE BOOKING ATTEMPT ==========");
         log.info("Request: {}", request);
@@ -316,6 +318,13 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         booking = bookingRepository.save(booking);
+
+        auditService.logAction(
+                user.getId(), user.getEmail(), user.getRole().name(),
+                "BOOKING_STATUS_CHANGED",
+                "BOOKING", String.valueOf(id),
+                "Status -> " + BookingStatus.CANCELLED + " (cancelled by " + user.getRole().name() + ")");
+
         return mapToResponse(booking);
     }
 
@@ -394,7 +403,7 @@ public class BookingService {
                 null, null, null,
                 "BOOKING_STATUS_CHANGED",
                 "BOOKING", String.valueOf(id),
-                "Status changed from " + oldStatus + " to " + newStatus);
+                "Status -> " + newStatus + " (from " + oldStatus + ")");
 
         return mapToResponse(booking);
     }
@@ -417,8 +426,8 @@ public class BookingService {
                 null, null, "ADMIN",
                 "BOOKING_STATUS_CHANGED",
                 "BOOKING", String.valueOf(id),
-                "Admin forced status from " + oldStatus + " to " + newStatus + 
-                (cancellationReason != null ? " Reason: " + cancellationReason : ""));
+                "Status -> " + newStatus + " (admin override from " + oldStatus + ")" +
+                        (cancellationReason != null ? " Reason: " + cancellationReason : ""));
 
         return mapToResponse(booking);
     }
@@ -436,7 +445,7 @@ public class BookingService {
 
         auditService.logAction(null, null, "TECHNICIAN",
                 "BOOKING_STATUS_CHANGED", "BOOKING", String.valueOf(id),
-                "Sample collected");
+                "Status -> " + BookingStatus.SAMPLE_COLLECTED + " (sample collected)");
 
         return mapToResponse(booking);
     }
@@ -480,6 +489,11 @@ public class BookingService {
                 "BOOKING", String.valueOf(bookingId),
                 "Technician rejected specimen. reason=" + reason.name() + (notes != null && !notes.isEmpty() ? ", notes=" + notes : "")
         );
+        auditService.logAction(
+                technician.getId(), technician.getEmail(), technician.getRole().name(),
+                "BOOKING_STATUS_CHANGED",
+                "BOOKING", String.valueOf(bookingId),
+                "Status -> " + BookingStatus.CANCELLED + " (specimen rejected)");
 
         if (rejectedBooking.getPatient() != null) {
             notificationInboxService.createNotification(
@@ -615,7 +629,7 @@ public class BookingService {
                 .reportAvailable(Boolean.TRUE.equals(booking.getReportAvailable()))
                 .createdAt(booking.getCreatedAt())
                 .technicianId(booking.getTechnician() != null ? booking.getTechnician().getId() : null)
-                .technicianName(booking.getTechnician() != null ? booking.getTechnician().getName() : "Unassigned")
+                .technicianName(booking.getTechnician() != null ? booking.getTechnician().getName() : null)
                 .assignmentType(booking.getAssignmentType() != null ? booking.getAssignmentType().name() : null)
                 .cancellationReason(booking.getCancellationReason())
                 .rejectionReason(booking.getRejectionReason())

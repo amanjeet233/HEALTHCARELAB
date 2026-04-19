@@ -5,8 +5,9 @@ const TechnicianTodayPage: React.FC = () => (
   <TechnicianDashboardPage
     forcedTab="today"
     lockTab
-    breadcrumbLabel="Today's Bookings"
-    pageHeading={<>Today's <span className="text-cyan-600">Bookings</span></>}
+    breadcrumbLabel="Today"
+    pageSubtext="Today tasks only."
+    pageHeading={<>Today <span className="text-cyan-600">Tasks</span></>}
   />
 );
 

@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Inbox, Trash2, CheckCircle, Search, Filter, Settings, ShieldAlert, ArrowRight, Activity, Calendar, Lock } from 'lucide-react';
+import { Bell, Inbox, Trash2, CheckCircle, Search, Filter, Settings, ShieldAlert, ArrowRight, Activity, Calendar, Lock, ChevronRight } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import type { Notification } from '../../services/notificationService';
 
 const NotificationCenter: React.FC = () => {
     const { notifications, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
-    const [filter, setFilter] = useState<'all' | 'unread' | 'medical' | 'system'>('all');
+    const { currentUser } = useAuth();
+    const [filter, setFilter] = useState<'all' | 'unread' | 'medical' | 'system' | 'appointment' | 'security'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
+    const notificationsList = Array.isArray(notifications) ? notifications : [];
+    const role = currentUser?.role;
 
-    const filteredNotifications = notifications.filter((n: Notification) => {
+    const filteredNotifications = notificationsList.filter((n: Notification) => {
         const matchesFilter =
             filter === 'all' ? true :
                 filter === 'unread' ? !n.read :
                     filter === 'medical' ? n.category === 'medical' :
-                        filter === 'system' ? n.category === 'system' : true;
+                        filter === 'system' ? n.category === 'system' :
+                            filter === 'appointment' ? n.category === 'appointment' :
+                                filter === 'security' ? n.category === 'security' : true;
 
         const matchesSearch =
             n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -25,12 +31,33 @@ const NotificationCenter: React.FC = () => {
         return matchesFilter && matchesSearch;
     });
 
-    const categories = [
-        { id: 'all', label: 'All Events', icon: Inbox },
-        { id: 'unread', label: 'Pending', icon: Bell },
-        { id: 'medical', label: 'Medical', icon: Activity },
-        { id: 'system', label: 'System', icon: ShieldAlert },
-    ];
+    const categories = role === 'ADMIN'
+        ? [
+            { id: 'all', label: 'All Events', icon: Inbox },
+            { id: 'unread', label: 'Pending', icon: Bell },
+            { id: 'system', label: 'System', icon: ShieldAlert },
+            { id: 'security', label: 'Security', icon: Lock },
+        ]
+        : role === 'MEDICAL_OFFICER'
+            ? [
+                { id: 'all', label: 'All Events', icon: Inbox },
+                { id: 'unread', label: 'Pending', icon: Bell },
+                { id: 'medical', label: 'Medical', icon: Activity },
+                { id: 'appointment', label: 'Bookings', icon: Calendar },
+            ]
+            : role === 'TECHNICIAN'
+                ? [
+                    { id: 'all', label: 'All Events', icon: Inbox },
+                    { id: 'unread', label: 'Pending', icon: Bell },
+                    { id: 'appointment', label: 'Collection', icon: Calendar },
+                    { id: 'system', label: 'System', icon: ShieldAlert },
+                ]
+                : [
+                    { id: 'all', label: 'All Events', icon: Inbox },
+                    { id: 'unread', label: 'Pending', icon: Bell },
+                    { id: 'medical', label: 'Medical', icon: Activity },
+                    { id: 'system', label: 'System', icon: ShieldAlert },
+                ];
 
     const getTypeStyles = (type: string) => {
         switch (type) {
@@ -51,19 +78,25 @@ const NotificationCenter: React.FC = () => {
         }
     };
 
-    return (
-        <div className="min-h-screen pt-32 pb-20 px-4 md:px-8 max-w-7xl mx-auto space-y-12">
+        return (
+            <div className="min-h-screen pt-8 pb-8 px-4 md:px-8 max-w-7xl mx-auto space-y-2">
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/60">
+                <span>Home</span>
+                <ChevronRight className="w-3 h-3" />
+                <span>Notifications</span>
+            </div>
+
             {/* Page Header */}
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary shadow-radical-sm">
-                            < Bell className="w-5 h-5" />
+                            <Bell className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Intelligence Hub</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-800/60">Notification Center</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-evergreen uppercase tracking-tighter italic leading-none">
-                        Neural <span className="text-secondary">Alerts</span>
+                    <h1 className="text-4xl md:text-5xl font-black text-[#164E63] uppercase tracking-tighter italic leading-none">
+                        <span className="text-cyan-600">Notifications</span>
                     </h1>
                 </div>
 
@@ -73,7 +106,7 @@ const NotificationCenter: React.FC = () => {
                         className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-primary/5 text-primary transition-all cursor-pointer"
                     >
                         <CheckCircle className="w-4 h-4" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Acknowledge All</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Mark All Read</span>
                     </button>
                     <div className="w-px h-8 bg-primary/10" />
                     <button className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-gray hover:bg-primary/5 transition-all cursor-pointer text-[10px]" title="Settings" aria-label="Settings">
@@ -86,14 +119,14 @@ const NotificationCenter: React.FC = () => {
                 {/* Sidebar Filters */}
                 <aside className="lg:col-span-3 space-y-8">
                     <div className="space-y-4">
-                        <span className="text-[9px] font-black text-muted-gray uppercase tracking-[0.3em] opacity-40">Protocol Filters</span>
+                        <span className="text-[9px] font-black text-muted-gray uppercase tracking-[0.3em] opacity-40">Filters</span>
                         <div className="flex flex-col gap-2">
                             {categories.map(cat => {
                                 const Icon = cat.icon;
                                 return (
                                     <button
                                         key={cat.id}
-                                        onClick={() => setFilter(cat.id as 'all' | 'unread' | 'medical' | 'system')}
+                                        onClick={() => setFilter(cat.id as 'all' | 'unread' | 'medical' | 'system' | 'appointment' | 'security')}
                                         className={`flex items-center justify-between p-4 rounded-2xl transition-all cursor-pointer ${filter === cat.id
                                                 ? 'bg-primary text-white shadow-radical'
                                                 : 'bg-white/40 hover:bg-white text-evergreen opacity-60 hover:opacity-100 hover:shadow-radical-sm'
@@ -103,9 +136,9 @@ const NotificationCenter: React.FC = () => {
                                             <Icon className="w-4 h-4" />
                                             <span className="text-[10px] font-black uppercase tracking-widest">{cat.label}</span>
                                         </div>
-                                        {cat.id === 'unread' && notifications.filter((n: Notification) => !n.read).length > 0 && (
+                                        {cat.id === 'unread' && notificationsList.filter((n: Notification) => !n.read).length > 0 && (
                                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${filter === cat.id ? 'bg-white/20' : 'bg-primary text-white'}`}>
-                                                {notifications.filter((n: Notification) => !n.read).length}
+                                                {notificationsList.filter((n: Notification) => !n.read).length}
                                             </span>
                                         )}
                                     </button>
@@ -117,10 +150,10 @@ const NotificationCenter: React.FC = () => {
                     <div className="p-6 bg-secondary/5 rounded-3xl border border-secondary/10 space-y-4">
                         <div className="flex items-center gap-2">
                             <ShieldAlert className="w-4 h-4 text-secondary" />
-                            <span className="text-[9px] font-black text-secondary uppercase tracking-widest">Medical Directive</span>
+                            <span className="text-[9px] font-black text-secondary uppercase tracking-widest">Quick Note</span>
                         </div>
                         <p className="text-[10px] text-muted-gray font-medium leading-relaxed">
-                            Notifications represent real-time updates from our clinical synthesis grid. Ensure protocols are reviewed within 24 standard cycles.
+                            These notifications show important updates about your account, bookings, and reports.
                         </p>
                     </div>
                 </aside>
@@ -141,7 +174,7 @@ const NotificationCenter: React.FC = () => {
                         </div>
                         <button className="px-6 py-4 bg-white/40 border border-primary/5 rounded-2xl flex items-center gap-3 text-muted-gray hover:text-primary transition-all cursor-pointer">
                             <Filter className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Advanced Scan</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">More Filters</span>
                         </button>
                     </div>
 
@@ -199,7 +232,7 @@ const NotificationCenter: React.FC = () => {
                                             <button
                                                 onClick={() => deleteNotification(notification.id)}
                                                 className="p-3 hover:bg-red-50 text-muted-gray hover:text-red-500 rounded-xl transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                                                title="Delete protocol"
+                                                    title="Delete notification"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -216,8 +249,8 @@ const NotificationCenter: React.FC = () => {
                                         <Inbox className="w-10 h-10 text-primary" />
                                     </div>
                                     <div className="space-y-2">
-                                        <p className="text-xl font-black uppercase text-evergreen italic">Protocol Grid Empty</p>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest">No matching notifications found in current sector.</p>
+                                        <p className="text-xl font-black uppercase text-evergreen italic">No Notifications</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest">No matching notifications found.</p>
                                     </div>
                                 </motion.div>
                             )}

@@ -143,7 +143,7 @@ const TestListingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-background">
 
       {/* A — Expert-Curated Screenings */}
       <FadeSection>

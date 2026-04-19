@@ -37,6 +37,7 @@ public class AuditService {
                     .userRole(userRole)
                     .action(action)
                     .entityName(entityType != null ? entityType : "SYSTEM")
+                    .entityType(entityType != null ? entityType : "SYSTEM")
                     .entityId(entityId != null ? entityId : "N/A")
                     .oldValue(null)
                     .newValue(details)

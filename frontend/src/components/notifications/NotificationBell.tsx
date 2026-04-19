@@ -2,13 +2,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckCircle, ChevronRight, Inbox, Settings } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
-const NotificationBell: React.FC = () => {
+type NotificationBellProps = {
+    badgeCountOverride?: number;
+};
+
+const NotificationBell: React.FC<NotificationBellProps> = ({ badgeCountOverride }) => {
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { currentUser } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const effectiveUnreadCount = typeof badgeCountOverride === 'number' ? badgeCountOverride : unreadCount;
+
+    const notificationHubPath = currentUser?.role === 'ADMIN'
+        ? '/admin/notifications'
+        : currentUser?.role === 'TECHNICIAN'
+            ? '/technician/notifications'
+            : currentUser?.role === 'MEDICAL_OFFICER'
+                ? '/medical-officer/notifications'
+                : '/notifications';
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -20,7 +35,12 @@ const NotificationBell: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const recentNotifications = (Array.isArray(notifications) ? notifications : []).slice(0, 5);
+    // Show unread notifications first in the dropdown
+    const notificationsList = Array.isArray(notifications) ? notifications : [];
+    const unreadNotifications = notificationsList.filter(n => !n.read);
+    const readNotifications = notificationsList.filter(n => n.read);
+    // Show up to 5, prioritizing unread
+    const recentNotifications = [...unreadNotifications, ...readNotifications].slice(0, 5);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -30,9 +50,9 @@ const NotificationBell: React.FC = () => {
                 className="relative p-2.5 rounded-xl bg-white border border-primary/10 shadow-radical-sm text-evergreen hover:bg-primary/5 transition-all active:scale-95 cursor-pointer group"
             >
                 <Bell className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-12' : 'group-hover:rotate-12'}`} />
-                {unreadCount > 0 && (
+                {effectiveUnreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-primary text-white text-[8px] font-black flex items-center justify-center rounded-full border-2 border-white animate-pulse">
-                        {unreadCount}
+                        {effectiveUnreadCount}
                     </span>
                 )}
             </button>
@@ -50,8 +70,8 @@ const NotificationBell: React.FC = () => {
                             {/* Header */}
                             <div className="flex justify-between items-center border-b border-primary/5 pb-4">
                                 <div className="space-y-0.5">
-                                    <h4 className="text-[12px] font-black text-evergreen uppercase tracking-widest italic">Neural <span className="text-primary">Alerts</span></h4>
-                                    <p className="text-[8px] font-bold text-muted-gray uppercase opacity-40">{unreadCount} Pending Protocols</p>
+                                    <h4 className="text-[12px] font-black text-evergreen uppercase tracking-widest italic">Notifications</h4>
+                                    <p className="text-[8px] font-bold text-muted-gray uppercase opacity-40">{effectiveUnreadCount} Unread</p>
                                 </div>
                                 <button
                                     onClick={markAllAsRead}
@@ -100,7 +120,7 @@ const NotificationBell: React.FC = () => {
                                 ) : (
                                     <div className="py-12 flex flex-col items-center justify-center text-center space-y-3 opacity-20">
                                         <Inbox className="w-8 h-8" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest">Grid clear. No alerts.</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest">No notifications</p>
                                     </div>
                                 )}
                             </div>
@@ -108,10 +128,10 @@ const NotificationBell: React.FC = () => {
                             {/* Footer */}
                             <div className="pt-2 flex gap-2">
                                 <button
-                                    onClick={() => { navigate('/notifications'); setIsOpen(false); }}
+                                    onClick={() => { navigate(notificationHubPath); setIsOpen(false); }}
                                     className="flex-1 py-3 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-evergreen transition-all flex items-center justify-center gap-2 cursor-pointer"
                                 >
-                                    VIEW HUB <ChevronRight className="w-3 h-3" />
+                                    VIEW ALL <ChevronRight className="w-3 h-3" />
                                 </button>
                                 <button className="w-11 h-11 border border-primary/10 text-muted-gray rounded-xl flex items-center justify-center hover:bg-primary/5 transition-all cursor-pointer">
                                     <Settings className="w-4 h-4" />

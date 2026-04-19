@@ -40,7 +40,7 @@ const PublicReportView: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
                 <LoadingSpinner size="lg" />
                 <p className="mt-4 text-gray-600 font-medium">Authenticating & Loading Secure Report...</p>
             </div>
@@ -49,7 +49,7 @@ const PublicReportView: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
                 <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border-t-4 border-red-500">
                     <FaExclamationTriangle className="text-red-500 text-5xl mx-auto mb-4" />
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
@@ -64,7 +64,7 @@ const PublicReportView: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+        <div className="min-h-screen bg-background flex flex-col">
             {/* Professional Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3">

@@ -31,6 +31,7 @@ const clearAllUserData = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('medsync_cart_cache');
     localStorage.removeItem('healthlab_promo_seen');
+    localStorage.removeItem('auth_last_fetch');
     // Clear all healthlab.* keys (pending bookings, etc.)
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('healthlab.')) {
@@ -40,41 +41,73 @@ const clearAllUserData = () => {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [currentUser, setCurrentUser] = useState<User | null>(() => {
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try { return JSON.parse(savedUser); } catch { return null; }
+        }
+        return null;
+    });
+    const [isLoading, setIsLoading] = useState<boolean>(() => {
+        const token = localStorage.getItem('token');
+        const user = localStorage.getItem('user');
+        return !!token && !user;
+    });
 
     // ✅ FIX 2: Hydrate by re-validating token against backend (not stale localStorage)
     useEffect(() => {
         let isMounted = true;
-
         const hydrateContext = async () => {
-            try {
-                const storedToken = localStorage.getItem('token');
-                if (!storedToken) {
-                    // No token = no session, clear everything
-                    localStorage.removeItem('user');
-                    localStorage.removeItem('medsync_cart_cache');
-                    if (isMounted) setIsLoading(false);
-                    return;
+            const storedToken = localStorage.getItem('token');
+            const storedUser = localStorage.getItem('user');
+            
+            if (!storedToken) {
+                clearAllUserData();
+                if (isMounted) {
+                    setCurrentUser(null);
+                    setIsLoading(false);
                 }
+                return;
+            }
 
-                // Always re-fetch profile from backend to verify token is valid
-                // and get FRESH user data (prevents stale data from previous session)
+            // At this point we have a token.
+            // If we have a cached user, we already set it in useState initializer.
+            // We just need to check if it's stale and re-validate.
+            const lastFetch = localStorage.getItem('auth_last_fetch');
+            const now = Date.now();
+            const STALE_TIME = 5 * 60 * 1000; // 5 minutes
+            const isStale = !lastFetch || (now - parseInt(lastFetch)) > STALE_TIME;
+
+            // If we have no cached user, we must show loading while we fetch.
+            if (!storedUser && isMounted) {
+                setIsLoading(true);
+            }
+
+            // Background / Foreground re-validation
+            // Only hit backend if cache is stale or missing
+            if (isStale) {
                 try {
                     const freshUser = await userService.getProfile();
                     if (isMounted) {
                         localStorage.setItem('user', JSON.stringify(freshUser));
+                        localStorage.setItem('auth_last_fetch', Date.now().toString());
                         setCurrentUser(freshUser);
+                        setIsLoading(false);
                     }
                 } catch (profileError: any) {
-                    // Token invalid/expired — clear everything
+                    // Token might be invalid/expired
+                    console.error("Auth re-validation failed:", profileError);
                     clearAllUserData();
-                    if (isMounted) setCurrentUser(null);
+                    if (isMounted) {
+                        setCurrentUser(null);
+                        setIsLoading(false);
+                    }
                 }
-            } catch (error) {
-                console.error('Auth hydration error:', error);
-            } finally {
-                if (isMounted) setIsLoading(false);
+            } else {
+                // Not stale - we already have the user from localStorage via useState
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
         };
 
@@ -150,6 +183,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('auth_last_fetch', Date.now().toString());
             setCurrentUser(user);
             
             // Fire redirect event — use authRole from login response (most reliable source)

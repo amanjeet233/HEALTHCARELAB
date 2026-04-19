@@ -6,12 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ReportResultRepository extends JpaRepository<ReportResult, Long> {
 
     @EntityGraph(attributePaths = {"parameter", "booking", "booking.test"})
     List<ReportResult> findByBookingId(Long bookingId);
+
+    Optional<ReportResult> findByBookingIdAndParameterId(Long bookingId, Long parameterId);
 
     @EntityGraph(attributePaths = {"parameter"})
     List<ReportResult> findByBookingPatientIdOrderByCreatedAtDesc(Long patientId);

@@ -44,6 +44,7 @@ public class AuditLogService {
                     .userRole(userRole)
                     .action(action)
                     .entityName(entityType != null ? entityType : "SYSTEM")
+                    .entityType(entityType != null ? entityType : "SYSTEM")
                     .entityId(entityId != null ? entityId : "N/A")
                     .newValue(details)
                     .ipAddress(ipAddress != null ? ipAddress : "N/A")

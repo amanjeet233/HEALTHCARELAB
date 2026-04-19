@@ -25,8 +25,20 @@ import ConfirmationModal from '../../components/common/ConfirmationModal';
 import { notify } from '../../utils/toast';
 import GlassCard from '../../components/common/GlassCard';
 import GlassButton from '../../components/common/GlassButton';
-import SkeletonBlock from '../../components/common/SkeletonBlock';
+import { BookingCardSkeleton } from '../../components/common/SkeletonLoader';
 import './MyBookingsPage.css';
+
+const getPatientNodeIndex = (status: string) => {
+    if (status === 'VERIFIED' || status === 'COMPLETED') return 3;
+    if (['SAMPLE_COLLECTED', 'PROCESSING', 'PENDING_VERIFICATION'].includes(status)) return 2;
+    return 1;
+};
+
+const PATIENT_NODES = [
+    { key: 1, label: 'Booked' },
+    { key: 2, label: 'Sample Collected' },
+    { key: 3, label: 'Report Ready' },
+];
 
 const MyBookingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -105,10 +117,11 @@ const MyBookingsPage: React.FC = () => {
             try {
                 const params: any = {
                     page: page,
-                    size: 20,
+                    size: 5,
                     sort: 'collectionDate,desc'
                 };
 
+                // Always show all statuses unless a filter is selected
                 if (activeTab !== 'All') {
                     params.status = activeTab.toUpperCase();
                 }
@@ -147,7 +160,7 @@ const MyBookingsPage: React.FC = () => {
 
     const completedBookings = useMemo(() => {
         return bookings.filter(b => 
-            b.status === 'COMPLETED' || b.status === 'CANCELLED'
+            b.status === 'COMPLETED' || b.status === 'VERIFIED' || b.status === 'CANCELLED'
         );
     }, [bookings]);
 
@@ -214,6 +227,7 @@ const MyBookingsPage: React.FC = () => {
 
     const renderUpcomingCard = (booking: BookingResponse) => {
         const canCancel = booking.status === 'BOOKED' || booking.status === 'CONFIRMED';
+        const currentNode = getPatientNodeIndex(String(booking.status || '').toUpperCase());
 
         return (
             <GlassCard key={booking.id} className="group hover:border-cyan-400 transition-all !p-0 overflow-hidden glass-pane hover:shadow-2xl hover:shadow-cyan-500/10">
@@ -248,6 +262,50 @@ const MyBookingsPage: React.FC = () => {
                         </div>
                     </div>
 
+                    <div className="mt-3 mb-3">
+                        <div className="flex items-center max-w-xs">
+                            {PATIENT_NODES.map((node, idx) => {
+                                const isComplete = currentNode > node.key;
+                                const isActive = currentNode === node.key;
+                                const isLast = idx === PATIENT_NODES.length - 1;
+
+                                return (
+                                    <React.Fragment key={node.key}>
+                                        <div className="flex flex-col items-center gap-1 shrink-0">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border-2 ${
+                                                isComplete
+                                                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                    : isActive
+                                                    ? 'bg-teal-600 border-teal-600 text-white ring-3 ring-teal-100'
+                                                    : 'bg-slate-100 border-slate-200 text-slate-400'
+                                            }`}>
+                                                {isComplete ? '✓' : node.key}
+                                            </div>
+                                            <span className={`text-[9px] font-bold text-center leading-tight max-w-[60px] ${
+                                                isComplete
+                                                    ? 'text-emerald-600'
+                                                    : isActive
+                                                    ? 'text-teal-700'
+                                                    : 'text-slate-400'
+                                            }`}>
+                                                {node.label}
+                                            </span>
+                                        </div>
+                                        {!isLast && (
+                                            <div className={`flex-1 h-0.5 mx-1 ${isComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+
+                        {booking.technicianName && (
+                            <p className="text-[10px] text-slate-400 font-medium mt-1.5">
+                                Technician: {booking.technicianName}
+                            </p>
+                        )}
+                    </div>
+
                     <div className="flex flex-wrap gap-3">
                         {booking.collectionAddress && (
                             <a href={`https://maps.google.com/?q=${encodeURIComponent(booking.collectionAddress)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-cyan-50 rounded-xl text-xs font-black text-slate-600 hover:text-cyan-700 border border-slate-100 hover:border-cyan-200 transition-all">
@@ -266,6 +324,15 @@ const MyBookingsPage: React.FC = () => {
                                 className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-black text-rose-500 transition-all"
                             >
                                 <XCircle size={14} /> CANCEL
+                            </button>
+                        )}
+                        {booking.reportAvailable && (
+                            <button
+                                onClick={() => navigate('/reports')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all"
+                            >
+                                <FileText className="w-3 h-3" />
+                                VIEW REPORT
                             </button>
                         )}
                     </div>
@@ -291,7 +358,7 @@ const MyBookingsPage: React.FC = () => {
     };
 
     return (
-        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
+        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen bg-background">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
                     <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
@@ -405,7 +472,7 @@ const MyBookingsPage: React.FC = () => {
                 {isLoading ? (
                     <div className="grid grid-cols-1 gap-4">
                         {[1, 2, 3].map(i => (
-                            <SkeletonBlock key={i} className="h-32 border border-white/30" />
+                            <BookingCardSkeleton key={i} />
                         ))}
                     </div>
                 ) : bookings.length === 0 ? (
@@ -431,7 +498,7 @@ const MyBookingsPage: React.FC = () => {
                                             {({ height, width }) => (
                                                 <List
                                                     rowCount={upcomingBookings.length}
-                                                    rowHeight={270}
+                                                    rowHeight={320}
                                                     rowComponent={UpcomingVirtualRow}
                                                     rowProps={{ rows: upcomingBookings }}
                                                     style={{ height, width }}
@@ -466,17 +533,64 @@ const MyBookingsPage: React.FC = () => {
                                             <p className="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2">
                                                 <Calendar size={14} /> {booking.collectionDate}
                                             </p>
+
+                                            <div className="mt-2 mb-4">
+                                                <div className="flex items-center max-w-xs">
+                                                    {PATIENT_NODES.map((node, idx) => {
+                                                        const currentNode = getPatientNodeIndex(String(booking.status || '').toUpperCase());
+                                                        const isComplete = currentNode > node.key;
+                                                        const isActive = currentNode === node.key;
+                                                        const isLast = idx === PATIENT_NODES.length - 1;
+
+                                                        return (
+                                                            <React.Fragment key={node.key}>
+                                                                <div className="flex flex-col items-center gap-1 shrink-0">
+                                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border-2 ${
+                                                                        isComplete
+                                                                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                                            : isActive
+                                                                            ? 'bg-teal-600 border-teal-600 text-white ring-3 ring-teal-100'
+                                                                            : 'bg-slate-100 border-slate-200 text-slate-400'
+                                                                    }`}>
+                                                                        {isComplete ? '✓' : node.key}
+                                                                    </div>
+                                                                    <span className={`text-[9px] font-bold text-center leading-tight max-w-[60px] ${
+                                                                        isComplete
+                                                                            ? 'text-emerald-600'
+                                                                            : isActive
+                                                                            ? 'text-teal-700'
+                                                                            : 'text-slate-400'
+                                                                    }`}>
+                                                                        {node.label}
+                                                                    </span>
+                                                                </div>
+                                                                {!isLast && (
+                                                                    <div className={`flex-1 h-0.5 mx-1 ${isComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {booking.technicianName && (
+                                                    <p className="text-[10px] text-slate-400 font-medium mt-1.5">
+                                                        Technician: {booking.technicianName}
+                                                    </p>
+                                                )}
+                                            </div>
                                             
                                             <div className="flex gap-2">
-                                                <GlassButton 
-                                                    size="sm" 
-                                                    variant="secondary" 
-                                                    className="flex-1"
-                                                    onClick={() => navigate('/reports')}
-                                                    icon={<FileText size={16} />}
-                                                >
-                                                    VIEW REPORT
-                                                </GlassButton>
+                                                {booking.reportAvailable && (
+                                                    <GlassButton 
+                                                        size="sm" 
+                                                        variant="secondary" 
+                                                        className="flex-1"
+                                                        onClick={() => navigate('/reports')}
+                                                        icon={<FileText size={16} />}
+                                                    >
+                                                        VIEW REPORT
+                                                    </GlassButton>
+                                                )}
                                                 <GlassButton 
                                                     size="sm" 
                                                     variant="outline" 
@@ -498,6 +612,13 @@ const MyBookingsPage: React.FC = () => {
 
             {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 mt-9">
+                    <button
+                        onClick={() => setPage(page > 0 ? page - 1 : 0)}
+                        disabled={page === 0}
+                        className={`px-4 py-2 rounded-lg font-black uppercase text-xs transition-all ${page === 0 ? 'bg-cyan-100 text-cyan-400 cursor-not-allowed' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}
+                    >
+                        Prev
+                    </button>
                     {Array.from({ length: totalPages }).map((_, i) => (
                         <button 
                             key={i} 
@@ -505,6 +626,13 @@ const MyBookingsPage: React.FC = () => {
                             className={`h-2 rounded-full transition-all ${page === i ? 'w-12 bg-cyan-600' : 'w-2 bg-cyan-100 hover:bg-cyan-200'}`} 
                         />
                     ))}
+                    <button
+                        onClick={() => setPage(page < totalPages - 1 ? page + 1 : totalPages - 1)}
+                        disabled={page === totalPages - 1}
+                        className={`px-4 py-2 rounded-lg font-black uppercase text-xs transition-all ${page === totalPages - 1 ? 'bg-cyan-100 text-cyan-400 cursor-not-allowed' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}
+                    >
+                        Next
+                    </button>
                 </div>
             )}
 

@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import ProtectedRoute from './ProtectedRoute';
 import PageTransition from '../common/PageTransition';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useAuth } from '../../hooks/useAuth';
 
 const lazyWithRetry = <T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>
@@ -44,6 +45,9 @@ const SettingsPage = lazy(() => import('../../pages/patient/SettingsPage'));
 const PromotionsPage = lazy(() => import('../../pages/PromotionsPage'));
 const ProfilePage = lazy(() => import('../../pages/patient/ProfilePage'));
 const NotificationCenter = lazy(() => import('../../pages/patient/NotificationCenter'));
+const AdminNotificationCenterPage = lazy(() => import('../../pages/admin/AdminNotificationCenterPage'));
+const TechnicianNotificationCenterPage = lazy(() => import('../../pages/technician/TechnicianNotificationCenterPage'));
+const MedicalOfficerNotificationCenterPage = lazy(() => import('../../pages/medical/MedicalOfficerNotificationCenterPage'));
 const AdminDashboard = lazy(() => import('../../pages/admin/AdminDashboard'));
 const AdminBookingsPage = lazy(() => import('../../pages/admin/AdminBookingsPage'));
 const AdminUsersPage = lazy(() => import('../../pages/admin/AdminUsersPage'));
@@ -57,6 +61,7 @@ const FamilyMembersPage = lazy(() => import('../../pages/patient/FamilyMembersPa
 const AddressBookPage = lazy(() => import('../../pages/patient/AddressBookPage'));
 const SmartReportsPage = lazy(() => import('../../pages/patient/SmartReportsPage'));
 const HealthInsightsPage = lazy(() => import('../../pages/patient/HealthInsightsPage'));
+const HealthOptimizationPage = lazy(() => import('../../pages/patient/HealthOptimizationPage'));
 const LabPartnerPage = lazy(() => import('../../pages/LabPartnerPage'));
 const AuditLogsPage = lazy(() => import('../../pages/admin/AuditLogsPage'));
 const PromoCodesPage = lazy(() => import('../../pages/admin/PromoCodesPage'));
@@ -68,22 +73,36 @@ const LoginPage = lazy(() => import('../../pages/LoginPage'));
 const TechnicianDashboardPage = lazy(() => import('../../pages/technician/TechnicianDashboardPage'));
 const TechnicianTodayPage = lazy(() => import('../../pages/technician/TechnicianTodayPage'));
 const TechnicianQueuePage = lazy(() => import('../../pages/technician/TechnicianQueuePage'));
+const TechnicianInLabPage = lazy(() => import('../../pages/technician/TechnicianInLabPage'));
 const TechnicianCollectedPage = lazy(() => import('../../pages/technician/TechnicianCollectedPage'));
 const TechnicianProfilePage = lazy(() => import('../../pages/technician/TechnicianProfilePage'));
+const TechnicianResultEntryPage = lazy(() => import('../../pages/technician/TechnicianResultEntryPage'));
 const MedicalOfficerDashboardPage = lazy(() => import('../../pages/medical/MedicalOfficerDashboardPage'));
 const MedicalOfficerVerificationPage = lazy(() => import('../../pages/medical/MedicalOfficerVerificationPage'));
+const MedicalOfficerHistoryPage = lazy(() => import('../../pages/medical/MedicalOfficerHistoryPage'));
+const MedicalOfficerBookingDetailsPage = lazy(() => import('../../pages/medical/MedicalOfficerBookingDetailsPage'));
 const MedicalOfficerAssignmentsPage = lazy(() => import('../../pages/medical/MedicalOfficerAssignmentsPage'));
 const MedicalOfficerPipelinePage = lazy(() => import('../../pages/medical/MedicalOfficerPipelinePage'));
 const MedicalOfficerProfilePage = lazy(() => import('../../pages/medical/MedicalOfficerProfilePage'));
 const PublicReportView = lazy(() => import('../../pages/public/PublicReportView'));
+const ReportPrintPage = lazy(() => import('../../pages/patient/ReportPrintPage'));
 
 import MainLayout from './MainLayout';
 
 const AnimatedRoutes: React.FC = () => {
     const location = useLocation();
+    const { currentUser, isAuthenticated } = useAuth();
+
+    const HomeRoute: React.FC = () => {
+        const role = currentUser?.role;
+        if (isAuthenticated && role === 'ADMIN') return <Navigate to="/admin" replace />;
+        if (isAuthenticated && role === 'TECHNICIAN') return <Navigate to="/technician" replace />;
+        if (isAuthenticated && role === 'MEDICAL_OFFICER') return <Navigate to="/medical-officer" replace />;
+        return <LandingPage />;
+    };
 
     return (
-        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background dark:bg-gray-900"><LoadingSpinner size="lg" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
             <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname}>
                     <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
@@ -93,7 +112,7 @@ const AnimatedRoutes: React.FC = () => {
 
                     {/* Unified Platform Pages (with persistent header/footer) */}
                     <Route element={<MainLayout />}>
-                        <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
+                        <Route path="/" element={<PageTransition><HomeRoute /></PageTransition>} />
                         {/* ── Lab Tests routes (MedSync style) ── */}
                         {/* Specific routes MUST come before dynamic :slug routes */}
                         <Route path="/lab-tests" element={<PageTransition><TestListingPage /></PageTransition>} />
@@ -129,6 +148,7 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/admin/audit-logs" element={<PageTransition><AuditLogsPage /></PageTransition>} />
                           <Route path="/admin/promo-codes" element={<PageTransition><PromoCodesPage /></PageTransition>} />
                           <Route path="/admin/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
+                          <Route path="/admin/notifications" element={<PageTransition><AdminNotificationCenterPage /></PageTransition>} />
                             <Route path="/admin/doctor-management" element={<PageTransition><DoctorManagementPage /></PageTransition>} />
                             <Route path="/admin/reference-ranges" element={<PageTransition><ReferenceRangesPage /></PageTransition>} />
                             <Route path="/admin/test-parameters" element={<PageTransition><TestParametersPage /></PageTransition>} />
@@ -139,7 +159,11 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/technician" element={<PageTransition><TechnicianDashboardPage /></PageTransition>} />
                           <Route path="/technician/today" element={<PageTransition><TechnicianTodayPage /></PageTransition>} />
                           <Route path="/technician/queue" element={<PageTransition><TechnicianQueuePage /></PageTransition>} />
+                          <Route path="/technician/inlab" element={<PageTransition><TechnicianInLabPage /></PageTransition>} />
+                          <Route path="/technician/in-lab" element={<Navigate to="/technician/inlab" replace />} />
                           <Route path="/technician/collected" element={<PageTransition><TechnicianCollectedPage /></PageTransition>} />
+                          <Route path="/technician/results/:bookingId" element={<PageTransition><TechnicianResultEntryPage /></PageTransition>} />
+                          <Route path="/technician/notifications" element={<PageTransition><TechnicianNotificationCenterPage /></PageTransition>} />
                           <Route path="/technician/profile" element={<PageTransition><TechnicianProfilePage /></PageTransition>} />
                         </Route>
 
@@ -147,8 +171,11 @@ const AnimatedRoutes: React.FC = () => {
                         <Route element={<ProtectedRoute allowedRoles={['MEDICAL_OFFICER']} />}>
                             <Route path="/medical-officer" element={<PageTransition><MedicalOfficerDashboardPage /></PageTransition>} />
                           <Route path="/medical-officer/verification" element={<PageTransition><MedicalOfficerVerificationPage /></PageTransition>} />
+                          <Route path="/medical-officer/history" element={<PageTransition><MedicalOfficerHistoryPage /></PageTransition>} />
+                          <Route path="/medical-officer/bookings/:bookingId" element={<PageTransition><MedicalOfficerBookingDetailsPage /></PageTransition>} />
                           <Route path="/medical-officer/assignments" element={<PageTransition><MedicalOfficerAssignmentsPage /></PageTransition>} />
                           <Route path="/medical-officer/pipeline" element={<PageTransition><MedicalOfficerPipelinePage /></PageTransition>} />
+                          <Route path="/medical-officer/notifications" element={<PageTransition><MedicalOfficerNotificationCenterPage /></PageTransition>} />
                           <Route path="/medical-officer/profile" element={<PageTransition><MedicalOfficerProfilePage /></PageTransition>} />
                         </Route>
 
@@ -168,7 +195,9 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/notifications" element={<PageTransition><NotificationCenter /></PageTransition>} />
                             <Route path="/book-consultation" element={<PageTransition><BookConsultationPage /></PageTransition>} />
                             <Route path="/reports" element={<PageTransition><ReportsPage /></PageTransition>} />
-                            <Route path="/smart-reports" element={<PageTransition><SmartReportsPage /></PageTransition>} />
+                            <Route path="/smart-reports/:bookingId?" element={<PageTransition><SmartReportsPage /></PageTransition>} />
+                            <Route path="/reports/:bookingId/print" element={<ReportPrintPage />} />
+                            <Route path="/health-plan/:bookingId" element={<PageTransition><HealthOptimizationPage /></PageTransition>} />
                             <Route path="/my-reports" element={<Navigate to="/reports" replace />} />
                             <Route path="/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />
                         </Route>

@@ -86,6 +86,7 @@ class ReportServiceTest {
         technician.setId(2L);
         technician.setName("Test Technician");
         technician.setEmail("tech@test.com");
+        technician.setRole(UserRole.TECHNICIAN);
 
         booking = new Booking();
         booking.setId(1L);
@@ -129,6 +130,7 @@ class ReportServiceTest {
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
         when(userRepository.findByEmail("tech@test.com")).thenReturn(Optional.of(technician));
         when(testParameterRepository.findById(1L)).thenReturn(Optional.of(parameter));
+        when(reportResultRepository.findByBookingIdAndParameterId(1L, 1L)).thenReturn(Optional.empty());
         when(reportResultRepository.save(any(ReportResult.class))).thenReturn(reportResult);
 
         // Mock SecurityContext
@@ -155,6 +157,57 @@ class ReportServiceTest {
     }
 
     @Test
+    void enterReportResults_ExistingResult_UpdatesInsteadOfInsert() {
+        // Given
+        ReportResultRequest request = ReportResultRequest.builder()
+                .bookingId(1L)
+                .technicianId(2L)
+                .results(List.of(
+                        ReportResultRequest.ResultItem.builder()
+                                .parameterId(1L)
+                                .resultValue("180")
+                                .unit("mg/dL")
+                                .notes("Updated value")
+                                .build()))
+                .build();
+
+        ReportResult existingResult = new ReportResult();
+        existingResult.setId(99L);
+        existingResult.setBooking(booking);
+        existingResult.setParameter(parameter);
+        existingResult.setResultValue("100");
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(userRepository.findByEmail("tech@test.com")).thenReturn(Optional.of(technician));
+        when(testParameterRepository.findById(1L)).thenReturn(Optional.of(parameter));
+        when(reportResultRepository.findByBookingIdAndParameterId(1L, 1L)).thenReturn(Optional.of(existingResult));
+        when(reportResultRepository.save(any(ReportResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Mock SecurityContext
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("tech@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+
+            // When
+            ReportResultDTO result = reportService.enterReportResults(request);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getResults()).hasSize(1);
+            assertThat(result.getResults().get(0).getId()).isEqualTo(99L);
+            assertThat(result.getResults().get(0).getResultValue()).isEqualTo("180");
+            verify(reportResultRepository).findByBookingIdAndParameterId(1L, 1L);
+            verify(reportResultRepository).save(existingResult);
+        }
+    }
+
+    @Test
     void enterReportResults_BookingNotFound_ThrowsException() {
         // Given
         ReportResultRequest request = ReportResultRequest.builder()
@@ -174,16 +227,28 @@ class ReportServiceTest {
     @Test
     void getReportByBookingId_Success() {
         // Given
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("tech@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        when(userRepository.findByEmail("tech@test.com")).thenReturn(Optional.of(technician));
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
         when(reportResultRepository.findByBookingId(1L)).thenReturn(List.of(reportResult));
 
-        // When
-        ReportResultDTO result = reportService.getReportByBookingId(1L);
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
 
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getBookingId()).isEqualTo(1L);
-        assertThat(result.getResults()).hasSize(1);
+            // When
+            ReportResultDTO result = reportService.getReportByBookingId(1L);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getBookingId()).isEqualTo(1L);
+            assertThat(result.getResults()).hasSize(1);
+        }
     }
 
     @Test
@@ -200,13 +265,25 @@ class ReportServiceTest {
     @Test
     void getReportByBookingId_NoResults_ThrowsException() {
         // Given
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("tech@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        when(userRepository.findByEmail("tech@test.com")).thenReturn(Optional.of(technician));
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
         when(reportResultRepository.findByBookingId(1L)).thenReturn(List.of());
 
-        // When/Then
-        assertThrows(RuntimeException.class, () -> {
-            reportService.getReportByBookingId(1L);
-        });
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+
+            // When/Then
+            assertThrows(RuntimeException.class, () -> {
+                reportService.getReportByBookingId(1L);
+            });
+        }
     }
 
     @Test

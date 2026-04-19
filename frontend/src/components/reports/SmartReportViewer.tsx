@@ -27,16 +27,16 @@ const SmartReportViewer: React.FC<SmartReportViewerProps> = ({ analysis, isLoadi
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {/* ── Top Section: Health Score & Security Seal ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main Score Card */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-2 bg-gradient-to-br from-[#0D7C7C] via-[#0D7C7C] to-[#004B87] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden"
+          className="lg:col-span-2 bg-gradient-to-br from-[#0D7C7C] via-[#0D7C7C] to-[#004B87] rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden"
         >
-          <div className="absolute top-0 right-0 p-8 opacity-10 text-[180px] pointer-events-none">
+          <div className="absolute top-0 right-0 p-6 opacity-10 text-[120px] pointer-events-none">
             <FaHeartbeat />
           </div>
           
@@ -62,13 +62,13 @@ const SmartReportViewer: React.FC<SmartReportViewerProps> = ({ analysis, isLoadi
               </div>
             )}
             
-            <div className="flex items-end gap-1 mb-4">
-              <h2 className="text-8xl font-black leading-none">{analysis.healthScore}</h2>
-              <span className="text-3xl font-bold opacity-60 mb-2">/100</span>
+            <div className="flex items-end gap-1 mb-2">
+              <h2 className="text-6xl font-black leading-none">{analysis.healthScore}</h2>
+              <span className="text-xl font-bold opacity-60 mb-2">/100</span>
             </div>
             
-            <h3 className="text-xl font-bold mb-4">Overall Vitality Score</h3>
-            <p className="max-w-2xl text-white/80 leading-relaxed font-medium">
+            <h3 className="text-lg font-bold mb-2 uppercase tracking-wide">Overall Vitality Score</h3>
+            <p className="max-w-xl text-white/80 leading-relaxed font-medium text-sm">
               {analysis.summary}
             </p>
           </div>
@@ -79,7 +79,7 @@ const SmartReportViewer: React.FC<SmartReportViewerProps> = ({ analysis, isLoadi
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-xl flex flex-col justify-between"
+          className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-xl flex flex-col justify-between"
         >
           <div>
             <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 font-black text-xs tracking-wider border-2 ${getRiskColor(analysis.riskLevel)}`}>
@@ -91,10 +91,10 @@ const SmartReportViewer: React.FC<SmartReportViewerProps> = ({ analysis, isLoadi
             </p>
           </div>
           
-          <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Digital Fingerprint (HMAC)</p>
-            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl overflow-hidden">
-               <code className="text-[9px] text-[#0D7C7C] font-mono break-all leading-tight block">
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Digital Fingerprint</p>
+            <div className="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl overflow-hidden">
+               <code className="text-[8px] text-[#0D7C7C] font-mono break-all leading-tight block">
                  {/* This would come from analysis.fingerprint in a real scenario, fallback here */}
                  {analysis.lastUpdated ? btoa(analysis.lastUpdated.toString()).slice(0, 32) : 'A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6'}
                </code>
@@ -205,14 +205,6 @@ const SmartReportViewer: React.FC<SmartReportViewerProps> = ({ analysis, isLoadi
         )}
       </div>
 
-      {/* Footer Disclaimer */}
-      <div className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.3em] text-center pt-8 opacity-50">
-        Clinical Interpretation Logic v2.5.0 • Last Sync: {new Date(analysis.lastUpdated).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })}
-      </div>
     </div>
   );
 };

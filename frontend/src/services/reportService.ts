@@ -92,9 +92,18 @@ export const reportService = {
     },
 
     downloadReport: async (bookingId: number): Promise<void> => {
-        const response = await api.get(`/api/reports/${bookingId}/download`, { responseType: 'blob' });
-        const contentType = response.headers['content-type'] || 'application/octet-stream';
-        const blob = new Blob([response.data], { type: contentType });
+        const response = await api.get(`/api/reports/${bookingId}/download`, {
+            responseType: 'arraybuffer',
+            headers: {
+                Accept: 'application/pdf'
+            }
+        });
+        const contentType = response.headers['content-type'] || 'application/pdf';
+        const buffer = response.data as ArrayBuffer;
+        const blob = new Blob([buffer], { type: contentType });
+        if (blob.size === 0) {
+            throw new Error(`Empty PDF response for booking ${bookingId}`);
+        }
         const url = URL.createObjectURL(blob);
         const contentDisposition = response.headers['content-disposition'] as string | undefined;
         const match = contentDisposition?.match(/filename="?([^"]+)"?/i);

@@ -24,6 +24,7 @@ public class DoctorTest {
     @JoinColumn(name = "test_id", nullable = false)
     private LabTest test;
 
+    @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
 

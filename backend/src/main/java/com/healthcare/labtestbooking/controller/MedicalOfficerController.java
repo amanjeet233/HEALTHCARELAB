@@ -5,7 +5,6 @@ import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.DeltaCheckEntry;
 import com.healthcare.labtestbooking.dto.ReportVerificationRequest;
 import com.healthcare.labtestbooking.dto.ReportVerificationResponse;
-import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.service.BookingService;
 import com.healthcare.labtestbooking.service.MedicalOfficerService;
@@ -33,21 +32,31 @@ public class MedicalOfficerController {
     private final BookingRepository bookingRepository;
     private final BookingService bookingService;
 
+    @GetMapping("/history")
+    @PreAuthorize("hasRole('MEDICAL_OFFICER')")
+    public ResponseEntity<ApiResponse<Page<ReportVerificationResponse>>> getMOHistory(
+            @RequestParam(required = false, defaultValue = "ALL") String status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<ReportVerificationResponse> history = medicalOfficerService.getVerificationHistory(status, pageable);
+        return ResponseEntity.ok(ApiResponse.success("History", history));
+    }
+
     @GetMapping("/bookings")
     @PreAuthorize("hasRole('MEDICAL_OFFICER')")
-    public ResponseEntity<ApiResponse<Page<BookingResponse>>> getMOBookings(
+    public ResponseEntity<ApiResponse<Page<ReportVerificationResponse>>> getMOBookings(
             @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<BookingResponse> bookings;
-        if (status != null && !status.isBlank()) {
-            BookingStatus bs = BookingStatus.valueOf(status.toUpperCase());
-            bookings = bookingRepository.findByStatus(bs, pageable)
-                    .map(bookingService::mapToResponsePublic);
-        } else {
-            bookings = bookingRepository.findAll(pageable)
-                    .map(bookingService::mapToResponsePublic);
-        }
+        Page<ReportVerificationResponse> bookings = medicalOfficerService.getVerificationsByFilter(status, pageable);
         return ResponseEntity.ok(ApiResponse.success("Bookings", bookings));
+    }
+
+    @GetMapping("/bookings/{bookingId}")
+    @PreAuthorize("hasRole('MEDICAL_OFFICER')")
+    public ResponseEntity<ApiResponse<BookingResponse>> getMOBookingById(@PathVariable Long bookingId) {
+        BookingResponse booking = bookingRepository.findDetailedById(bookingId)
+                .map(bookingService::mapToResponsePublic)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
+        return ResponseEntity.ok(ApiResponse.success("Booking fetched successfully", booking));
     }
 
     @GetMapping("/pending")

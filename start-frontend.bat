@@ -31,9 +31,9 @@ if errorlevel 1 (
 
 echo Starting frontend in a new window...
 if "%DO_KILL_PORT%"=="1" (
-  start "%WINDOW_TITLE%" cmd /k "cd /d "%PROJECT_DIR%" && echo Releasing port %APP_PORT%... && call "%KILL_PORT_SCRIPT%" %APP_PORT% && echo Installing dependencies if needed... && npm install && echo Starting frontend... && npm run dev"
+  start "%WINDOW_TITLE%" cmd /k "cd /d "%PROJECT_DIR%" && echo Releasing port %APP_PORT%... && call "%KILL_PORT_SCRIPT%" %APP_PORT% && echo Starting frontend... && npm run dev"
 ) else (
-  start "%WINDOW_TITLE%" cmd /k "cd /d "%PROJECT_DIR%" && echo Installing dependencies if needed... && npm install && echo Starting frontend... && npm run dev"
+  start "%WINDOW_TITLE%" cmd /k "cd /d "%PROJECT_DIR%" && echo Starting frontend... && npm run dev"
 )
 
 echo Frontend launch command sent.

@@ -10,6 +10,7 @@ import {
     Loader2, 
     Copy, 
     ExternalLink, 
+    ChevronRight,
     ChevronDown, 
     Check, 
     Gift,
@@ -237,6 +238,12 @@ const PromoCodesPage: React.FC = () => {
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-12 min-h-screen">
+      <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/60 mb-6">
+        <span>Home</span>
+        <ChevronRight className="w-3 h-3" />
+        <span>Promo Codes</span>
+      </div>
+
       <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-12 mb-16">
           <div className="max-w-2xl">
               <div className="flex items-center gap-3 mb-4">

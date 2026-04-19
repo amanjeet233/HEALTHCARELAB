@@ -29,6 +29,9 @@ logging:
     org.springframework.security: WARN
 
 app:
+  report:
+    pdf:
+      browser-path: ${APP_REPORT_PDF_BROWSER_PATH:}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
   security:

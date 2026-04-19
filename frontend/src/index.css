@@ -9,12 +9,13 @@
   --color-primary: #0891B2;
   --color-secondary: #22D3EE;
   --color-accent: #059669;
-  --color-background: #ECFEFF;
+  --color-background: #F0F9F9;
   --color-text: #164E63;
   --color-text-dim: #64748B;
-  
+
   /* Legacy/Support Colors */
   --color-primary-teal: #0D7C7C;
+  --color-bg: var(--color-background);
 
   /* Semantic Mappings */
   --color-success: var(--color-accent);
@@ -51,15 +52,17 @@
 }
 
 @layer base {
+
   /* MedSync Centering Logic */
-  html, body {
+  html,
+  body {
     width: 100%;
     height: 100%;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
   }
-  
+
   #root {
     width: 100%;
     min-height: 100vh;
@@ -86,12 +89,29 @@
     color: var(--color-text-primary);
   }
 
-  h1 { @apply text-4xl; }
-  h2 { @apply text-3xl; }
-  h3 { @apply text-2xl; }
-  h4 { @apply text-xl; }
-  h5 { @apply text-lg; }
-  h6 { @apply text-base; }
+  h1 {
+    @apply text-4xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+
+  h4 {
+    @apply text-xl;
+  }
+
+  h5 {
+    @apply text-lg;
+  }
+
+  h6 {
+    @apply text-base;
+  }
 }
 
 @layer utilities {
@@ -142,33 +162,33 @@
   }
 
   .medical-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 4px 20px -4px rgba(13, 124, 124, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 20px -4px rgba(13, 124, 124, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
   .medical-card:hover {
-  border-color: var(--color-primary-teal);
-  box-shadow: 0 10px 30px -4px rgba(13, 124, 124, 0.15);
-  transform: translateY(-2px);
-}
+    border-color: var(--color-primary-teal);
+    box-shadow: 0 10px 30px -4px rgba(13, 124, 124, 0.15);
+    transform: translateY(-2px);
+  }
 
   .premium-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 4px 20px -4px rgba(13, 124, 124, 0.1);
-  padding: var(--space-lg);
-  transition: all var(--transition-base);
-}
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 20px -4px rgba(13, 124, 124, 0.1);
+    padding: var(--space-lg);
+    transition: all var(--transition-base);
+  }
 
   .premium-card:hover {
-  border-color: var(--color-primary-teal);
-  box-shadow: 0 10px 30px -4px rgba(13, 124, 124, 0.15);
-  transform: translateY(-2px);
-}
+    border-color: var(--color-primary-teal);
+    box-shadow: 0 10px 30px -4px rgba(13, 124, 124, 0.15);
+    transform: translateY(-2px);
+  }
 
   .popular-card {
     background: rgba(93, 173, 226, 0.08);
@@ -269,8 +289,10 @@
 }
 
 body {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 /* Animation Delay Utilities */
@@ -318,8 +340,14 @@ body {
 }
 
 /* ── Hide scrollbar globally on horizontal rows ──────────────── */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    PROMPT 15 — Global Mobile Polish
@@ -335,8 +363,12 @@ body {
   scrollbar-width: none;
   padding-bottom: 4px;
 }
-.touch-carousel::-webkit-scrollbar { display: none; }
-.touch-carousel > * {
+
+.touch-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.touch-carousel>* {
   scroll-snap-align: start;
   flex-shrink: 0;
 }
@@ -352,8 +384,9 @@ body {
   overflow-y: auto;
   z-index: 200;
   background: #fff;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
 }
+
 .bottom-sheet-handle {
   width: 40px;
   height: 4px;
@@ -364,8 +397,11 @@ body {
 
 /* ── Mobile-specific page padding ────────────────────────────── */
 @media (max-width: 767px) {
+
   /* Extra bottom space for sticky cart bar */
-  body { padding-bottom: 80px; }
+  body {
+    padding-bottom: 80px;
+  }
 
   /* Test cards: 2 per row on most mobiles, 1 on tiny phones */
   .medsync-test-grid {
@@ -401,16 +437,20 @@ body {
   width: 5px;
   display: block;
 }
+
 .premium-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .premium-scrollbar::-webkit-scrollbar-thumb {
   background: #C2410C22;
   border-radius: 10px;
 }
+
 .premium-scrollbar:hover::-webkit-scrollbar-thumb {
   background: #C2410C44;
 }
+
 .premium-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #C2410C66;
 }
@@ -420,20 +460,24 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
 }
+
 .scrollbar-visible::-webkit-scrollbar {
   width: 8px;
   height: 8px;
   display: block;
 }
+
 .scrollbar-visible::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 9999px;
 }
+
 .scrollbar-visible::-webkit-scrollbar-thumb {
   background: #94a3b8;
   border-radius: 9999px;
   border: 2px solid #f1f5f9;
 }
+
 .scrollbar-visible::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }

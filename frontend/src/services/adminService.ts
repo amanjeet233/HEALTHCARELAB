@@ -1,4 +1,4 @@
-import api from './api';
+import api, { cachedGet } from './api';
 
 export interface SystemStats {
     totalUsers?: number;
@@ -152,7 +152,7 @@ export const adminService = {
     },
 
     getChartData: async (type: string): Promise<ChartDataPoint[]> => {
-        const response = await api.get(`/api/admin/charts/${type}`);
+        const response = await cachedGet(`/api/admin/charts/${type}`);
         return response.data?.data || response.data || [];
     },
 

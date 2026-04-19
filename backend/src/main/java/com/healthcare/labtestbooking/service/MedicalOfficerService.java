@@ -24,6 +24,7 @@ import com.healthcare.labtestbooking.repository.ReportVerificationRepository;
 import com.healthcare.labtestbooking.repository.TechnicianRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MedicalOfficerService {
 
     private final ReportVerificationRepository reportVerificationRepository;
@@ -53,12 +56,14 @@ public class MedicalOfficerService {
     private final BookingService bookingService;
     private final AuditService auditService;
     private final NotificationInboxService notificationInboxService;
+    private final NotificationService notificationService;
     private final PdfReportService pdfReportService;
     private final ReflexTestingService reflexTestingService;
     private final AIAnalysisService aiAnalysisService;
     private final ReportSealingService reportSealingService;
     private final PanicAlertLogRepository panicAlertLogRepository;
 
+    @Transactional(readOnly = true)
     public Page<ReportVerificationResponse> getPendingVerifications(Pageable pageable) {
         validateMedicalOfficerAccess();
         return reportVerificationRepository
@@ -66,6 +71,7 @@ public class MedicalOfficerService {
                 .map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
     public Page<ReportVerificationResponse> getVerificationsByFilter(String filter, Pageable pageable) {
         validateMedicalOfficerAccess();
         
@@ -95,11 +101,32 @@ public class MedicalOfficerService {
         return verifications.map(this::mapToResponse);
     }
 
+	@Transactional(readOnly = true)
+	public Page<ReportVerificationResponse> getVerificationHistory(String status, Pageable pageable) {
+		validateMedicalOfficerAccess();
+
+		if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+			VerificationStatus verificationStatus = VerificationStatus.valueOf(status.toUpperCase());
+			return reportVerificationRepository.findByStatusOrderByCreatedAtDesc(verificationStatus, pageable)
+					.map(this::mapToResponse);
+		}
+
+		return reportVerificationRepository
+				.findByStatusInOrderByCreatedAtDesc(Arrays.asList(
+						VerificationStatus.APPROVED,
+						VerificationStatus.REJECTED,
+						VerificationStatus.FLAGGED
+				), pageable)
+				.map(this::mapToResponse);
+	}
+
+    @Transactional(readOnly = true)
     public long getPendingVerificationsCount() {
         validateMedicalOfficerAccess();
         return reportVerificationRepository.countByStatus(VerificationStatus.PENDING);
     }
 
+    @Transactional(readOnly = true)
     public List<DeltaCheckEntry> getDeltaCheck(Long patientId, String testName) {
         validateMedicalOfficerAccess();
         if (patientId == null || testName == null || testName.trim().isEmpty()) {
@@ -169,7 +196,15 @@ public class MedicalOfficerService {
         verification = reportVerificationRepository.save(verification);
 
         Report report = reportRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new RuntimeException("Uploaded report not found for booking with id: " + bookingId));
+                .orElseGet(() -> {
+                    Report generatedReport = Report.builder()
+                            .booking(booking)
+                            .patient(booking.getPatient())
+                            .generatedDate(LocalDateTime.now())
+                            .status(ReportStatus.DRAFT)
+                            .build();
+                    return reportRepository.save(generatedReport);
+                });
         LocalDateTime verifiedAt = LocalDateTime.now();
         report.setVerifiedBy(medicalOfficer.getName());
         report.setVerifiedAt(verifiedAt);
@@ -192,6 +227,42 @@ public class MedicalOfficerService {
         // Generate and persist patient-downloadable PDF right after MO sign-off.
         pdfReportService.generateReport(bookingId);
         aiAnalysisService.analyzeReport(bookingId);
+
+        // Notify patient that report is ready
+        try {
+            User patient = booking.getPatient();
+            if (patient != null) {
+                notificationService.sendReportReadyNotification(patient, booking);
+                log.info("[NOTIFY] Report ready sent to patient: {}", patient.getEmail());
+            }
+        } catch (Exception notifyEx) {
+            // Never fail verification due to notification failure
+            log.error("[NOTIFY] Failed to notify patient: {}", notifyEx.getMessage());
+        }
+
+        // Create in-app notification in notification inbox
+        try {
+            User patient = booking.getPatient();
+            if (patient != null) {
+                String testName = booking.getTest() != null
+                        ? booking.getTest().getTestName()
+                        : booking.getTestPackage() != null
+                                ? booking.getTestPackage().getPackageName()
+                                : "Your lab test";
+
+                notificationInboxService.createNotification(
+                        patient.getId(),
+                        "REPORT_READY",
+                        "Report Ready for Download",
+                        testName + " report has been verified by " + medicalOfficer.getName()
+                                + ". Download it now. Visit /reports",
+                        "REPORT",
+                        bookingId
+                );
+            }
+        } catch (Exception inboxEx) {
+            log.error("[INBOX] Failed to create inbox notification: {}", inboxEx.getMessage());
+        }
 
         auditService.logAction(
                 medicalOfficer.getId(), medicalOfficer.getEmail(), UserRole.MEDICAL_OFFICER.name(),
@@ -478,6 +549,7 @@ public class MedicalOfficerService {
      * Returns all bookings with no technician assigned yet, in statuses BOOKED or CONFIRMED,
      * sorted by bookingDate ascending — gives MO visibility into pending collections.
      */
+    @Transactional(readOnly = true)
     public List<BookingResponse> getUnassignedBookings() {
         validateMedicalOfficerAccess();
                 List<BookingStatus> eligibleStatuses = Arrays.asList(BookingStatus.BOOKED, BookingStatus.CONFIRMED);
@@ -491,6 +563,7 @@ public class MedicalOfficerService {
      * Returns all active technicians with their booking count for a given date
      * so the MO can make load-balanced assignment decisions.
      */
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getTechniciansAvailableForDate(LocalDate date) {
         validateMedicalOfficerAccess();
 
@@ -544,6 +617,7 @@ public class MedicalOfficerService {
                 .anyMatch(r -> Boolean.TRUE.equals(r.getIsAbnormal()) || Boolean.TRUE.equals(r.getIsCritical()));
         String testName = resolveTestName(booking);
         Long patientId = booking.getPatient() != null ? booking.getPatient().getId() : null;
+        List<Map<String, Object>> resultItems = buildResultItems(booking.getId());
         List<DeltaCheckEntry> previousResults = patientId != null ? getDeltaCheck(patientId, testName) : List.of();
 
         return ReportVerificationResponse.builder()
@@ -553,12 +627,19 @@ public class MedicalOfficerService {
                 .verificationDate(report.getVerifiedAt())
                 .createdAt(report.getCreatedAt())
                 .updatedAt(report.getUpdatedAt())
-                .patientName(booking.getPatientDisplayName())
+                .patientName(booking.getPatientDisplayName() != null && !booking.getPatientDisplayName().isBlank()
+                        ? booking.getPatientDisplayName()
+                        : booking.getPatient() != null ? booking.getPatient().getName() : null)
                 .patientId(patientId)
+                .bookingReference(booking.getBookingReference())
+                .reference(booking.getBookingReference())
                 .testName(testName)
                 .bookingDate(booking.getBookingDate() != null ? booking.getBookingDate().toString() : null)
+                .collectionAddress(booking.getCollectionAddress())
+                .address(booking.getCollectionAddress())
                 .criticalFlag(Boolean.TRUE.equals(booking.getCriticalFlag()))
                 .anyResultAbnormal(anyAbnormal)
+                .resultItems(resultItems)
                 .previousResults(previousResults)
                 .digitalFingerprint(report.getDigitalFingerprint())
                 .version(report.getVersion())
@@ -573,6 +654,7 @@ public class MedicalOfficerService {
                 .anyMatch(r -> Boolean.TRUE.equals(r.getIsAbnormal()) || Boolean.TRUE.equals(r.getIsCritical()));
         String testName = resolveTestName(booking);
         Long patientId = booking.getPatient() != null ? booking.getPatient().getId() : null;
+        List<Map<String, Object>> resultItems = buildResultItems(booking.getId());
         List<DeltaCheckEntry> previousResults = patientId != null ? getDeltaCheck(patientId, testName) : List.of();
 
         return ReportVerificationResponse.builder()
@@ -589,16 +671,47 @@ public class MedicalOfficerService {
                 .specialistType(verification.getSpecialistType())
                 .createdAt(verification.getCreatedAt())
                 .updatedAt(verification.getUpdatedAt())
-                .patientName(booking.getPatientDisplayName())
+                .patientName(booking.getPatientDisplayName() != null && !booking.getPatientDisplayName().isBlank()
+                        ? booking.getPatientDisplayName()
+                        : booking.getPatient() != null ? booking.getPatient().getName() : null)
                 .patientId(patientId)
+                .bookingReference(booking.getBookingReference())
+                .reference(booking.getBookingReference())
                 .testName(testName)
                 .bookingDate(booking.getBookingDate() != null ? booking.getBookingDate().toString() : null)
+                .collectionAddress(booking.getCollectionAddress())
+                .address(booking.getCollectionAddress())
                 .criticalFlag(Boolean.TRUE.equals(booking.getCriticalFlag()))
                 .anyResultAbnormal(anyAbnormal)
                 .previouslyRejected(Boolean.TRUE.equals(verification.getPreviouslyRejected()))
+                .resultItems(resultItems)
                 .previousResults(previousResults)
                 .digitalFingerprint(reportRepository.findByBookingId(booking.getId()).map(Report::getDigitalFingerprint).orElse(null))
                 .build();
+    }
+
+    private List<Map<String, Object>> buildResultItems(Long bookingId) {
+        List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
+        return results.stream()
+                .map(r -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("parameterName",
+                            r.getParameter() != null && r.getParameter().getParameterName() != null
+                                    ? r.getParameter().getParameterName()
+                                    : "Unknown");
+                    item.put("value", r.getResultValue());
+                    item.put("unit",
+                            r.getParameter() != null && r.getParameter().getUnit() != null
+                                    ? r.getParameter().getUnit()
+                                    : "");
+                    item.put("normalRange",
+                            r.getParameter() != null && r.getParameter().getNormalRangeText() != null
+                                    ? r.getParameter().getNormalRangeText()
+                                    : "");
+                    item.put("status", r.getAbnormalStatus() != null ? r.getAbnormalStatus().name() : "NORMAL");
+                    return item;
+                })
+                .collect(Collectors.toList());
     }
 
     private DeltaCheckEntry mapDeltaEntry(Booking booking, ReportResult result) {

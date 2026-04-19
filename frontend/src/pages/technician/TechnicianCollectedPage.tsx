@@ -5,8 +5,9 @@ const TechnicianCollectedPage: React.FC = () => (
   <TechnicianDashboardPage
     forcedTab="completed"
     lockTab
-    breadcrumbLabel="Collected Samples"
-    pageHeading={<>Collected <span className="text-cyan-600">Samples</span></>}
+    breadcrumbLabel="History"
+    pageSubtext="All test history (new and old)."
+    pageHeading={<>Booking <span className="text-cyan-600">History</span></>}
   />
 );
 

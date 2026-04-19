@@ -144,7 +144,7 @@ const CategoryListingPage: React.FC = () => {
   }, [config.title]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-background">
       {/* ── Hero header ─────────────────────────────────────────── */}
       <div
         className="w-full px-4 md:px-8 pt-6 pb-8"

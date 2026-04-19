@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft } from 'react-icons/fa';
+import { ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Pagination from '../../components/common/Pagination';
 import { adminService } from '../../services/adminService';
@@ -52,8 +51,6 @@ const getActionBadgeClass = (action: string) => {
 };
 
 const AuditLogsPage: React.FC = () => {
-  const navigate = useNavigate();
-
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,12 +131,11 @@ const AuditLogsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="mb-10">
-        <button
-          onClick={() => navigate('/admin')}
-          className="flex items-center gap-2 text-[#0D7C7C] hover:text-[#004B87] mb-5"
-        >
-          <FaArrowLeft /> Back to Admin Dashboard
-        </button>
+        <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/60 mb-5">
+          <span>Home</span>
+          <ChevronRight className="w-3 h-3" />
+          <span>Audit Logs</span>
+        </div>
         <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tight">Audit Logs</h1>
       </div>
 

@@ -5,15 +5,22 @@ import com.healthcare.labtestbooking.dto.AiAnalysisResponseDto;
 import com.healthcare.labtestbooking.dto.PatientReportItemDto;
 import com.healthcare.labtestbooking.dto.ReportResultDTO;
 import com.healthcare.labtestbooking.dto.ReportResultRequest;
+import com.healthcare.labtestbooking.entity.Booking;
 import com.healthcare.labtestbooking.entity.Report;
 import com.healthcare.labtestbooking.entity.ReportResult;
 import com.healthcare.labtestbooking.entity.ReportVerification;
+import com.healthcare.labtestbooking.entity.User;
+import com.healthcare.labtestbooking.entity.enums.BookingStatus;
+import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.service.ReportGeneratorService;
 import com.healthcare.labtestbooking.service.ReportService;
 import com.healthcare.labtestbooking.service.ReportResultService;
 import com.healthcare.labtestbooking.service.ReportVerificationService;
+import com.healthcare.labtestbooking.service.HtmlTemplatePdfService;
 import com.healthcare.labtestbooking.service.AuditService;
 import com.healthcare.labtestbooking.service.AIAnalysisService;
+import com.healthcare.labtestbooking.service.NotificationInboxService;
+import com.healthcare.labtestbooking.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -47,8 +54,12 @@ public class ReportController {
     private final ReportVerificationService reportVerificationService;
     private final AuditService auditService;
     private final AIAnalysisService aiAnalysisService;
+    private final BookingRepository bookingRepository;
+    private final NotificationService notificationService;
+    private final NotificationInboxService notificationInboxService;
     private final com.healthcare.labtestbooking.service.PdfReportService pdfReportService;
     private final com.healthcare.labtestbooking.repository.ReportRepository reportRepository;
+    private final HtmlTemplatePdfService htmlTemplatePdfService;
 
     @PostMapping("/results")
     @PreAuthorize("hasRole('TECHNICIAN')")
@@ -68,6 +79,15 @@ public class ReportController {
         log.info("Fetching report for booking ID: {}", bookingId);
         ReportResultDTO report = reportService.getReportByBookingId(bookingId);
         return ResponseEntity.ok(ApiResponse.success("Report fetched successfully", report));
+    }
+
+    @GetMapping("/results/booking/{bookingId}")
+    @PreAuthorize("hasAnyRole('PATIENT', 'MEDICAL_OFFICER', 'TECHNICIAN', 'ADMIN')")
+    @Operation(summary = "Get report results by booking", description = "Retrieve entered result values for a specific booking")
+    public ResponseEntity<ApiResponse<ReportResultDTO>> getReportResultsByBooking(@PathVariable Long bookingId) {
+        log.info("Fetching report results for booking ID: {}", bookingId);
+        ReportResultDTO report = reportService.getReportByBookingId(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Report results fetched successfully", report));
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -119,7 +139,8 @@ public class ReportController {
     @Operation(summary = "Download uploaded report by booking ID")
     public ResponseEntity<byte[]> downloadReportByBooking(@PathVariable Long bookingId) {
         Report report = reportService.getDownloadableReportByBooking(bookingId);
-        String filename = resolveDownloadFilename(report, bookingId);
+        byte[] generated = htmlTemplatePdfService.generatePdf(report);
+        String filename = "HEALTHCARELAB_REPORT_" + bookingId + ".pdf";
         ContentDisposition disposition = ContentDisposition.attachment()
                 .filename(filename)
                 .build();
@@ -127,7 +148,7 @@ public class ReportController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .contentType(MediaType.APPLICATION_PDF)
-                .body(report.getReportPdf());
+                .body(generated);
     }
 
     @GetMapping("/{bookingId}/ai-analysis")
@@ -150,6 +171,39 @@ public class ReportController {
         log.info("Regenerating PDF for booking ID: {}", bookingId);
         pdfReportService.regenerateReportAsync(bookingId);
         return ResponseEntity.ok(ApiResponse.success("Report regeneration triggered", null));
+    }
+
+    @PostMapping("/{bookingId}/send-to-patient")
+    @PreAuthorize("hasRole('MEDICAL_OFFICER')")
+    public ResponseEntity<ApiResponse<String>> sendToPatient(@PathVariable Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.VERIFIED) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Booking must be VERIFIED first"));
+        }
+
+        pdfReportService.generateReport(bookingId);
+
+        User patient = booking.getPatient();
+        if (patient != null) {
+            notificationService.sendReportReadyNotification(patient, booking);
+            notificationInboxService.createNotification(
+                    patient.getId(),
+                    "REPORT_READY",
+                    "Your Report is Ready",
+                    "Your " + (booking.getTest() != null ? booking.getTest().getTestName() : "lab test")
+                            + " report is verified and ready to download.",
+                    "REPORT",
+                    bookingId
+            );
+        }
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
+        return ResponseEntity.ok(ApiResponse.success("Report sent", "OK"));
     }
 
     @GetMapping("/{id}/pdf")

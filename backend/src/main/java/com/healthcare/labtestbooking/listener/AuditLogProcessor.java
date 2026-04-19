@@ -45,6 +45,7 @@ public class AuditLogProcessor {
 
         AuditLog auditLog = AuditLog.builder()
                 .entityName(event.getEntityName())
+            .entityType(event.getEntityName() != null ? event.getEntityName() : "SYSTEM")
                 .entityId(event.getEntityId())
                 .action(event.getAction())
                 .userId(resolvedUserId)

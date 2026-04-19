@@ -7,8 +7,34 @@ interface Props {
 }
 
 const GrowthChart: React.FC<Props> = ({ data }) => {
+    const dates = [...new Set(data.map((item) => item.date).filter(Boolean))].sort();
+    const dayCount = dates.length;
+
+    const formatFriendlyDate = (value: string) => {
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    };
+
+    const rangeLabel = dayCount === 0
+        ? 'No Range'
+        : dayCount === 1
+            ? formatFriendlyDate(dates[0])
+            : `${formatFriendlyDate(dates[0])} - ${formatFriendlyDate(dates[dayCount - 1])}`;
+
     return (
-        <div className="h-64 w-full">
+        <div className="w-full rounded-2xl border border-primary/10 bg-white/45 p-3">
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-text">Growth Graph</h4>
+                    <p className="text-[9px] font-bold text-text/50 uppercase tracking-wider">Daily Growth Count</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">Last {dayCount || 0} {dayCount === 1 ? 'Day' : 'Days'}</p>
+                    <p className="text-[8px] font-bold text-text/45 tracking-wider">{rangeLabel}</p>
+                </div>
+            </div>
+            <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
@@ -53,6 +79,10 @@ const GrowthChart: React.FC<Props> = ({ data }) => {
                     />
                 </AreaChart>
             </ResponsiveContainer>
+            </div>
+            {data.length === 0 && (
+                <p className="mt-1 text-[9px] font-bold text-text/50 uppercase tracking-wider">No growth data available</p>
+            )}
         </div>
     );
 };

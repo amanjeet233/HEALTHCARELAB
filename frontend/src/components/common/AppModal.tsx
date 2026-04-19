@@ -31,11 +31,11 @@ const AppModal: React.FC = () => {
             case 'CLINICAL_VERIFICATION': {
                 const props = modalProps as any;
                 return (
-                    <MedicalOfficerVerificationModal 
-                        bookingId={props.bookingId} 
-                        testName={props.testName} 
-                        onClose={closeModal} 
-                        onSuccess={() => window.location.reload()} 
+                    <MedicalOfficerVerificationModal
+                        bookingId={props.bookingId}
+                        testName={props.testName}
+                        onClose={closeModal}
+                        onSuccess={() => window.location.reload()}
                     />
                 );
             }

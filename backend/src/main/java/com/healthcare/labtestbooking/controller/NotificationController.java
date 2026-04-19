@@ -2,6 +2,7 @@ package com.healthcare.labtestbooking.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.dto.NotificationResponse;
 import com.healthcare.labtestbooking.entity.Notification;
 import com.healthcare.labtestbooking.entity.NotificationLog;
 import com.healthcare.labtestbooking.repository.NotificationLogRepository;
@@ -32,15 +33,15 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "Get all notifications", description = "Retrieve all notifications for the authenticated user")
-    public ResponseEntity<ApiResponse<Page<Notification>>> getUserNotifications(@PageableDefault(size = 20) Pageable pageable) {
-        Page<Notification> notifications = notificationInboxService.getUserNotifications(pageable);
+    public ResponseEntity<ApiResponse<Page<NotificationResponse>>> getUserNotifications(@PageableDefault(size = 20) Pageable pageable) {
+        Page<NotificationResponse> notifications = notificationInboxService.getUserNotifications(pageable);
         return ResponseEntity.ok(ApiResponse.success(notifications));
     }
 
     @GetMapping("/unread")
     @Operation(summary = "Get unread notifications", description = "Retrieve only unread notifications")
-    public ResponseEntity<ApiResponse<List<Notification>>> getUnreadNotifications() {
-        List<Notification> notifications = notificationInboxService.getUnreadNotifications();
+    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getUnreadNotifications() {
+        List<NotificationResponse> notifications = notificationInboxService.getUnreadNotifications();
         return ResponseEntity.ok(ApiResponse.success(notifications));
     }
 
@@ -53,8 +54,8 @@ public class NotificationController {
 
     @PutMapping("/{id}/read")
     @Operation(summary = "Mark as read", description = "Mark a specific notification as read")
-    public ResponseEntity<ApiResponse<Notification>> markAsRead(@PathVariable Long id) {
-        Notification notification = notificationInboxService.markAsRead(id);
+    public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(@PathVariable Long id) {
+        NotificationResponse notification = notificationInboxService.markAsRead(id);
         return ResponseEntity.ok(ApiResponse.success("Marked as read", notification));
     }
 

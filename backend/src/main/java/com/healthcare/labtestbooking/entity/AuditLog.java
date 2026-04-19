@@ -29,6 +29,9 @@ public class AuditLog {
     @Column(name = "entity_name", nullable = false, length = 150)
     private String entityName;
 
+    @Column(name = "entity_type", nullable = false, length = 150)
+    private String entityType;
+
     @Column(name = "entity_id", nullable = false, length = 64)
     private String entityId;
 

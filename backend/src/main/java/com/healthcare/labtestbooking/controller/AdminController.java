@@ -14,6 +14,7 @@ import com.healthcare.labtestbooking.service.DashboardService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -298,6 +299,7 @@ public class AdminController {
     // ── Create staff account (TECHNICIAN or MEDICAL_OFFICER) ──────────────────
 
     @PostMapping("/staff")
+    @CacheEvict(value = "adminStats", allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Object>>> createStaff(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails principal,
@@ -344,12 +346,13 @@ public class AdminController {
                 "Created " + roleStr + " account for " + email,
                 request.getRemoteAddr());
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", saved.getId());
-        result.put("name", saved.getName());
-        result.put("email", saved.getEmail());
-        result.put("role", saved.getRole().name());
-        result.put("message", role.name() + " account created successfully");
+        Map<String, Object> result = Map.of(
+                "id", saved.getId(),
+                "name", saved.getName(),
+                "email", saved.getEmail(),
+                "role", saved.getRole().name(),
+                "message", role.name() + " account created successfully"
+        );
 
         return ResponseEntity.ok(ApiResponse.success("Staff created", result));
     }
@@ -357,6 +360,7 @@ public class AdminController {
     // ── Delete staff account ───────────────────────────────────────────────────
 
     @DeleteMapping("/staff/{userId}")
+    @CacheEvict(value = "adminStats", allEntries = true)
     public ResponseEntity<ApiResponse<String>> deleteStaff(
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetails principal,

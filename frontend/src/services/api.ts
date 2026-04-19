@@ -241,4 +241,30 @@ api.interceptors.response.use(
     }
 );
 
+// --- CACHING LOGIC ---
+const cache = new Map<string, { data: any; ts: number }>();
+
+/**
+ * Enhanced GET request with in-memory caching
+ * @param url The endpoint URL
+ * @param config Optional Axios request config
+ * @param ttl Time to live in milliseconds (default 1 minute)
+ */
+export const cachedGet = async (url: string, config?: AxiosRequestConfig, ttl = 60000): Promise<AxiosResponse> => {
+    // Basic cache key: URL + stringified params
+    const key = `${url}${config?.params ? JSON.stringify(config.params) : ''}`;
+    const cached = cache.get(key);
+
+    if (cached && Date.now() - cached.ts < ttl) {
+        if (import.meta.env.DEV) {
+            console.log(`[API Cache Hit] ${url}`);
+        }
+        return { data: cached.data } as AxiosResponse;
+    }
+
+    const response = await api.get(url, config);
+    cache.set(key, { data: response.data, ts: Date.now() });
+    return response;
+};
+
 export default api;

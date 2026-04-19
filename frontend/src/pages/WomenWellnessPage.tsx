@@ -430,7 +430,7 @@ const WomenWellnessPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-background">
 
       {/* ── Hero header ─────────────────────────────────────── */}
       <div

@@ -38,8 +38,9 @@ public class LabTestService {
         private final TestCategoryRepository testCategoryRepository;
         private final TestParameterRepository testParameterRepository;
 
+        @Cacheable(value = "topBooked", unless = "#result.isEmpty()")
         public List<LabTestDTO> getPopularTests() {
-                log.info("Fetching popular lab tests");
+                log.info("Fetching popular lab tests (cached)");
                 // Simplified: returns first 5 active tests as popular
                 return labTestRepository.findByIsActiveTrue().stream()
                                 .limit(5)
@@ -146,16 +147,17 @@ public class LabTestService {
                                 .map(this::convertToDTO);
         }
 
+        @Cacheable(value = "trendingTests", key = "'trending_top12'")
         public List<LabTestDTO> getTrendingTests() {
-                log.info("Fetching trending lab tests (excluding packages)");
+                log.info("Fetching trending lab tests (cached)");
                 return labTestRepository.findByIsTrendingTrueAndIsPackageFalse(PageRequest.of(0, 12)).getContent().stream()
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
         }
 
+        @Cacheable(value = "trendingTests", key = "'trending_page_' + #pageable.pageNumber + '_' + #pageable.pageSize")
         public Page<LabTestDTO> getTrendingTests(Pageable pageable) {
-                log.info("Fetching trending tests with pagination | Page: {}, Size: {}",
-                                pageable.getPageNumber(), pageable.getPageSize());
+                log.info("Fetching trending tests with pagination (cached)");
                 return labTestRepository.findByIsTrendingTrueAndIsPackageFalse(pageable)
                                 .map(this::convertToDTO);
         }
@@ -401,6 +403,7 @@ public class LabTestService {
          * Get tests by category name (BLOOD, URINE, IMAGING, PATHOLOGY, etc.)
          */
         @Transactional(readOnly = true)
+        @Cacheable(value = "labTests", key = "'cat_' + #categoryName + '_' + #pageable.pageNumber")
         public Page<LabTestDTO> getTestsByCategory(String categoryName, Pageable pageable) {
                 log.info("Fetching tests by category: {} | Page: {}, Size: {}",
                         categoryName, pageable.getPageNumber(), pageable.getPageSize());
@@ -412,8 +415,9 @@ public class LabTestService {
         /**
          * Get count of tests in each category
          */
+        @Cacheable(value = "categoryCounts")
         public java.util.Map<String, Long> getCategoryCount() {
-                log.info("Fetching category counts");
+                log.info("Fetching category counts (cached)");
                 java.util.Map<String, Long> counts = new java.util.HashMap<>();
                 List<String> categories = labTestRepository.findAllCategories();
                 for (String category : categories) {
@@ -462,6 +466,7 @@ public class LabTestService {
         }
 
         @Transactional(readOnly = true)
+        @Cacheable(value = "labTests", key = "T(java.util.Objects).hash(#search, #categories, #subCategory, #isTopDeal, #isTopBooked, #minPrice, #maxPrice, #sortBy, #page, #limit)")
         public Page<LabTestDTO> getAdvancedSearchTests(
                 String search, 
                 List<String> categories, 
@@ -474,6 +479,7 @@ public class LabTestService {
                 int page, 
                 int limit
         ) {
+                log.info("Advanced search with caching enabled for params");
                 Specification<LabTest> spec = (root, query, cb) -> {
                         List<Predicate> predicates = new ArrayList<>();
                         

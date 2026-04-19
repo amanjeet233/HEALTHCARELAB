@@ -1,4 +1,4 @@
-import api from './api';
+import api, { cachedGet } from './api';
 import type { LabTestResponse, LabTestSearchParams, LabTestPageResponse } from '../types/labTest';
 
 export const labTestService = {
@@ -7,7 +7,7 @@ export const labTestService = {
      */
     getLabTests: async (params: LabTestSearchParams): Promise<{ tests: LabTestResponse[], totalPages: number }> => {
         try {
-            const response = await api.get('/api/lab-tests', { params });
+            const response = await cachedGet('/api/lab-tests', { params });
 
             // Handle formal Spring Boot Page<LabTestResponse>
             if (response.data?.data?.content) {
@@ -63,7 +63,7 @@ export const labTestService = {
      */
     searchTests: async (query: string): Promise<LabTestResponse[]> => {
         try {
-            const response = await api.get(`/api/tests/search`, { params: { q: query } });
+            const response = await cachedGet(`/api/tests/search`, { params: { q: query } });
             return (response.data?.data || []) as LabTestResponse[];
         } catch (error) {
             console.error(`Error searching tests with query ${query}:`, error);

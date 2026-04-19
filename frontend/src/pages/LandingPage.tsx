@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSearch, FaMapMarkerAlt, FaLocationArrow, FaPhoneAlt, FaClipboardCheck, FaWhatsapp, FaUserAlt, FaRadiation, FaTint, FaSyringe, FaPills } from 'react-icons/fa';
 import { motion } from 'framer-motion';
@@ -18,6 +18,7 @@ const UserDashboard = lazy(() => import('../components/dashboard/UserDashboard')
 const HomeCollectionProcess = lazy(() => import('../components/ui/HomeCollectionProcess'));
 const PromotionalOffersWidget = lazy(() => import('../components/dashboard/PromotionalOffersWidget'));
 const DNAHelix3D = lazy(() => import('../components/3d/DNAHelix3D'));
+const MedicalIcons3D = lazy(() => import('../components/3d/MedicalIcons3D'));
 
 // Skeleton Fallback for 3D/Heavy sections
 const SkeletonFallback = () => (
@@ -38,8 +39,26 @@ const LandingPage: React.FC = () => {
         if (role === 'ADMIN') navigate('/admin', { replace: true });
         else if (role === 'TECHNICIAN') navigate('/technician', { replace: true });
         else if (role === 'MEDICAL_OFFICER') navigate('/medical-officer', { replace: true });
-        // PATIENT stays on landing page
+    // PATIENT stays on landing page
     }, [isAuthenticated, currentUser, navigate]);
+
+    // Optimize 3D Rendering: Only load/render when visible
+    const [show3D, setShow3D] = useState(false);
+    const ref3D = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setShow3D(true);
+                    observer.disconnect(); // Once visible, keep it (or keep observing if you want to unmount on hide)
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' } // Load slightly before it comes into view
+        );
+        if (ref3D.current) observer.observe(ref3D.current);
+        return () => observer.disconnect();
+    }, []);
 
     return (
         <div className="w-full bg-[#F0F9F9] flex flex-col">
@@ -50,13 +69,14 @@ const LandingPage: React.FC = () => {
 
                     <div className="content-wrapper relative grid grid-cols-1 items-center">
 
-                        {/* 3D DNA decor for desktop only */}
-                        <div className="absolute right-[2%] top-1/2 -translate-y-1/2 hidden lg:block w-[42%] max-w-160 h-130 pointer-events-none z-0">
+                        <div ref={ref3D} className="absolute right-[2%] top-1/2 -translate-y-1/2 hidden lg:block w-[42%] max-w-160 h-130 pointer-events-none z-0">
                             <div className="absolute inset-0 rounded-[48%] bg-linear-to-br from-cyan-200/50 via-teal-100/35 to-transparent blur-3xl opacity-70" />
                             <div className="absolute inset-0 rounded-[40%] border border-cyan-200/30 bg-white/10 backdrop-blur-[2px] shadow-[0_30px_80px_rgba(45,212,191,0.12)]" />
-                            <Suspense fallback={null}>
-                                <DNAHelix3D className="relative h-full w-full opacity-95 scale-[0.92]" />
-                            </Suspense>
+                            {show3D && (
+                                <Suspense fallback={<SkeletonFallback />}>
+                                    <DNAHelix3D className="relative h-full w-full opacity-95 scale-[0.92]" />
+                                </Suspense>
+                            )}
                             <div className="absolute top-10 left-8 z-20">
                                 <Suspense fallback={null}>
                                     <FloatingElement duration={4}>

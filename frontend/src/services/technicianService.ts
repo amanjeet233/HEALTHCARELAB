@@ -64,6 +64,11 @@ export const technicianService = {
         }
     },
 
+    getBookingTimeline: async (bookingId: number) => {
+        const response = await api.get(`/api/bookings/${bookingId}/timeline`);
+        return response.data?.data || [];
+    },
+
     /**
      * Get technician collection history
      */
@@ -97,6 +102,68 @@ export const technicianService = {
             }
         });
         return response.data?.data || response.data;
+    },
+
+    getTestParameters: async (testId: number) => {
+        try {
+            const response = await api.get(`/api/lab-tests/${testId}/parameters`);
+            const data = response.data?.data;
+            if (Array.isArray(data) && data.length > 0) return data;
+        } catch {
+            // fallback below
+        }
+
+        try {
+            const fallback = await api.get(`/api/test-parameters/test/${testId}`);
+            return fallback.data?.data || [];
+        } catch {
+            return [];
+        }
+    },
+
+    findTestIdByName: async (testName: string) => {
+        const keyword = String(testName || '').trim();
+        if (!keyword) return null;
+
+        try {
+            const response = await api.get('/api/lab-tests/search', {
+                params: { keyword, page: 0, size: 20 }
+            });
+
+            const pageData = response.data?.data;
+            const tests = Array.isArray(pageData?.content) ? pageData.content : [];
+            if (tests.length === 0) return null;
+
+            const exactMatch = tests.find((t: any) =>
+                String(t?.testName || '').trim().toLowerCase() === keyword.toLowerCase()
+            );
+            const first = exactMatch || tests[0];
+            const id = Number(first?.id);
+            return Number.isFinite(id) && id > 0 ? id : null;
+        } catch {
+            return null;
+        }
+    },
+
+    enterTestResults: async (
+        bookingId: number,
+        results: Array<{ parameterId: number; resultValue: string }>
+    ) => {
+        const response = await api.post('/api/reports/results', {
+            bookingId,
+            results
+        });
+        return response.data?.data || response.data;
+    },
+
+    checkResultsEntered: async (bookingId: number) => {
+        try {
+            const response = await api.get(`/api/reports/results/booking/${bookingId}`);
+            const results = response.data?.data?.results;
+            return Array.isArray(results) && results.length > 0;
+        } catch {
+            return false;
+        }
     },
 
     checkReportExists: async (bookingId: number) => {

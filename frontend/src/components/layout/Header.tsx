@@ -1,11 +1,12 @@
 import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users, Shield, Activity } from 'lucide-react';
+import { Search, Menu, X, ShoppingCart, Plus, Stethoscope, ClipboardList, Pill, User, LogOut, Gift, Calendar, FileText, Heart, Settings, ArrowRight, MapPin, Users, Shield, Activity, FlaskConical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { useModal } from '../../context/ModalContext';
 import NotificationBell from '../notifications/NotificationBell';
+import { notificationService } from '../../services/notificationService';
 
 // Basic useDebounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -62,22 +63,28 @@ const Header: React.FC = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [patientUnreadCount, setPatientUnreadCount] = useState(0);
   const debouncedSearch = useDebounce(searchQuery, 300);
   const cartItemCount = toSafeNumber(cart?.itemCount, 0);
   const userName = toSafeString(currentUser?.name, 'User');
   const userEmail = toSafeString(currentUser?.email, '');
   const userInitial = userName.charAt(0).toUpperCase() || 'U';
   const role = currentUser?.role;
+  const profilePath =
+    role === 'ADMIN' ? '/admin/profile' :
+    role === 'TECHNICIAN' ? '/technician/profile' :
+    role === 'MEDICAL_OFFICER' ? '/medical-officer/profile' :
+    '/profile';
   const isOpsRole = Boolean(isAuthenticated && role && role !== 'PATIENT');
 
   const isAdminDashboard = role === 'ADMIN' && location.pathname.startsWith('/admin');
 
-  // Load cart when authenticated
+  // Load cart only for patient accounts. Ops roles don't have cart access.
   useLayoutEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && role === 'PATIENT') {
       fetchCart();
     }
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, role, fetchCart]);
 
   // Trigger badge animation when cart count changes
   useLayoutEffect(() => {
@@ -138,6 +145,28 @@ const Header: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUnreadCount = async () => {
+      if (!isAuthenticated || role !== 'PATIENT') {
+        if (mounted) setPatientUnreadCount(0);
+        return;
+      }
+
+      const count = await notificationService.getUnreadCount();
+      if (mounted) {
+        setPatientUnreadCount(count);
+      }
+    };
+
+    void loadUnreadCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, role]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim().length > 0) {
@@ -169,7 +198,7 @@ const Header: React.FC = () => {
   ];
 
   const profileMenuItems = [
-    { label: 'My Profile', icon: User, path: '/profile' },
+    { label: 'My Profile', icon: User, path: profilePath },
     { label: 'My Bookings', icon: Calendar, path: '/my-bookings' },
     { label: 'My Reports', icon: FileText, path: '/reports' },
     { label: 'Family Members', icon: Users, path: '/family-members' },
@@ -180,13 +209,15 @@ const Header: React.FC = () => {
 
   const technicianMenuItems = [
     { label: 'Dashboard', icon: Settings, path: '/technician' },
-    { label: 'My Profile', icon: User, path: '/technician/profile' },
+    { label: 'My Tasks', icon: ClipboardList, path: '/technician/queue' },
+    { label: 'Results', icon: FlaskConical, path: '/technician/inlab' },
+    { label: 'History', icon: FileText, path: '/technician/collected' },
+    { label: 'Profile', icon: User, path: '/technician/profile' },
   ];
 
   const medicalOfficerMenuItems = [
-    { label: 'Dashboard', icon: Settings, path: '/medical-officer' },
-    { label: 'Verification', icon: Settings, path: '/medical-officer/verification' },
     { label: 'My Profile', icon: User, path: '/medical-officer/profile' },
+    { label: 'History', icon: FileText, path: '/medical-officer/history' },
   ];
 
   const adminMenuItems = [
@@ -203,16 +234,17 @@ const Header: React.FC = () => {
       ]
     : role === 'MEDICAL_OFFICER'
       ? [
-          { label: 'Verification', icon: ClipboardList, path: '/medical-officer/verification', color: 'text-[#D97706]' },
+          { label: 'Review Queue', icon: ClipboardList, path: '/medical-officer/verification', color: 'text-[#D97706]' },
           { label: 'Assignments', icon: Users, path: '/medical-officer/assignments', color: 'text-[#0D7C7C]' },
           { label: 'Pipeline', icon: Activity, path: '/medical-officer/pipeline', color: 'text-[#7C3AED]' },
-          { label: 'Profile', icon: User, path: '/medical-officer/profile', color: 'text-[#1D4ED8]' },
+          { label: 'History', icon: FileText, path: '/medical-officer/history', color: 'text-[#0F766E]' },
         ]
       : role === 'TECHNICIAN'
         ? [
             { label: 'Today', icon: Calendar, path: '/technician/today', color: 'text-[#0D7C7C]' },
-            { label: 'Queue', icon: ClipboardList, path: '/technician/queue', color: 'text-[#1D4ED8]' },
-            { label: 'Collected', icon: FileText, path: '/technician/collected', color: 'text-[#0F766E]' },
+            { label: 'My Tasks', icon: ClipboardList, path: '/technician/queue', color: 'text-[#1D4ED8]' },
+            { label: 'Results', icon: Activity, path: '/technician/inlab', color: 'text-[#D97706]' },
+            { label: 'History', icon: FileText, path: '/technician/collected', color: 'text-[#0F766E]' },
           ]
         : [];
 
@@ -241,7 +273,15 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 left-0 right-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm flex justify-center h-[72px]">
       <div className="w-full max-w-[1210px] px-4 md:px-6 flex items-center justify-between gap-6 h-full relative">
-        <Link to="/" className="flex items-center gap-2.5 shrink-0 z-20 group">
+        <Link
+          to={
+            role === 'ADMIN' ? '/admin' :
+            role === 'TECHNICIAN' ? '/technician' :
+            role === 'MEDICAL_OFFICER' ? '/medical-officer' :
+            '/'
+          }
+          className="flex items-center gap-2.5 shrink-0 z-20 group"
+        >
           <motion.div
             whileHover={{ scale: 1.08 }}
             className="bg-linear-to-br from-[#0D7C7C] to-ocean-blue p-2 rounded-xl shadow-lg"
@@ -266,7 +306,7 @@ const Header: React.FC = () => {
               placeholder={
                 role === 'ADMIN' ? 'SEARCH SYSTEM REGISTRY...' :
                 role === 'MEDICAL_OFFICER' ? 'SEARCH VERIFICATION QUEUE...' :
-                role === 'TECHNICIAN' ? 'SEARCH COLLECTION QUEUE...' :
+                role === 'TECHNICIAN' ? 'SEARCH TASKS...' :
                 'SEARCH TESTS OR PACKAGES...'
               }
               value={searchQuery}
@@ -297,29 +337,28 @@ const Header: React.FC = () => {
                   <div className="p-4 text-center text-xs font-semibold text-gray-400">Searching...</div>
                 ) : (
                   <div className="flex flex-col">
-                    {suggestions.map((test, idx) => (
-                      <button
-                        key={toSafeString(test?.id, `search-result-${idx}`)}
-                        onClick={() => {
-                          setIsSearchOpen(false);
-                          const testSlug = toSafeString(test?.slug);
-                          if (testSlug) {
-                            navigate(`/test/${testSlug}`);
-                          } else {
-                            const name = toSafeString(test?.testName, toSafeString(test?.name, ''));
-                            setSearchQuery(name);
-                            navigate(`/lab-tests/all-lab-tests?search=${encodeURIComponent(name)}`);
-                          }
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-gray-50 flex flex-col gap-1 transition-colors"
-                      >
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900 line-clamp-1">{toSafeString(test?.testName, 'Unknown Test')}</span>
-                          <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(toSafeNumber(test?.price, 0))}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{toSafeString(test?.categoryName, 'General')}</span>
-                      </button>
-                    ))}
+                    {suggestions.map((test, idx) => {
+                      const testSlug = toSafeString(test?.slug);
+                      const name = toSafeString(test?.testName, toSafeString(test?.name, ''));
+                      const href = testSlug
+                        ? `/test/${testSlug}`
+                        : `/lab-tests/all-lab-tests?search=${encodeURIComponent(name)}`;
+
+                      return (
+                        <Link
+                          key={toSafeString(test?.id, `search-result-${idx}`)}
+                          to={href}
+                          onClick={() => setIsSearchOpen(false)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-gray-50 flex flex-col gap-1 transition-colors block"
+                        >
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-bold text-gray-900 line-clamp-1">{toSafeString(test?.testName, 'Unknown Test')}</span>
+                            <span className="text-xs font-black text-[#0D7C7C]">₹{Math.round(toSafeNumber(test?.price, 0))}</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{toSafeString(test?.categoryName, 'General')}</span>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
@@ -329,16 +368,29 @@ const Header: React.FC = () => {
 
         <div className="hidden md:flex items-center gap-3 lg:gap-6 shrink-0 border-r border-slate-100 pr-4 lg:pr-6">
           {(!isAuthenticated || role === 'PATIENT' || !role) && quickActions.map((action, idx) => (
-            <button
-              key={`action-${idx}`}
-              onClick={action.action || (() => navigate(action.href!))}
-              className="flex flex-col items-center group transition-all active:scale-90"
-            >
-              <action.Icon className={`w-5 h-5 ${action.color} group-hover:scale-110 transition-all`} strokeWidth={3} />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">
-                {action.label}
-              </span>
-            </button>
+            action.href ? (
+              <Link
+                key={`action-${idx}`}
+                to={action.href}
+                className="flex flex-col items-center group transition-all active:scale-90"
+              >
+                <action.Icon className={`w-5 h-5 ${action.color} group-hover:scale-110 transition-all`} strokeWidth={3} />
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">
+                  {action.label}
+                </span>
+              </Link>
+            ) : (
+              <button
+                key={`action-${idx}`}
+                onClick={action.action}
+                className="flex flex-col items-center group transition-all active:scale-90"
+              >
+                <action.Icon className={`w-5 h-5 ${action.color} group-hover:scale-110 transition-all`} strokeWidth={3} />
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-700 mt-1 group-hover:text-[#0D7C7C]">
+                  {action.label}
+                </span>
+              </button>
+            )
           ))}
 
           {isOpsRole && (
@@ -380,7 +432,7 @@ const Header: React.FC = () => {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
-              <NotificationBell />
+              <NotificationBell badgeCountOverride={role === 'PATIENT' ? patientUnreadCount : undefined} />
               <div
                 className="relative"
                 onMouseEnter={handleProfileMouseEnter}
@@ -424,20 +476,18 @@ const Header: React.FC = () => {
                           const Icon = item.icon;
                           const active = isMenuItemActive(item.path);
                           return (
-                            <button
+                            <Link
                               key={`pmenu-${idx}`}
-                              onClick={() => {
-                                setShowProfileMenu(false);
-                                navigate(item.path);
-                              }}
-                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                              to={item.path}
+                              onClick={() => setShowProfileMenu(false)}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors block ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
                               <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
-                            </button>
+                            </Link>
                           );
                         })}
 
@@ -445,20 +495,18 @@ const Header: React.FC = () => {
                           const Icon = item.icon;
                           const active = isMenuItemActive(item.path);
                           return (
-                            <button
+                            <Link
                               key={`admin-menu-${idx}`}
-                              onClick={() => {
-                                setShowProfileMenu(false);
-                                navigate(item.path);
-                              }}
-                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                              to={item.path}
+                              onClick={() => setShowProfileMenu(false)}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors block ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
                               <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
-                            </button>
+                            </Link>
                           );
                         })}
 
@@ -466,20 +514,18 @@ const Header: React.FC = () => {
                           const Icon = item.icon;
                           const active = isMenuItemActive(item.path);
                           return (
-                            <button
+                            <Link
                               key={`tech-menu-${idx}`}
-                              onClick={() => {
-                                setShowProfileMenu(false);
-                                navigate(item.path);
-                              }}
-                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                              to={item.path}
+                              onClick={() => setShowProfileMenu(false)}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors block ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
                               <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
-                            </button>
+                            </Link>
                           );
                         })}
 
@@ -487,20 +533,18 @@ const Header: React.FC = () => {
                           const Icon = item.icon;
                           const active = isMenuItemActive(item.path);
                           return (
-                            <button
+                            <Link
                               key={`mo-menu-${idx}`}
-                              onClick={() => {
-                                setShowProfileMenu(false);
-                                navigate(item.path);
-                              }}
-                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
+                              to={item.path}
+                              onClick={() => setShowProfileMenu(false)}
+                              className={`w-full text-left px-3.5 py-2 text-[10px] font-bold flex items-center justify-between group transition-colors block ${active ? 'bg-cyan-50 text-[#0D7C7C]' : 'text-slate-700 hover:bg-slate-50 hover:text-[#0D7C7C]'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <Icon size={12} className={active ? 'text-[#0D7C7C]' : 'text-slate-400 group-hover:text-[#0D7C7C]'} />
                                 <span className="uppercase tracking-tight">{item.label}</span>
                               </div>
                               <ArrowRight size={9} className="opacity-0 group-hover:opacity-100" />
-                            </button>
+                            </Link>
                           );
                         })}
                         <div className="h-px bg-slate-100 my-1 mx-2" />

@@ -45,7 +45,7 @@ const AuthModal: React.FC = () => {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={closeModal}
-                    className="absolute inset-0 bg-[#F8FAFC]/90 backdrop-blur-sm"
+                    className="absolute inset-0 bg-[#F0F9F9]/90 backdrop-blur-sm"
                 />
 
                 <motion.div
@@ -53,9 +53,8 @@ const AuthModal: React.FC = () => {
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.96, opacity: 0, y: 8 }}
                     transition={{ type: 'spring', damping: 26, stiffness: 360 }}
-                    className={`relative w-full ${
-                        isRegisterTab ? 'max-w-[720px] max-h-[94vh] overflow-y-auto p-5' : 'max-w-[340px] max-h-[92vh] overflow-y-auto p-5'
-                    } rounded-3xl border border-white bg-white/80 shadow-xl backdrop-blur-md`}
+                    className={`relative w-full ${isRegisterTab ? 'max-w-[720px] max-h-[94vh] overflow-y-auto p-5' : 'max-w-[340px] max-h-[92vh] overflow-y-auto p-5'
+                        } rounded-3xl border border-white bg-white/80 shadow-xl backdrop-blur-md`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button
@@ -79,17 +78,15 @@ const AuthModal: React.FC = () => {
                         <div className="mb-3 flex items-center rounded-2xl bg-slate-100 p-1">
                             <button
                                 onClick={() => setAuthModalTab('login')}
-                                className={`h-9 flex-1 rounded-xl text-[10px] font-bold uppercase tracking-[0.1em] transition-all ${
-                                    authModalTab === 'login' ? 'bg-[#008080] text-white' : 'text-slate-600'
-                                }`}
+                                className={`h-9 flex-1 rounded-xl text-[10px] font-bold uppercase tracking-[0.1em] transition-all ${authModalTab === 'login' ? 'bg-[#008080] text-white' : 'text-slate-600'
+                                    }`}
                             >
                                 LOGIN
                             </button>
                             <button
                                 onClick={() => setAuthModalTab('register')}
-                                className={`h-9 flex-1 rounded-xl text-[10px] font-bold uppercase tracking-[0.1em] transition-all ${
-                                    authModalTab === 'register' ? 'bg-[#008080] text-white' : 'text-slate-600'
-                                }`}
+                                className={`h-9 flex-1 rounded-xl text-[10px] font-bold uppercase tracking-[0.1em] transition-all ${authModalTab === 'register' ? 'bg-[#008080] text-white' : 'text-slate-600'
+                                    }`}
                             >
                                 REGISTER
                             </button>

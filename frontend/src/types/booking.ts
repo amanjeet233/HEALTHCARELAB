@@ -71,6 +71,7 @@ export interface BookingResponse {
     finalAmount?: number;
     discount?: number;
     paymentStatus?: string;
+    reportAvailable?: boolean;
     paymentMethod?: string;
     sampleType?: string;
     turnaroundTime?: string;

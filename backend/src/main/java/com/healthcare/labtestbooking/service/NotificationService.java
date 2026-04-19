@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
@@ -27,6 +28,7 @@ public class NotificationService {
     private boolean smsMock;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
+    private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a");
 
     // ── Public Methods ────────────────────────────────────────────────────────
 
@@ -100,24 +102,43 @@ public class NotificationService {
     @Async
     public void sendReportReadyNotification(User patient, Booking booking) {
         String recipientEmail = patient.getEmail();
+        String bookingRef = booking.getBookingReference() != null ? booking.getBookingReference() : "BK-" + booking.getId();
         if (recipientEmail == null || recipientEmail.isBlank()) {
             log.warn("[NOTIFICATION] No email for patient {}; skipping report notification.", patient.getId());
+            saveLog(booking, "EMAIL", "FAILED", "Report ready notification skipped: missing patient email.");
             return;
         }
 
         try {
-            String subject = "Your Lab Report is Ready — " + (booking.getBookingReference() != null ? booking.getBookingReference() : "BK-" + booking.getId());
-            String body = "Dear " + patient.getName() + ",\n\n" +
-                    "Your diagnostic lab report for booking reference " + booking.getBookingReference() + " is now available for download.\n\n" +
-                    "You can view it in your dashboard under the 'Smart Reports' section.\n\n" +
-                    "Thank you for choosing Healthcare Lab.\n" +
-                    "Healthcare Lab Team";
+            String testName = resolveTestName(booking);
+            String patientName = patient.getName() != null && !patient.getName().isBlank() ? patient.getName() : "Patient";
+            String moName = booking.getMedicalOfficer() != null && booking.getMedicalOfficer().getName() != null
+                    ? booking.getMedicalOfficer().getName()
+                    : "Medical Officer";
+            LocalDateTime verifiedAtRaw = LocalDateTime.now();
+            String verifiedAt = verifiedAtRaw.format(DATE_TIME_FMT);
+            String reportsPath = "/reports";
+
+            String subject = "Your Lab Report is Ready — HealthcareLab";
+            String body = "Dear " + patientName + ",\n\n"
+                    + "Your lab report has been verified and is now ready for download.\n\n"
+                    + "Patient Name: " + patientName + "\n"
+                    + "Test Name: " + testName + "\n"
+                    + "Booking Reference: " + bookingRef + "\n"
+                    + "Verified By: " + moName + "\n"
+                    + "Verified At: " + verifiedAt + "\n"
+                    + "Report Link: " + reportsPath + "\n\n"
+                    + "Download Your Report: " + reportsPath + "\n\n"
+                    + "Thank you,\nHealthcareLab";
 
             emailService.sendSimpleEmail(recipientEmail, subject, body);
             log.info("[NOTIFICATION] Report ready alert sent to {} for booking {}", recipientEmail, booking.getId());
-            saveLog(booking, "EMAIL", "SENT", "Report ready notification sent.");
+            saveLog(booking, "EMAIL", "SENT",
+                    "Report ready email sent to " + recipientEmail + " for booking reference " + bookingRef + ".");
         } catch (Exception e) {
             log.error("[NOTIFICATION] Failed to send report ready alert: {}", e.getMessage());
+            saveLog(booking, "EMAIL", "FAILED",
+                    "Failed to send report ready email for booking reference " + bookingRef + ": " + e.getMessage());
         }
     }
 

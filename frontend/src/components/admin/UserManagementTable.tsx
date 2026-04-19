@@ -1,21 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, MoreVertical, Shield, User as UserIcon, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Shield, User as UserIcon, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { type User, adminService } from '../../services/adminService';
 import { notify } from '../../utils/toast';
 
 interface Props {
     users: User[];
+    allowRoleEdit?: boolean;
+    allowStatusEdit?: boolean;
 }
 
-const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
+const UserManagementTable: React.FC<Props> = ({
+    users: initialUsers,
+    allowRoleEdit = true,
+    allowStatusEdit = true,
+}) => {
     const [users, setUsers] = useState<User[]>(initialUsers);
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('all');
+    const [roleDraftByUser, setRoleDraftByUser] = useState<Record<number, string>>({});
+    const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
+    const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
     useEffect(() => {
         setUsers(initialUsers);
+        const drafts: Record<number, string> = {};
+        initialUsers.forEach((u) => {
+            drafts[u.id] = (u.role || '').toUpperCase();
+        });
+        setRoleDraftByUser(drafts);
     }, [initialUsers]);
+
+    const normalizeStatus = (status?: string) => (status || '').toUpperCase();
 
     const filteredUsers = users.filter(user =>
         (user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -23,22 +39,37 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
     );
 
     const handleRoleChange = async (userId: number, newRole: string) => {
+        if (!newRole) return;
+        if ((newRole || '').toUpperCase() === 'ADMIN') {
+            notify.error('Admin role assignment is locked.');
+            return;
+        }
+        setUpdatingRoleId(userId);
         try {
             await adminService.updateUserRole(userId, newRole);
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
             notify.success(`User permissions updated.`);
         } catch (error) {
             notify.error('Update failed to synchronize.');
+        } finally {
+            setUpdatingRoleId(null);
         }
     };
 
     const handleStatusToggle = async (userId: number) => {
+        setUpdatingStatusId(userId);
         try {
             await adminService.toggleUserStatus(userId.toString());
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'active' ? 'suspended' : 'active' } : u));
+            setUsers(prev => prev.map(u => {
+                if (u.id !== userId) return u;
+                const current = normalizeStatus(u.status);
+                return { ...u, status: current === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' };
+            }));
             notify.success(`User status modified.`);
         } catch (error) {
             notify.error('Status check failed.');
+        } finally {
+            setUpdatingStatusId(null);
         }
     };
 
@@ -51,26 +82,26 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="relative w-full max-w-md group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30 group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/30 group-focus-within:text-primary transition-colors" />
                     <input
                         type="text"
                         placeholder="Search patient or staff records..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-white/40 border border-primary/5 rounded-2xl pl-12 pr-6 py-4 text-[11px] font-bold text-text outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-text/30 uppercase tracking-widest"
+                        className="w-full bg-white/40 border border-primary/5 rounded-xl pl-10 pr-4 py-2.5 text-[10px] font-bold text-text outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-text/30 uppercase tracking-widest"
                     />
                 </div>
 
-                <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-grow md:flex-grow-0">
-                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30" />
+                        <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/30" />
                         <select
                             value={roleFilter}
                             onChange={(e) => setRoleFilter(e.target.value)}
-                            className="w-full bg-white/40 border border-primary/5 rounded-2xl pl-12 pr-10 py-4 text-[10px] font-black text-text uppercase tracking-[0.2em] outline-none appearance-none cursor-pointer hover:bg-white/60 transition-all"
+                            className="w-full bg-white/40 border border-primary/5 rounded-xl pl-10 pr-8 py-2.5 text-[9px] font-black text-text uppercase tracking-[0.18em] outline-none appearance-none cursor-pointer hover:bg-white/60 transition-all"
                         >
                             <option value="all">All Roles</option>
                             <option value="PATIENT">Patients</option>
@@ -82,16 +113,16 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
                 </div>
             </div>
 
-            <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+            <div className="bg-white/40 backdrop-blur-xl border border-primary/5 rounded-3xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-primary/5">
-                                <th className="px-8 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Name / Contact</th>
-                                <th className="px-8 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Designation / Role</th>
-                                <th className="px-8 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Joined Date</th>
-                                <th className="px-8 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em]">Status</th>
-                                <th className="px-8 py-4 text-[10px] font-black text-text/40 uppercase tracking-[0.2em] text-right">Actions</th>
+                                <th className="px-5 py-3 text-[9px] font-black text-text/40 uppercase tracking-[0.18em]">Name / Contact</th>
+                                <th className="px-5 py-3 text-[9px] font-black text-text/40 uppercase tracking-[0.18em]">Designation / Role</th>
+                                <th className="px-5 py-3 text-[9px] font-black text-text/40 uppercase tracking-[0.18em]">Joined Date</th>
+                                <th className="px-5 py-3 text-[9px] font-black text-text/40 uppercase tracking-[0.18em]">Status</th>
+                                <th className="px-5 py-3 text-[9px] font-black text-text/40 uppercase tracking-[0.18em] text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,53 +136,80 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
                                         transition={{ delay: i * 0.05 }}
                                         className="border-b border-primary/5 hover:bg-primary/5 transition-colors group"
                                     >
-                                        <td className="px-8 py-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:bg-primary group-hover:text-white transition-all">
-                                                    <UserIcon className="w-5 h-5" />
+                                        {(() => {
+                                            const isAdminUser = (user.role || '').toUpperCase() === 'ADMIN';
+                                            const isPatientUser = (user.role || '').toUpperCase() === 'PATIENT';
+                                            const selectedRole = roleDraftByUser[user.id] || (user.role || '').toUpperCase();
+                                            const canEditRole = allowRoleEdit && !isAdminUser && !isPatientUser;
+                                            const canEditStatus = allowStatusEdit && !isAdminUser && !isPatientUser;
+
+                                            return (
+                                                <>
+                                        <td className="px-5 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8.5 h-8.5 rounded-lg bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:bg-primary group-hover:text-white transition-all">
+                                                    <UserIcon className="w-4 h-4" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-[13px] font-black text-text uppercase italic">{user.name}</h4>
-                                                    <p className="text-[10px] font-medium text-text/40">{user.email}</p>
+                                                    <h4 className="text-[12px] font-black text-text uppercase italic">{user.name}</h4>
+                                                    <p className="text-[9px] font-medium text-text/40">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-4">
-                                            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border ${getRoleColor(user.role)}`}>
-                                                <Shield className="w-3 h-3" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest">{user.role}</span>
+                                        <td className="px-5 py-3">
+                                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${getRoleColor(user.role)}`}>
+                                                <Shield className="w-2.5 h-2.5" />
+                                                <span className="text-[8px] font-black uppercase tracking-widest">{user.role}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-4 text-[11px] font-bold text-text/60 uppercase tracking-tighter">
-                                            {user.joinDate}
+                                        <td className="px-5 py-3 text-[10px] font-bold text-text/60 uppercase tracking-tighter">
+                                            {user.joinDate || user.createdAt || '-'}
                                         </td>
-                                        <td className="px-8 py-4">
-                                            <div className={`flex items-center gap-2 ${user.status === 'active' ? 'text-cta' : 'text-red-400'}`}>
-                                                {user.status === 'active' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                                <span className="text-[10px] font-black uppercase tracking-widest italic">{user.status}</span>
+                                        <td className="px-5 py-3">
+                                            <div className={`flex items-center gap-2 ${normalizeStatus(user.status) === 'ACTIVE' ? 'text-cta' : 'text-red-400'}`}>
+                                                {normalizeStatus(user.status) === 'ACTIVE' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                                                <span className="text-[9px] font-black uppercase tracking-widest italic">{normalizeStatus(user.status) || 'UNKNOWN'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-4 text-right">
+                                        <td className="px-5 py-3 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                <select
+                                                    value={selectedRole}
+                                                    onChange={(e) => setRoleDraftByUser(prev => ({ ...prev, [user.id]: e.target.value }))}
+                                                    disabled={!canEditRole}
+                                                    className="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-wider border border-primary/15 rounded-md bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                                                >
+                                                    {canEditRole ? (
+                                                        <>
+                                                            <option value="PATIENT">PATIENT</option>
+                                                            <option value="TECHNICIAN">TECHNICIAN</option>
+                                                            <option value="MEDICAL_OFFICER">MEDICAL_OFFICER</option>
+                                                        </>
+                                                    ) : (
+                                                        <option value={(user.role || '').toUpperCase()}>{(user.role || '').toUpperCase() || 'PATIENT'}</option>
+                                                    )}
+                                                </select>
+                                                <button
+                                                    onClick={() => handleRoleChange(user.id, selectedRole)}
+                                                    disabled={!canEditRole || updatingRoleId === user.id || selectedRole === (user.role || '').toUpperCase()}
+                                                    className="px-2.5 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                    title={isAdminUser ? 'Admin role is locked' : isPatientUser ? 'Patient role is locked' : 'Update Role'}
+                                                >
+                                                    {updatingRoleId === user.id ? 'Updating...' : 'Update'}
+                                                </button>
                                                 <button
                                                     onClick={() => handleStatusToggle(user.id)}
-                                                    className="p-3 hover:bg-white rounded-xl text-text/20 hover:text-red-500 transition-all cursor-pointer"
-                                                    title="Modify Access Status"
+                                                    disabled={!canEditStatus || updatingStatusId === user.id}
+                                                    className="px-2.5 py-1.5 rounded-md bg-white border border-primary/20 hover:bg-primary/5 text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                    title={isAdminUser ? 'Admin status is locked' : isPatientUser ? 'Patient status is locked' : 'Toggle Status'}
                                                 >
-                                                    <AlertCircle className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleRoleChange(user.id, 'doctor')}
-                                                    className="p-3 hover:bg-white rounded-xl text-text/20 hover:text-primary transition-all cursor-pointer"
-                                                    title="Change User Designation"
-                                                >
-                                                    <Activity className="w-4 h-4" />
-                                                </button>
-                                                <button className="p-3 hover:bg-white rounded-xl text-text/20 hover:text-text/60 transition-all cursor-pointer" title="Manage Record">
-                                                    <MoreVertical className="w-4 h-4" />
+                                                    {updatingStatusId === user.id ? 'Updating...' : normalizeStatus(user.status) === 'ACTIVE' ? 'Suspend' : 'Activate'}
                                                 </button>
                                             </div>
                                         </td>
+                                                </>
+                                            );
+                                        })()}
                                     </motion.tr>
                                 ))}
                             </AnimatePresence>
@@ -160,9 +218,9 @@ const UserManagementTable: React.FC<Props> = ({ users: initialUsers }) => {
                 </div>
 
                 {filteredUsers.length === 0 && (
-                    <div className="py-24 text-center space-y-4 opacity-20">
-                        <Activity className="w-12 h-12 mx-auto" />
-                        <p className="text-[12px] font-black uppercase tracking-[0.3em]">No records found matching your search.</p>
+                    <div className="py-16 text-center space-y-3 opacity-20">
+                        <Activity className="w-9 h-9 mx-auto" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em]">No records found matching your search.</p>
                     </div>
                 )}
             </div>

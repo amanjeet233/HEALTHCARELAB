@@ -7,9 +7,13 @@ import com.healthcare.labtestbooking.entity.ReportResult;
 import com.healthcare.labtestbooking.entity.TestParameter;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.ReportVerification;
+import com.healthcare.labtestbooking.repository.ReportAiAnalysisRepository;
 import com.healthcare.labtestbooking.repository.ReportRepository;
 import com.healthcare.labtestbooking.repository.ReportResultRepository;
 import com.healthcare.labtestbooking.repository.ReportVerificationRepository;
+import com.healthcare.labtestbooking.entity.ReportAiAnalysis;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -36,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -63,75 +68,94 @@ public class ReportGeneratorService {
     private final ReportRepository reportRepository;
     private final ReportResultRepository reportResultRepository;
     private final ReportVerificationRepository reportVerificationRepository;
+    private final ReportAiAnalysisRepository reportAiAnalysisRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.report.qr.base-url:https://healthcarelab.com/verify}")
     private String qrBaseUrl;
 
+    @Transactional(readOnly = true)
     public byte[] generatePdfReport(Long reportId) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found with id: " + reportId));
+        try {
+            Report report = reportRepository.findById(reportId)
+                    .orElseThrow(() -> new RuntimeException("Report not found with id: " + reportId));
 
-        Booking booking = report.getBooking();
-        Order order = report.getOrder();
-        User patient = resolvePatient(booking, order);
-        List<ReportResult> results = resolveResults(reportId, report);
+            Booking booking = report.getBooking();
+            Order order = report.getOrder();
+            User patient = resolvePatient(booking, order);
+            List<ReportResult> results = resolveResults(reportId, report);
 
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(outputStream);
-        PdfDocument pdfDocument = new PdfDocument(writer);
-        pdfDocument.getDocumentInfo().setTitle("Smart Health Report - " + (patient != null ? patient.getName() : "Patient"))
-                                  .setAuthor("HealthcareLab SmartEngine v2.5")
-                                  .setSubject("Diagnostic Clinical Results");
-        
-        Document document = new Document(pdfDocument, PageSize.A4);
-        document.setMargins(70, 36, 60, 36);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outputStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            pdfDocument.getDocumentInfo().setTitle("Smart Health Report - " + (patient != null ? patient.getName() : "Patient"))
+                                      .setAuthor("HealthcareLab SmartEngine v2.5")
+                                      .setSubject("Diagnostic Clinical Results");
+            
+            Document document = new Document(pdfDocument, PageSize.A4);
+            document.setMargins(70, 36, 60, 36);
 
-        // Add Header & Footer Events
-        String pName = patient != null ? patient.getName() : "Unknown";
-        String pId = patient != null ? patient.getId().toString() : "-";
-        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new ReportHeaderEventHandler(pName, pId));
+            // Add Header & Footer Events
+            String pName = patient != null ? patient.getName() : "Unknown";
+            String pId = patient != null ? patient.getId().toString() : "-";
+            pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new ReportHeaderEventHandler(pName, pId));
 
-        // Part 1: Cover Page / Header
-        buildCoverHeader(document, patient, report, booking);
+            // Part 1: Cover Page / Header
+            buildCoverHeader(document, patient, report, booking);
 
-        // Part 2: Table of Contents
-        buildTableOfContents(document);
+            // Part 2: Table of Contents
+            buildTableOfContents(document);
 
-        // Part 3: Health Score Card
-        buildHealthScoreCard(document, results);
+            // Part 3: Health Score Card
+            buildHealthScoreCard(document, results);
 
-        // Part 4: Critical Action Center (High Visibility Red Flag Section)
-        List<ReportResult> criticals = results.stream().filter(r -> Boolean.TRUE.equals(r.getIsCritical())).collect(Collectors.toList());
-        if (!criticals.isEmpty()) {
-            buildCriticalActionCenter(document, criticals);
+            // Part 4: Critical Action Center (High Visibility Red Flag Section)
+            List<ReportResult> criticals = results.stream().filter(r -> Boolean.TRUE.equals(r.getIsCritical())).collect(Collectors.toList());
+            if (!criticals.isEmpty()) {
+                buildCriticalActionCenter(document, criticals);
+            }
+
+            // Part 5: Test Results (Highlight Cards)
+            buildParameterHighlights(document, results);
+
+            // Part 5: Clinical / Tech Details (New Page for clinical tables)
+            // Part 5: Wellness Recs
+            buildWellnessRecommendations(document, results);
+
+            // Part 6: Historical Trend Loading
+            List<ReportResult> historicalData = searchHistoricalMetrics(patient);
+            
+            // Part 7: Medical Officer Remarks
+            Optional<ReportVerification> verification = reportVerificationRepository.findByBookingId(booking.getId());
+            buildMedicalOfficerRemarks(document, verification.orElse(null));
+
+            // Part 8: Diagnostic Details (Clinical Summary)
+            document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            buildDoctorSummaryTable(document, results, historicalData, reportId);
+            
+            // Part 9: AI Deep Core Insights (The user's requested healthy details)
+            Optional<ReportAiAnalysis> aiAnalysis = reportAiAnalysisRepository.findByBookingId(booking.getId());
+            if (aiAnalysis.isPresent()) {
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                buildAiDeepInsightsPage(document, aiAnalysis.get());
+            }
+
+            // Part 10: Diagnostic QR & Security Seal
+            buildVerificationQr(document, report);
+            
+            // Part 11: Legal Disclaimer
+            buildClinicalDisclaimer(document);
+
+            try {
+                document.close();
+            } catch (Exception e) {
+                log.error("Error closing PDF document: {}", e.getMessage());
+            }
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            log.error("CRITICAL: PDF Generation Failed for report {}: {}", reportId, e.getMessage(), e);
+            return new byte[0];
         }
-
-        // Part 5: Test Results (Highlight Cards)
-        buildParameterHighlights(document, results);
-
-        // Part 5: Clinical / Tech Details (New Page for clinical tables)
-        // Part 5: Wellness Recs
-        buildWellnessRecommendations(document, results);
-
-        // Part 6: Historical Trend Loading
-        List<ReportResult> historicalData = searchHistoricalMetrics(patient);
-        
-        // Part 7: Medical Officer Remarks
-        Optional<ReportVerification> verification = reportVerificationRepository.findByBookingId(booking.getId());
-        buildMedicalOfficerRemarks(document, verification.orElse(null));
-
-        // Part 8: Diagnostic Details (Clinical Summary)
-        document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
-        buildDoctorSummaryTable(document, results, historicalData, reportId);
-        
-        // Part 9: Diagnostic QR & Security Seal
-        buildVerificationQr(document, report);
-        
-        // Part 10: Legal Disclaimer
-        buildClinicalDisclaimer(document);
-
-        document.close();
-        return outputStream.toByteArray();
     }
 
     private User resolvePatient(Booking booking, Order order) {
@@ -141,9 +165,20 @@ public class ReportGeneratorService {
     }
 
     private List<ReportResult> resolveResults(Long reportId, Report report) {
+        // 1. Try attached results
         if (report.getResults() != null && !report.getResults().isEmpty()) {
             return report.getResults();
         }
+        
+        // 2. Try by Booking ID (Primary link for technician-entered results)
+        if (report.getBooking() != null) {
+            List<ReportResult> bookingResults = reportResultRepository.findByBookingId(report.getBooking().getId());
+            if (bookingResults != null && !bookingResults.isEmpty()) {
+                return bookingResults;
+            }
+        }
+        
+        // 3. Fallback to report ID
         return reportResultRepository.findByReportId(reportId);
     }
 
@@ -156,7 +191,11 @@ public class ReportGeneratorService {
         if (history == null || paramId == null) return null;
         for (ReportResult h : history) {
             // Must be for same parameter but NOT from current report
-            if (h.getParameter() != null && h.getParameter().getId().equals(paramId) 
+            if (h.getParameter() != null
+                    && h.getParameter().getId().equals(paramId)
+                    // Some legacy technician-entered rows can be linked by booking only (report_id null).
+                    && h.getReport() != null
+                    && h.getReport().getId() != null
                     && !h.getReport().getId().equals(currentRepoId)) {
                 return h; // Ordered by desc created at, so first match is most recent prev
             }
@@ -579,6 +618,105 @@ public class ReportGeneratorService {
 
     private String formatDateTime(LocalDateTime dateTime) {
         return dateTime == null ? "-" : DATE_TIME_FORMATTER.format(dateTime);
+    }
+
+    private void buildAiDeepInsightsPage(Document document, ReportAiAnalysis ai) {
+        document.add(new Paragraph("AI DEEP CORE: PERSONALIZED HEALTH OPTIMIZATION")
+                .setBold().setFontSize(18).setFontColor(BRAND_TEAL).setTextAlignment(TextAlignment.CENTER).setMarginBottom(15));
+
+        // 1. Core Health Score
+        Table scoreHeader = new Table(1).useAllAvailableWidth().setMarginBottom(20);
+        Cell scoreCell = new Cell().setBackgroundColor(LIGHT_BG).setPadding(20).setBorder(new SolidBorder(BRAND_TEAL, 2f));
+        scoreCell.add(new Paragraph("YOUR BIOLOGICAL VITALITY SCORE").setFontSize(10).setTextAlignment(TextAlignment.CENTER).setFontColor(SLATE_GRAY));
+        
+        int score = ai.getHealthScore() != null ? ai.getHealthScore() : 0;
+        DeviceRgb scoreColor = score > 80 ? NORMAL_GREEN : (score > 60 ? INFO_BLUE : CRITICAL_RED);
+        
+        scoreCell.add(new Paragraph(score + "%").setBold().setFontSize(42).setFontColor(scoreColor).setTextAlignment(TextAlignment.CENTER));
+        scoreCell.add(new Paragraph(ai.getSummary() != null ? ai.getSummary() : "Comprehensive Analysis Complete.")
+                .setFontSize(11).setItalic().setTextAlignment(TextAlignment.CENTER).setFontColor(ColorConstants.GRAY));
+        scoreHeader.addCell(scoreCell);
+        document.add(scoreHeader);
+
+        // 2. High Severity Patterns (If any)
+        List<String> patterns = parseJsonList(ai.getPatternsJson());
+        if (!patterns.isEmpty()) {
+            document.add(new Paragraph("KEY HEALTH PATTERNS DETECTED").setBold().setFontSize(12).setFontColor(CRITICAL_RED));
+            com.itextpdf.layout.element.List patternList = new com.itextpdf.layout.element.List().setSymbolIndent(10).setListSymbol("🔍 ");
+            for (String p : patterns) {
+                com.itextpdf.layout.element.ListItem listItem = new com.itextpdf.layout.element.ListItem(p);
+                listItem.setFontSize(10).setFontColor(ColorConstants.DARK_GRAY);
+                patternList.add(listItem);
+            }
+            document.add(patternList);
+            document.add(new Paragraph("\n"));
+        }
+
+        // 3. Personalized Roadmaps (Diet, Exercise, Lifestyle)
+        Map<String, List<String>> recs = parseJsonMap(ai.getRecommendationsJson());
+        
+        if (recs.containsKey("Dietary Recommendations") || recs.containsKey("diet")) {
+            addRecommendationSection(document, "🥗 DIETARY PRECISION ROADMAP", 
+                recs.getOrDefault("Dietary Recommendations", recs.get("diet")));
+        }
+
+        if (recs.containsKey("Physical Activity") || recs.containsKey("exercise")) {
+            addRecommendationSection(document, "🏃 PHYSICAL PERFORMANCE PLAN", 
+                recs.getOrDefault("Physical Activity", recs.get("exercise")));
+        }
+
+        if (recs.containsKey("Lifestyle & Habits") || recs.containsKey("lifestyle")) {
+            addRecommendationSection(document, "🧘 LIFESTYLE & HABIT OPTIMIZATION", 
+                recs.getOrDefault("Lifestyle & Habits", recs.get("lifestyle")));
+        }
+
+        // 4. Next Steps
+        if (recs.containsKey("Next Steps") || recs.containsKey("followup")) {
+            addRecommendationSection(document, "📅 CLINICAL FOLLOW-UP & NEXT STEPS", 
+                recs.getOrDefault("Next Steps", recs.get("followup")));
+        }
+
+        document.add(new Paragraph("\n\n"));
+        document.add(new Paragraph("AI Disclaimer: This analysis is generated by AI Clinical Engine and should be reviewed by a qualified healthcare professional. It is intended for health optimization guidance only.")
+                .setFontSize(8).setItalic().setFontColor(ColorConstants.GRAY).setTextAlignment(TextAlignment.CENTER));
+    }
+
+    private void addRecommendationSection(Document document, String title, List<String> items) {
+        if (items == null || items.isEmpty()) return;
+        
+        document.add(new Paragraph(title).setBold().setFontSize(12).setFontColor(BRAND_TEAL).setMarginTop(10));
+        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(10);
+        Cell cell = new Cell().setBackgroundColor(new DeviceRgb(240, 249, 249)).setPadding(10).setBorder(new SolidBorder(BRAND_TEAL, 0.5f));
+        
+        com.itextpdf.layout.element.List uiList = new com.itextpdf.layout.element.List().setSymbolIndent(12).setListSymbol("• ");
+        for (String item : items) {
+            com.itextpdf.layout.element.ListItem listItem = new com.itextpdf.layout.element.ListItem(item);
+            listItem.setFontSize(9).setFontColor(ColorConstants.DARK_GRAY);
+            uiList.add(listItem);
+        }
+        cell.add(uiList);
+        box.addCell(cell);
+        document.add(box);
+    }
+
+    private List<String> parseJsonList(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            log.error("Error parsing AI JSON list: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private Map<String, List<String>> parseJsonMap(String json) {
+        if (json == null || json.isBlank()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, List<String>>>() {});
+        } catch (Exception e) {
+            log.error("Error parsing AI JSON map: {}", e.getMessage());
+            return Map.of();
+        }
     }
 }
 

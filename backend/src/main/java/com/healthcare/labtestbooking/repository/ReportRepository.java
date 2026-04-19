@@ -14,6 +14,17 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     @EntityGraph(attributePaths = {"results", "results.parameter", "booking", "booking.test"})
     Optional<Report> findByBookingId(Long bookingId);
 
+    @EntityGraph(attributePaths = {
+            "results",
+            "results.parameter",
+            "booking",
+            "booking.patient",
+            "booking.test",
+            "booking.testPackage",
+            "patient"
+    })
+    Optional<Report> findDetailedByBookingId(Long bookingId);
+
     @EntityGraph(attributePaths = {"results", "results.parameter", "booking", "booking.test"})
     Optional<Report> findByOrderId(Long orderId);
 
