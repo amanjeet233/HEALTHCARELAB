@@ -34,8 +34,9 @@ export const bookingService = {
         if (params?.fromDate) query.dateFrom = params.fromDate;
         if (params?.toDate) query.dateTo = params.toDate;
 
-        const response = await api.get('/api/users/bookings', { params: query });
-        const list = unwrap<any[]>(response) || [];
+        const response = await api.get('/api/bookings/my', { params: query });
+        const raw = unwrap<any>(response);
+        const list = Array.isArray(raw) ? raw : (raw?.content ?? []);
         const normalized = list.map(normalizeBooking);
 
         const filtered = params?.search
@@ -49,7 +50,7 @@ export const bookingService = {
     },
 
     getBookingById: async (id: number): Promise<BookingResponse> => {
-        const response = await api.get(`/api/users/bookings/${id}`);
+        const response = await api.get(`/api/bookings/${id}`);
         return normalizeBooking(unwrap<any>(response)) as BookingResponse;
     },
 
@@ -64,7 +65,7 @@ export const bookingService = {
     },
 
     rescheduleBooking: async (id: number, newDate: string, newTime: string): Promise<BookingResponse> => {
-        const response = await api.put(`/api/users/bookings/${id}/reschedule`, { newDate, newTime });
+        const response = await api.post(`/api/bookings/${id}/reschedule`, { newDate, newTime });
         return normalizeBooking(unwrap<any>(response)) as BookingResponse;
     }
 };

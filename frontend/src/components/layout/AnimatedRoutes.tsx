@@ -197,6 +197,7 @@ const AnimatedRoutes: React.FC = () => {
                             <Route path="/reports" element={<PageTransition><ReportsPage /></PageTransition>} />
                             <Route path="/smart-reports/:bookingId?" element={<PageTransition><SmartReportsPage /></PageTransition>} />
                             <Route path="/reports/:bookingId/print" element={<ReportPrintPage />} />
+                            <Route path="/health-optimization/:bookingId" element={<PageTransition><HealthOptimizationPage /></PageTransition>} />
                             <Route path="/health-plan/:bookingId" element={<PageTransition><HealthOptimizationPage /></PageTransition>} />
                             <Route path="/my-reports" element={<Navigate to="/reports" replace />} />
                             <Route path="/promos" element={<PageTransition><PromoCodesPage /></PageTransition>} />

@@ -1,6 +1,6 @@
 package com.healthcare.labtestbooking.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,20 +11,21 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReportVerificationRequest {
-    @Size(max = 1000, message = "Clinical notes must be at most 1000 characters")
+
+    @Size(max = 1000)
     private String clinicalNotes;
-    
-    @NotBlank(message = "Digital signature is required")
-    @Size(max = 250, message = "Digital signature must be at most 250 characters")
-    private String digitalSignature;
 
-    @NotNull(message = "Approval status is required")
-    private Boolean approved;
+    @Size(max = 250)
+    private String digitalSignature;   // optional - auto-generated in service
 
-    @Size(max = 500, message = "ICD codes must be at most 500 characters")
+    private Boolean approved;          // optional - defaults to true
+
+    @Size(max = 500)
     private String icdCodes;
 
-    @NotBlank(message = "Specialist type is required")
-    @Size(max = 250, message = "Specialist type must be at most 250 characters")
-    private String specialistType;
+    @Size(max = 250)
+    private String specialistType;     // optional
+
+    private String verificationNotes;  // alias for clinicalNotes
+    private String status;             // VERIFIED or APPROVED
 }

@@ -188,7 +188,11 @@ public class MedicalOfficerService {
         }
 
         verification.setClinicalNotes(request.getClinicalNotes());
-        verification.setDigitalSignature(generateDigitalSignature(medicalOfficer));
+        if (request.getDigitalSignature() == null) {
+            verification.setDigitalSignature(generateDigitalSignature(medicalOfficer));
+        } else {
+            verification.setDigitalSignature(request.getDigitalSignature());
+        }
         verification.setVerificationDate(LocalDateTime.now());
         verification.setStatus(VerificationStatus.APPROVED);
         verification.setIcdCodes(request.getIcdCodes() != null ? String.join(",", request.getIcdCodes()) : null);

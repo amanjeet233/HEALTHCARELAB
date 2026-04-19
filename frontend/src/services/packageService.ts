@@ -72,7 +72,9 @@ export const packageService = {
     },
 
     getBestDeals: async (): Promise<TestPackageResponse[]> => {
-        const response = await cachedGet('/api/lab-tests/packages/best-deals');
+        const response = await cachedGet('/api/test-packages', {
+            params: { size: 6, sort: 'discountPercentage,desc' }
+        });
         const data = response.data?.data || response.data || [];
         return data.map(normalizePackage);
     },

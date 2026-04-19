@@ -326,7 +326,7 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
 
   const scopedStatusSet = useMemo<Set<string> | null>(() => {
     if (forcedTab === 'pending') {
-      return new Set(['BOOKED', 'CONFIRMED', 'REFLEX_PENDING', 'SAMPLE_COLLECTED']);
+      return new Set(['BOOKED', 'CONFIRMED', 'REFLEX_PENDING', 'SAMPLE_COLLECTED', 'PROCESSING']);
     }
     if (forcedTab === 'inlab') {
       return new Set(['PROCESSING']);
@@ -550,14 +550,16 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
   };
 
   const pendingBookings = bookings.filter((b) =>
-    b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED'
+    b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING'
   );
   const collectedBookings = bookings.filter((b) => b.status === 'SAMPLE_COLLECTED');
   const processingBookings = bookings.filter((b) => b.status === 'PROCESSING');
   const sentForReviewBookings = bookings.filter((b) =>
-    b.status === 'PENDING_VERIFICATION' || b.status === 'PENDING' || b.status === 'VERIFIED'
+    b.status === 'PENDING_VERIFICATION' || b.status === 'VERIFIED'
   );
-  const completedBookings = bookings.filter((b) => b.status === 'COMPLETED');
+  const completedBookings = bookings.filter((b) =>
+    b.status === 'COMPLETED' || b.status === 'VERIFIED' || b.status === 'SAMPLE_COLLECTED'
+  );
 
   const statusSelectDisabled = Boolean(lockTab && scopedStatusSet);
   const isMainDashboard = !forcedTab;

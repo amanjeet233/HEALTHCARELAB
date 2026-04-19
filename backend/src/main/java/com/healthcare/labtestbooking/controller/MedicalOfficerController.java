@@ -5,6 +5,8 @@ import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.dto.DeltaCheckEntry;
 import com.healthcare.labtestbooking.dto.ReportVerificationRequest;
 import com.healthcare.labtestbooking.dto.ReportVerificationResponse;
+import com.healthcare.labtestbooking.entity.Booking;
+import com.healthcare.labtestbooking.entity.enums.BookingStatus;
 import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.service.BookingService;
 import com.healthcare.labtestbooking.service.MedicalOfficerService;
@@ -43,11 +45,21 @@ public class MedicalOfficerController {
 
     @GetMapping("/bookings")
     @PreAuthorize("hasRole('MEDICAL_OFFICER')")
-    public ResponseEntity<ApiResponse<Page<ReportVerificationResponse>>> getMOBookings(
+    public ResponseEntity<ApiResponse<Page<BookingResponse>>> getMOBookings(
             @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<ReportVerificationResponse> bookings = medicalOfficerService.getVerificationsByFilter(status, pageable);
-        return ResponseEntity.ok(ApiResponse.success("Bookings", bookings));
+        Page<Booking> page;
+        if (status != null && !status.isBlank()) {
+            try {
+                BookingStatus bs = BookingStatus.valueOf(status.toUpperCase());
+                page = bookingRepository.findByStatus(bs, pageable);
+            } catch (IllegalArgumentException e) {
+                page = bookingRepository.findAll(pageable);
+            }
+        } else {
+            page = bookingRepository.findAll(pageable);
+        }
+        return ResponseEntity.ok(ApiResponse.success("Bookings", page.map(bookingService::mapToResponsePublic)));
     }
 
     @GetMapping("/bookings/{bookingId}")
