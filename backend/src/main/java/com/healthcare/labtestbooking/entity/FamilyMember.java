@@ -31,6 +31,9 @@ public class FamilyMember {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName;
+
     @Column(length = 50)
     private String relation;
 
@@ -50,4 +53,42 @@ public class FamilyMember {
 
     @Column(name = "medical_history", columnDefinition = "TEXT")
     private String medicalHistory;
+
+    @PrePersist
+    @PreUpdate
+    private void syncNameFields() {
+        String normalizedName = normalize(name);
+        String normalizedFirstName = normalize(firstName);
+
+        if (normalizedName == null && normalizedFirstName == null) {
+            normalizedName = "Member";
+            normalizedFirstName = "Member";
+        } else {
+            if (normalizedFirstName == null) {
+                normalizedFirstName = extractFirstName(normalizedName);
+            }
+            if (normalizedName == null) {
+                normalizedName = normalizedFirstName;
+            }
+        }
+
+        this.name = normalizedName;
+        this.firstName = normalizedFirstName;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String extractFirstName(String fullName) {
+        if (fullName == null) {
+            return "Member";
+        }
+        String[] parts = fullName.trim().split("\\s+");
+        return parts.length == 0 || parts[0].isBlank() ? "Member" : parts[0];
+    }
 }

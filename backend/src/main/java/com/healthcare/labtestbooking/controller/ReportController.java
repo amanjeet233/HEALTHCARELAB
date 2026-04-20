@@ -90,6 +90,16 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success("Report results fetched successfully", report));
     }
 
+    @GetMapping("/parameters/booking/{bookingId}")
+    @PreAuthorize("hasAnyRole('TECHNICIAN', 'MEDICAL_OFFICER', 'ADMIN')")
+    @Operation(summary = "Get parameter list for result entry by booking", description = "Returns parameter list for both single-test and package bookings")
+    public ResponseEntity<ApiResponse<List<com.healthcare.labtestbooking.entity.TestParameter>>> getParametersByBooking(
+            @PathVariable Long bookingId) {
+        log.info("Fetching parameters for booking ID: {}", bookingId);
+        List<com.healthcare.labtestbooking.entity.TestParameter> params = reportService.getParametersForBooking(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Parameters fetched successfully", params));
+    }
+
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<ApiResponse<Report>> uploadReport(
@@ -156,6 +166,13 @@ public class ReportController {
     public ResponseEntity<ApiResponse<AiAnalysisResponseDto>> getAiAnalysis(@PathVariable Long bookingId) {
         AiAnalysisResponseDto analysis = aiAnalysisService.getAnalysisForBooking(bookingId);
         return ResponseEntity.ok(ApiResponse.success("AI analysis fetched successfully", analysis));
+    }
+
+    @PostMapping("/{bookingId}/request-analysis")
+    @PreAuthorize("hasAnyRole('PATIENT', 'MEDICAL_OFFICER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> requestAiAnalysis(@PathVariable Long bookingId) {
+        aiAnalysisService.requestAnalysisForBooking(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("AI analysis request submitted", null));
     }
 
     @PostMapping("/{bookingId}/regenerate-analysis")

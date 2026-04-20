@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Activity,
     AlertTriangle,
@@ -12,10 +12,11 @@ import {
     RefreshCcw,
     Search,
     Stethoscope,
-    ChevronRight,
     XCircle,
     UtensilsCrossed,
-    Loader2
+    Loader2,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { reportService, type AIAnalysis, type ReportDisplay } from '../../services/reportService';
 import GlassCard from '../../components/common/GlassCard';
@@ -69,6 +70,9 @@ const recommendationIcon = (category: string) => {
 };
 
 const ReportsPage: React.FC = () => {
+    const MAX_AI_RETRIES = 10;
+    const AI_RETRY_DELAY_MS = 3000;
+
     const navigate = useNavigate();
     const [reports, setReports] = useState<ReportDisplay[]>([]);
     const [loading, setLoading] = useState(true);
@@ -81,9 +85,18 @@ const ReportsPage: React.FC = () => {
     const [downloadingByBooking, setDownloadingByBooking] = useState<Record<number, boolean>>({});
     const [activeDownloadId, setActiveDownloadId] = useState<number | null>(null);
     const [downloadStatus, setDownloadStatus] = useState<string>('');
+    const aiRetryCountRef = useRef<Record<number, number>>({});
+    const aiRetryTimerRef = useRef<Record<number, number>>({});
 
     useEffect(() => {
         void loadReports();
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            Object.values(aiRetryTimerRef.current).forEach((timerId) => window.clearTimeout(timerId));
+            aiRetryTimerRef.current = {};
+        };
     }, []);
 
     const loadReports = async () => {
@@ -155,22 +168,62 @@ const ReportsPage: React.FC = () => {
         }
     };
 
-    const loadAiAnalysis = async (bookingId: number) => {
+    const clearAiRetryTimer = (bookingId: number) => {
+        const timer = aiRetryTimerRef.current[bookingId];
+        if (timer) {
+            window.clearTimeout(timer);
+            delete aiRetryTimerRef.current[bookingId];
+        }
+    };
+
+    const loadAiAnalysis = async (bookingId: number, isRetry = false) => {
+        if (!isRetry) {
+            aiRetryCountRef.current[bookingId] = 0;
+            clearAiRetryTimer(bookingId);
+        }
         setAiLoadingByBooking((prev) => ({ ...prev, [bookingId]: true }));
         try {
             const analysis = await reportService.getAIAnalysis(bookingId);
+            if (!analysis) {
+                throw new Error('AI_PENDING');
+            }
             setAiAnalysisByBooking((prev) => ({ ...prev, [bookingId]: analysis }));
+            aiRetryCountRef.current[bookingId] = 0;
+            clearAiRetryTimer(bookingId);
         } catch (error) {
+            const message = String((error as Error)?.message || '');
+            if (message === 'AI_PENDING') {
+                const attempts = (aiRetryCountRef.current[bookingId] || 0) + 1;
+                aiRetryCountRef.current[bookingId] = attempts;
+                if (attempts >= MAX_AI_RETRIES) {
+                    notify.error('AI insights are taking longer than expected. Please retry.');
+                    setAiLoadingByBooking((prev) => ({ ...prev, [bookingId]: false }));
+                    return;
+                }
+                clearAiRetryTimer(bookingId);
+                aiRetryTimerRef.current[bookingId] = window.setTimeout(() => {
+                    void loadAiAnalysis(bookingId, true);
+                }, AI_RETRY_DELAY_MS);
+                return;
+            }
             console.error(error);
             notify.error('Failed to load AI insights.');
         } finally {
-            setAiLoadingByBooking((prev) => ({ ...prev, [bookingId]: false }));
+            const hasPendingTimer = Boolean(aiRetryTimerRef.current[bookingId]);
+            if (!hasPendingTimer) {
+                setAiLoadingByBooking((prev) => ({ ...prev, [bookingId]: false }));
+            }
         }
     };
 
     const toggleInsights = async (bookingId: number) => {
         const isOpen = Boolean(showAiByBooking[bookingId]);
         setShowAiByBooking((prev) => ({ ...prev, [bookingId]: !isOpen }));
+        if (isOpen) {
+            clearAiRetryTimer(bookingId);
+            setAiLoadingByBooking((prev) => ({ ...prev, [bookingId]: false }));
+            return;
+        }
         if (!isOpen && aiAnalysisByBooking[bookingId] === undefined) {
             await loadAiAnalysis(bookingId);
         }
@@ -190,10 +243,12 @@ const ReportsPage: React.FC = () => {
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
-                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/55 mb-4">
-                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
-                        <ChevronRight size={12} className="text-cyan-700/40" />
-                        <span className="text-cyan-700">My Reports</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                            <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                            <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+                            <span className="text-[#005d79]">My Reports</span>
+                        </nav>
                     </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
@@ -350,7 +405,10 @@ const ReportsPage: React.FC = () => {
                                                 </span>
 
                                                 <GlassButton
-                                                    onClick={(e) => { e.stopPropagation(); void toggleInsights(report.bookingId); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/smart-reports/${report.bookingId}`);
+                                                    }}
                                                     variant="outline"
                                                     size="sm"
                                                     icon={<Brain size={15} />}

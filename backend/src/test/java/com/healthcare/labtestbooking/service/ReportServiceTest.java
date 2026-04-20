@@ -25,7 +25,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import org.springframework.security.core.Authentication;
@@ -432,5 +432,40 @@ class ReportServiceTest {
             mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
             assertThrows(ResourceNotFoundException.class, () -> reportService.getDownloadableReportByBooking(2L));
         }
+    }
+
+    @Test
+    void getTrendsForPatient_UsesSingleProjectionQuery() {
+        // Given
+        patient.setEmail("patient@test.com");
+        patient.setRole(UserRole.PATIENT);
+
+        ReportResultRepository.TrendResultRow trendRow = mock(ReportResultRepository.TrendResultRow.class);
+        when(trendRow.getParameterName()).thenReturn("Glucose");
+        when(trendRow.getBookingDate()).thenReturn(java.time.LocalDate.now());
+        when(trendRow.getResultValue()).thenReturn("98");
+        when(trendRow.getUnit()).thenReturn("mg/dL");
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn("patient@test.com");
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        when(userRepository.findByEmail("patient@test.com")).thenReturn(Optional.of(patient));
+        when(reportResultRepository.findTrendRowsByPatientIdAndStatusIn(anyLong(), anyCollection()))
+                .thenReturn(List.of(trendRow));
+
+        // When
+        try (var mockedSecurity = mockStatic(SecurityContextHolder.class)) {
+            mockedSecurity.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+            reportService.getTrendsForPatient(1L);
+        }
+
+        // Then
+        verify(reportResultRepository).findTrendRowsByPatientIdAndStatusIn(eq(1L), anyCollection());
+        verify(bookingRepository, never()).findForTrendsByPatientId(anyLong());
+        verify(reportResultRepository, never()).findByBookingId(anyLong());
     }
 }

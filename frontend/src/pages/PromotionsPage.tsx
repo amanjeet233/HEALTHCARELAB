@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
     Ticket, 
     Zap, 
@@ -16,6 +17,8 @@ import {
     Crown,
     Star,
     ArrowRight,
+    ChevronLeft,
+    ChevronRight,
     Heart,
     Baby,
     Activity,
@@ -26,6 +29,7 @@ import { notify } from '../utils/toast';
 import './PromotionsPage.css';
 
 const PromotionsPage: React.FC = () => {
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [promos, setPromos] = useState<any[]>([]);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -77,6 +81,23 @@ const PromotionsPage: React.FC = () => {
 
     return (
         <div className="promotions-page">
+            <div className="max-w-[1400px] mx-auto px-6 pt-6">
+                <div className="inline-flex items-center gap-3 mb-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+                    >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        Back
+                    </button>
+                    <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                        <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                        <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+                        <span className="text-[#005d79]">Promotions</span>
+                    </nav>
+                </div>
+            </div>
             <header className="promotions-header">
                 <div className="header-content">
                     <h1>Promotions <span>& Special Offers</span></h1>

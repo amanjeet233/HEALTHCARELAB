@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { bookingService } from '../../services/booking';
 import type { BookingResponse, BookingStatus } from '../../types/booking';
 import { 
@@ -13,6 +13,7 @@ import {
     XCircle, 
     FileText, 
     Search,
+    ChevronLeft,
     ChevronRight,
     Plus,
     Activity
@@ -167,7 +168,7 @@ const MyBookingsPage: React.FC = () => {
     const confirmedCount = bookings.filter(b =>
         b.status === 'BOOKED' || b.status === 'CONFIRMED' || b.status === 'REFLEX_PENDING' || b.status === 'SAMPLE_COLLECTED' || b.status === 'PROCESSING' || b.status === 'PENDING_VERIFICATION'
     ).length;
-    const completedCount = bookings.filter(b => b.status === 'COMPLETED').length;
+    const completedCount = bookings.filter(b => b.status === 'COMPLETED' || b.status === 'VERIFIED').length;
 
     const handleCancelBooking = async () => {
         if (!bookingToCancel) {
@@ -358,13 +359,23 @@ const MyBookingsPage: React.FC = () => {
     };
 
     return (
-        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen bg-background">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
+        <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-6 min-h-screen bg-background">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-4">
                 <div className="max-w-2xl">
-                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
-                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
-                        <ChevronRight size={12} className="text-cyan-700/40" />
-                        <span className="text-cyan-700">My Bookings</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            Back
+                        </button>
+                        <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                            <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                            <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+                            <span className="text-[#005d79]">My Bookings</span>
+                        </nav>
                     </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
@@ -374,7 +385,7 @@ const MyBookingsPage: React.FC = () => {
                             Bookings / Timeline
                         </span>
                     </div>
-                    <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5 uppercase">
+                    <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2 uppercase">
                         My <span className="text-cyan-600">Bookings</span>
                     </h1>
                     <p className="text-[clamp(0.84rem,0.8rem+0.3vw,1rem)] text-cyan-900/60 font-medium leading-relaxed">
@@ -404,7 +415,7 @@ const MyBookingsPage: React.FC = () => {
                 </div>
             </header>
 
-            <GlassCard className="mb-7 border-cyan-100/30">
+            <GlassCard className="mb-4 border-cyan-100/30">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex-1 min-w-[240px]">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Search</label>
@@ -468,7 +479,7 @@ const MyBookingsPage: React.FC = () => {
                 </div>
             </GlassCard>
 
-            <div className="space-y-8">
+            <div className="space-y-6">
                 {isLoading ? (
                     <div className="grid grid-cols-1 gap-4">
                         {[1, 2, 3].map(i => (
@@ -520,66 +531,68 @@ const MyBookingsPage: React.FC = () => {
                                     <h2 className="text-xs font-black uppercase tracking-[0.3em] text-emerald-600/70">Completed Bookings</h2>
                                     <div className="flex-1 h-px bg-gradient-to-r from-emerald-100 to-transparent" />
                                 </div>
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
                                     {completedBookings.map(booking => (
-                                        <GlassCard key={booking.id} className="!p-5 hover:shadow-xl transition-all border-emerald-100/30">
-                                            <div className="flex items-start justify-between mb-4">
-                                                <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
-                                                    <FlaskConical size={24} />
+                                        <GlassCard key={booking.id} className="!p-4 hover:shadow-xl transition-all border-emerald-100/30 flex flex-col h-full">
+                                            <div className="flex-1">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
+                                                        <FlaskConical size={24} />
+                                                    </div>
+                                                    <StatusBadge status={booking.status as any} />
                                                 </div>
-                                                <StatusBadge status={booking.status as any} />
-                                            </div>
-                                            <h3 className="text-lg font-black text-slate-800 mb-2 truncate">{booking.testName}</h3>
-                                            <p className="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2">
-                                                <Calendar size={14} /> {booking.collectionDate}
-                                            </p>
+                                                <h3 className="text-lg font-black text-slate-800 mb-2 truncate">{booking.testName}</h3>
+                                                <p className="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2">
+                                                    <Calendar size={14} /> {booking.collectionDate}
+                                                </p>
 
-                                            <div className="mt-2 mb-4">
-                                                <div className="flex items-center max-w-xs">
-                                                    {PATIENT_NODES.map((node, idx) => {
-                                                        const currentNode = getPatientNodeIndex(String(booking.status || '').toUpperCase());
-                                                        const isComplete = currentNode > node.key;
-                                                        const isActive = currentNode === node.key;
-                                                        const isLast = idx === PATIENT_NODES.length - 1;
+                                                <div className="mt-2 mb-4">
+                                                    <div className="flex items-center max-w-xs">
+                                                        {PATIENT_NODES.map((node, idx) => {
+                                                            const currentNode = getPatientNodeIndex(String(booking.status || '').toUpperCase());
+                                                            const isComplete = currentNode > node.key;
+                                                            const isActive = currentNode === node.key;
+                                                            const isLast = idx === PATIENT_NODES.length - 1;
 
-                                                        return (
-                                                            <React.Fragment key={node.key}>
-                                                                <div className="flex flex-col items-center gap-1 shrink-0">
-                                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border-2 ${
-                                                                        isComplete
-                                                                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                                                                            : isActive
-                                                                            ? 'bg-teal-600 border-teal-600 text-white ring-3 ring-teal-100'
-                                                                            : 'bg-slate-100 border-slate-200 text-slate-400'
-                                                                    }`}>
-                                                                        {isComplete ? '✓' : node.key}
+                                                            return (
+                                                                <React.Fragment key={node.key}>
+                                                                    <div className="flex flex-col items-center gap-1 shrink-0">
+                                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border-2 ${
+                                                                            isComplete
+                                                                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                                                : isActive
+                                                                                ? 'bg-teal-600 border-teal-600 text-white ring-3 ring-teal-100'
+                                                                                : 'bg-slate-100 border-slate-200 text-slate-400'
+                                                                        }`}>
+                                                                            {isComplete ? '✓' : node.key}
+                                                                        </div>
+                                                                        <span className={`text-[9px] font-bold text-center leading-tight max-w-[60px] ${
+                                                                            isComplete
+                                                                                ? 'text-emerald-600'
+                                                                                : isActive
+                                                                                ? 'text-teal-700'
+                                                                                : 'text-slate-400'
+                                                                        }`}>
+                                                                            {node.label}
+                                                                        </span>
                                                                     </div>
-                                                                    <span className={`text-[9px] font-bold text-center leading-tight max-w-[60px] ${
-                                                                        isComplete
-                                                                            ? 'text-emerald-600'
-                                                                            : isActive
-                                                                            ? 'text-teal-700'
-                                                                            : 'text-slate-400'
-                                                                    }`}>
-                                                                        {node.label}
-                                                                    </span>
-                                                                </div>
-                                                                {!isLast && (
-                                                                    <div className={`flex-1 h-0.5 mx-1 ${isComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-                                                                )}
-                                                            </React.Fragment>
-                                                        );
-                                                    })}
-                                                </div>
+                                                                    {!isLast && (
+                                                                        <div className={`flex-1 h-0.5 mx-1 ${isComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                                                    )}
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
+                                                    </div>
 
-                                                {booking.technicianName && (
-                                                    <p className="text-[10px] text-slate-400 font-medium mt-1.5">
-                                                        Technician: {booking.technicianName}
-                                                    </p>
-                                                )}
+                                                    {booking.technicianName && (
+                                                        <p className="text-[10px] text-slate-400 font-medium mt-1.5">
+                                                            Technician: {booking.technicianName}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                             
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 mt-auto pt-4 border-t border-slate-50">
                                                 {booking.reportAvailable && (
                                                     <GlassButton 
                                                         size="sm" 

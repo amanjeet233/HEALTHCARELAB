@@ -97,9 +97,14 @@ public class FamilyMemberService {
     }
 
     private FamilyMemberResponse mapToResponse(FamilyMember familyMember) {
+        String resolvedName = familyMember.getName();
+        if (resolvedName == null || resolvedName.isBlank()) {
+            resolvedName = familyMember.getFirstName();
+        }
+
         return FamilyMemberResponse.builder()
                 .id(familyMember.getId())
-                .name(familyMember.getName())
+                .name(resolvedName)
                 .relation(familyMember.getRelation())
                 .dateOfBirth(familyMember.getDateOfBirth())
                 .gender(familyMember.getGender())

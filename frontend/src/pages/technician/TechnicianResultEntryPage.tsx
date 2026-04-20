@@ -25,8 +25,9 @@ const isAbnormal = (param: any, val: string) => {
 };
 
 const getTechNodeIndex = (status: string, hasResults: boolean) => {
-  if (status === 'VERIFIED' || status === 'COMPLETED') return 5;
-  if (status === 'PENDING_VERIFICATION' || status === 'PENDING') return 5;
+  if (status === 'VERIFIED' || status === 'COMPLETED') return 6;
+  if (status === 'PENDING_VERIFICATION') return 6;
+  if (status === 'PENDING') return 5;
   if (status === 'PROCESSING' && hasResults) return 4;
   if (status === 'PROCESSING') return 3;
   if (status === 'SAMPLE_COLLECTED') return 2;
@@ -72,17 +73,38 @@ const TechnicianResultEntryPage: React.FC = () => {
 
         setBooking(bookingData);
 
-        let testId = bookingData?.labTestId || bookingData?.test?.id || bookingData?.testId;
-        if (!testId) {
-          testId = await technicianService.findTestIdByName(
-            bookingData?.testName || bookingData?.labTestName || ''
-          );
-        }
-        if (testId) {
-          const paramsResp = await api.get(`/api/lab-tests/${testId}/parameters`);
-          setParameters(paramsResp.data?.data || []);
-        } else {
-          setParameters([]);
+        try {
+          const paramsResp = await api.get(`/api/reports/parameters/booking/${parsedBookingId}`);
+          const bookingParams = paramsResp.data?.data || [];
+          if (Array.isArray(bookingParams) && bookingParams.length > 0) {
+            setParameters(bookingParams);
+          } else {
+            let testId = bookingData?.labTestId || bookingData?.test?.id || bookingData?.testId;
+            if (!testId) {
+              testId = await technicianService.findTestIdByName(
+                bookingData?.testName || bookingData?.labTestName || ''
+              );
+            }
+            if (testId) {
+              const singleTestParamsResp = await api.get(`/api/lab-tests/${testId}/parameters`);
+              setParameters(singleTestParamsResp.data?.data || []);
+            } else {
+              setParameters([]);
+            }
+          }
+        } catch {
+          let testId = bookingData?.labTestId || bookingData?.test?.id || bookingData?.testId;
+          if (!testId) {
+            testId = await technicianService.findTestIdByName(
+              bookingData?.testName || bookingData?.labTestName || ''
+            );
+          }
+          if (testId) {
+            const singleTestParamsResp = await api.get(`/api/lab-tests/${testId}/parameters`);
+            setParameters(singleTestParamsResp.data?.data || []);
+          } else {
+            setParameters([]);
+          }
         }
 
         try {
@@ -261,12 +283,28 @@ const TechnicianResultEntryPage: React.FC = () => {
         )}
         {loading ? (
           <div className="text-sm font-medium text-slate-500">Loading booking data...</div>
-        ) : parameters.length === 0 ? (
-          <div className="text-center py-10">
-            <FlaskConical className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-sm font-bold text-slate-500">No parameters configured for this test</p>
-            {existingResults.length > 0 && (
-              <p className="text-xs text-slate-400 mt-2">Existing result values are shown above. You can still upload the report PDF.</p>
+        ) : (parameters == null || parameters.length === 0) ? (
+          <div className="text-center py-12 px-4 border-2 border-dashed border-slate-100 rounded-3xl">
+            <FlaskConical className="w-12 h-12 text-slate-300 mx-auto mb-4 animate-pulse" />
+            <h3 className="text-base font-black text-slate-700 mb-2 uppercase tracking-tight">No Parameters Configured</h3>
+            <p className="text-xs text-slate-500 max-w-[280px] mx-auto leading-relaxed">
+              We couldn't find any lab parameters for this test package. This might be due to a configuration gap in the lab test database.
+            </p>
+            {existingResults.length > 0 ? (
+              <div className="mt-6 p-3 bg-cyan-50 rounded-xl inline-block">
+                <p className="text-[10px] font-bold text-cyan-700">
+                  EXISTING RESULTS DETECTED: You can still view and edit them above.
+                </p>
+              </div>
+            ) : (
+              <GlassButton 
+                variant="secondary" 
+                size="small" 
+                className="mt-6"
+                onClick={() => window.location.reload()}
+              >
+                Retry Fetching
+              </GlassButton>
             )}
           </div>
         ) : (

@@ -210,7 +210,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setCart(currentCart);
     syncToLocalStorage(currentCart);
-    setIsCartOpen(true);
   };
 
   const addTest = useCallback(async (testId: number, name: string, price: number, quantity: number = 1) => {
@@ -219,7 +218,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const cartData = normalizeCart(response.data.data);
       setCart(cartData);
       syncToLocalStorage(cartData);
-      setIsCartOpen(true);
       setError(null);
       toast.success(`${name} added to cart!`, { duration: 2000 });
     } catch (err: any) {
@@ -288,7 +286,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const normalized = normalizeCart(response.data.data);
       setCart(normalized);
       syncToLocalStorage(normalized);
-      setIsCartOpen(true);
       setError(null);
       toast.success(`${name} added to cart!`, { duration: 2000 });
     } catch (err: any) {
@@ -312,9 +309,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       } else if (status === 400) {
         if (message.includes('already')) {
-          // Package already in cart on backend; sync and open cart.
+          // Package already in cart on backend; sync badge state.
           await fetchCart();
-          setIsCartOpen(true);
           toast('Package already in cart.', { duration: 2000 });
         } else if (message.includes('not found') || message.includes('invalid') || message.includes('must not be null')) {
           toast.error('Invalid package ID. Please refresh and try again.');

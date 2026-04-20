@@ -26,4 +26,5 @@ public class AiAnalysisResponseDto {
     private Boolean hasCriticalResults;
     private String disclaimer;
     private LocalDateTime generatedAt;
+    private String errorMessage;
 }

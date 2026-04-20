@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FaArrowLeft, FaExclamationTriangle, FaFileAlt, FaLightbulb } from 'react-icons/fa';
 import { smartReportService, type SmartAnalysis, type ParameterTrend, type CriticalValue } from '../../services/smartReportService';
 import { reportService } from '../../services/reportService';
@@ -91,8 +91,10 @@ const SmartReportsPage: React.FC = () => {
   // UI States
   const [isLoadingReports, setIsLoadingReports] = useState(true);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [isRequestingAi, setIsRequestingAi] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   // Load reports on mount
   useEffect(() => {
@@ -155,6 +157,9 @@ const SmartReportsPage: React.FC = () => {
       // Load smart analysis
       const analysis = await smartReportService.getSmartAnalysis(reportId);
       setSmartAnalysis(analysis);
+      if (analysis.aiStatus === 'FAILED') {
+        setError(analysis.analysisError || 'AI analysis failed to generate. Please try again.');
+      }
 
       // Load raw results
       try {
@@ -167,8 +172,6 @@ const SmartReportsPage: React.FC = () => {
       // Load parameter trends
       const paramTrends = await smartReportService.getParameterTrends(reportId, reportId);
       setTrends(paramTrends);
-
-      notify.success('Analysis loaded successfully');
     } catch (err: any) {
       console.error('Error loading analysis:', err);
       const errorMsg = err.message || 'Failed to load analysis';
@@ -176,6 +179,46 @@ const SmartReportsPage: React.FC = () => {
       notify.error(errorMsg);
     } finally {
       setIsLoadingAnalysis(false);
+    }
+  };
+
+  const handleAnalyzeWithAi = async () => {
+    if (!selectedReportId) return;
+
+    try {
+      setIsRequestingAi(true);
+      setError(null);
+      await smartReportService.requestSmartAnalysis(selectedReportId);
+
+      let latest: SmartAnalysis | null = null;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        latest = await smartReportService.getSmartAnalysis(selectedReportId);
+        setSmartAnalysis(latest);
+        if (latest.aiStatus !== 'PENDING') {
+          break;
+        }
+        await sleep(1200);
+      }
+
+      await loadAnalysis(selectedReportId);
+
+      if (latest?.aiStatus === 'FAILED') {
+        const message = latest.analysisError || 'AI analysis failed to generate. Please try again.';
+        setError(message);
+        notify.error(message);
+      } else if (latest?.aiStatus === 'PENDING') {
+        notify.info('AI analysis is still running. Please check again in a moment.');
+      } else {
+        notify.success('AI analysis generated successfully');
+      }
+    } catch (err: unknown) {
+      console.error('Error requesting AI analysis:', err);
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Failed to trigger AI analysis';
+      setError(message);
+      notify.error(message);
+    } finally {
+      setIsRequestingAi(false);
     }
   };
 
@@ -198,15 +241,6 @@ const SmartReportsPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">
-        <Link to="/" className="hover:text-[#0D7C7C] transition-colors">Home</Link>
-        <span>&gt;</span>
-        <Link to="/reports" className="hover:text-[#0D7C7C] transition-colors">My Reports</Link>
-        <span>&gt;</span>
-        <span className="text-[#0D7C7C]">Smart Analysis</span>
-      </nav>
-
       {/* Header Pattern from Screenshot */}
       <div className="mb-10">
         <div className="flex items-center gap-4 mb-6">
@@ -224,6 +258,15 @@ const SmartReportsPage: React.FC = () => {
         <p className="text-gray-500 text-lg font-medium max-w-2xl leading-relaxed">
           View your deep clinical intelligence, laboratory biomarker mapping, and long-term health trends.
         </p>
+        <div className="mt-5">
+          <button
+            onClick={handleAnalyzeWithAi}
+            disabled={isRequestingAi || isLoadingAnalysis}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0D7C7C] to-[#004B87] text-white text-sm font-black uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+          >
+            {isRequestingAi ? 'Analyzing...' : 'Analyze Report with AI'}
+          </button>
+        </div>
       </div>
 
       {/* Error Alert */}
@@ -232,12 +275,27 @@ const SmartReportsPage: React.FC = () => {
           <p className="font-600">{error}</p>
         </div>
       )}
+      {!error && smartAnalysis?.aiStatus === 'PENDING' && (
+        <div className="mb-8 p-4 bg-cyan-50 border-l-4 border-cyan-500 text-cyan-800 rounded">
+          <p className="font-600">AI analysis is in progress. You can refresh in a few seconds.</p>
+        </div>
+      )}
 
       {/* Loading or Content State */}
-      {isLoadingAnalysis || !smartAnalysis ? (
+      {isLoadingAnalysis ? (
         <div className="text-center py-24">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-400 font-bold uppercase tracking-widest text-xs animate-pulse">Analyzing Laboratory Data...</p>
+        </div>
+      ) : !smartAnalysis ? (
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
+          <p className="text-gray-600 font-bold uppercase tracking-widest text-xs">Analysis unavailable for this report.</p>
+          <button
+            onClick={() => selectedReportId && loadAnalysis(selectedReportId)}
+            className="mt-6 px-5 py-2.5 bg-[#0D7C7C] text-white rounded-lg text-sm font-bold hover:bg-[#0B6666] transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <>
@@ -252,7 +310,7 @@ const SmartReportsPage: React.FC = () => {
                     Clinical Intelligence Center
                   </span>
                   <div className="h-px w-12 bg-white/20"></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300">AI CORE V2.5.0</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300">AI CORE V3.1.0</span>
                 </div>
                 <h2 className="text-4xl font-black uppercase tracking-tight mb-2">Diagnostic Narrative</h2>
                 <p className="text-cyan-100/70 font-medium max-w-xl">Deep physiological correlation and systemic health interpretation powered by advanced clinical logic.</p>
@@ -346,8 +404,8 @@ const SmartReportsPage: React.FC = () => {
                   <div
                     key={idx}
                     className={`group bg-white dark:bg-gray-800 rounded-2xl border-l-4 p-6 shadow-xl shadow-cyan-900/5 hover:shadow-cyan-900/10 transition-all duration-300 transform hover:-translate-y-0.5 ${res.isAbnormal
-                        ? (res.isCritical ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-amber-500 ring-1 ring-amber-500/20')
-                        : 'border-[#0D7C7C] border-opacity-40 ring-1 ring-black/[0.02]'
+                      ? (res.isCritical ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-amber-500 ring-1 ring-amber-500/20')
+                      : 'border-[#0D7C7C] border-opacity-40 ring-1 ring-black/[0.02]'
                       }`}
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center gap-8">
@@ -384,8 +442,8 @@ const SmartReportsPage: React.FC = () => {
                       {/* Status Action */}
                       <div className="lg:w-48 flex justify-end">
                         <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black tracking-[0.2em] uppercase border-2 shadow-sm ${res.isAbnormal
-                            ? (res.isCritical ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-amber-50 border-amber-200 text-amber-600')
-                            : 'bg-emerald-50 border-emerald-100 text-emerald-600 font-bold'
+                          ? (res.isCritical ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-amber-50 border-amber-200 text-amber-600')
+                          : 'bg-emerald-50 border-emerald-100 text-emerald-600 font-bold'
                           }`}>
                           {res.isAbnormal ? (res.isCritical ? 'Critical Block' : 'Monitor Value') : 'Optimal State'}
                         </div>

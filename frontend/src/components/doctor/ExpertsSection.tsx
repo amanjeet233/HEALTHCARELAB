@@ -1,6 +1,5 @@
 import { Beaker, Brain, Clock, Users } from 'lucide-react';
-import AsymmetricCard from '../common/AsymmetricCard';
-import MagneticButton from '../ui/MagneticButton';
+import { motion } from 'framer-motion';
 
 const ExpertsSection: React.FC = () => {
     const experts = [
@@ -24,9 +23,9 @@ const ExpertsSection: React.FC = () => {
     ];
 
     return (
-        <section className="py-4 md:py-6 relative overflow-hidden bg-transparent">
-            <div className="container mx-auto px-4 md:px-6 relative z-10 max-w-[1000px]">
-                <div className="flex flex-col items-center gap-3 md:gap-4 text-center">  
+        <section className="py-2 md:py-4 relative overflow-hidden bg-transparent">
+            <div className="container mx-auto px-4 md:px-6 relative z-10 max-w-[920px]">
+                <div className="flex flex-col items-center gap-2 md:gap-3 text-center">
                     {/* Simplified Header Block */}
                     <div className="w-full space-y-3 max-w-xl">
                         <div className="space-y-1">
@@ -53,17 +52,20 @@ const ExpertsSection: React.FC = () => {
                     </div>
 
                     {/* Cards Section */}
-                    <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto items-stretch">
+                    <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-2.5 max-w-[880px] mx-auto items-stretch">
                         {experts.map((dr, i) => (
-                            <AsymmetricCard
+                            <motion.div
                                 key={i}
-                                delay={i * 0.1}
-                                className="h-full bg-white"
+                                initial={{ opacity: 0, y: 14 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, amount: 0.25 }}
+                                transition={{ duration: 0.45, delay: i * 0.08, ease: "easeOut" }}
+                                className="h-full bg-white border border-primary/10 rounded-2xl shadow-[0_4px_14px_rgba(8,85,95,0.06)]"
                             >
-                                <div className="space-y-3 flex flex-col h-full items-center text-center p-2 mt-2 mb-2">
+                                <div className="space-y-2.5 flex flex-col h-full items-center text-center px-3 py-3 md:px-4 md:py-4">
                                     {/* Proportional Circular Avatar */}        
                                     <div className="relative">
-                                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border border-primary/10 shadow-sm group-hover:scale-105 transition-all duration-500 bg-primary/5">
+                                        <div className="w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden border border-primary/10 shadow-sm bg-primary/5">
                                             <img
                                                 src={dr.img}
                                                 alt={dr.name}
@@ -71,15 +73,15 @@ const ExpertsSection: React.FC = () => {
                                             />
                                         </div>
                                         {/* Balanced Icon Badge */}
-                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white shadow-md flex items-center justify-center text-primary-teal border border-primary/10 rotate-12 group-hover:rotate-0 transition-transform">
+                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center text-primary-teal border border-primary/10">
                                             <div className="scale-75">{dr.icon}</div>
                                         </div>
                                     </div>
 
                                     {/* Text Content */}
-                                    <div className="space-y-1 flex-1 mt-1">
-                                        <h4 className="text-base md:text-lg font-black text-slate-800 uppercase italic tracking-tighter leading-none group-hover:text-primary transition-colors">{dr.name}</h4>    
-                                        <p className="text-primary font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em]">{dr.spec}</p>
+                                    <div className="space-y-1 flex-1 mt-0.5">
+                                        <h4 className="text-[1.35rem] md:text-[1.5rem] font-black text-slate-800 uppercase italic tracking-tighter leading-none">{dr.name}</h4>
+                                        <p className="text-primary font-black text-[9px] uppercase tracking-[0.18em]">{dr.spec}</p>
                                         <div className="inline-flex items-center justify-center gap-1.5 mt-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                                             <span className="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />        
                                             <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">{dr.exp}</span>
@@ -87,11 +89,11 @@ const ExpertsSection: React.FC = () => {
                                     </div>
 
                                     {/* Action Button */}
-                                    <button className="w-full max-w-[160px] py-1.5 md:py-2 border border-primary/20 rounded-lg text-[8px] md:text-[9px] font-black uppercase text-primary hover:bg-primary hover:border-primary hover:text-white transition-all tracking-widest group-hover:shadow-md mt-2">
+                                    <button className="w-full max-w-[170px] py-1.5 border border-primary/20 rounded-full text-[8px] font-black uppercase text-primary hover:bg-primary hover:border-primary hover:text-white transition-all tracking-widest mt-1">
                                         SCHEDULE CONSULT
                                     </button>
                                 </div>
-                            </AsymmetricCard>
+                            </motion.div>
                         ))}
                     </div>
                 </div>

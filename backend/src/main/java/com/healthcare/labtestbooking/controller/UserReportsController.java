@@ -45,9 +45,26 @@ public class UserReportsController {
             @RequestParam(defaultValue = "0") int offset) {
         Long userId = userService.getCurrentUserId();
         List<Booking> bookings = bookingRepository.findByPatientId(userId, PageRequest.of(0, Math.max(1, limit + offset))).getContent();
+        List<Long> bookingIds = bookings.stream()
+                .map(Booking::getId)
+                .collect(Collectors.toList());
+
+        java.util.Map<Long, Report> reportByBookingId = (bookingIds.isEmpty() ? List.<Report>of() : reportRepository.findByBookingIdIn(bookingIds)).stream()
+                .filter(report -> report.getBooking() != null && report.getBooking().getId() != null)
+                .collect(Collectors.toMap(
+                        report -> report.getBooking().getId(),
+                        report -> report,
+                        (first, second) -> {
+                            LocalDateTime firstGeneratedAt = first.getGeneratedDate();
+                            LocalDateTime secondGeneratedAt = second.getGeneratedDate();
+                            if (firstGeneratedAt == null) return second;
+                            if (secondGeneratedAt == null) return first;
+                            return secondGeneratedAt.isAfter(firstGeneratedAt) ? second : first;
+                        }
+                ));
 
         List<UserReportSummaryDTO> list = bookings.stream()
-                .map(this::toReportSummary)
+                .map(booking -> toReportSummary(booking, reportByBookingId.get(booking.getId())))
                 .sorted(Comparator.comparing(UserReportSummaryDTO::getGeneratedAt, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(UserReportSummaryDTO::getBookingId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
@@ -83,7 +100,7 @@ public class UserReportsController {
             throw new RuntimeException("Unauthorized access to report");
         }
 
-        return ResponseEntity.ok(ApiResponse.success("Report fetched successfully", toReportSummary(report.getBooking())));
+        return ResponseEntity.ok(ApiResponse.success("Report fetched successfully", toReportSummary(report.getBooking(), report)));
     }
 
     @GetMapping("/{reportId}/pdf")
@@ -127,8 +144,7 @@ public class UserReportsController {
         return ResponseEntity.ok(ApiResponse.success("Trend data fetched successfully", reportService.getTrendsForPatient(userId)));
     }
 
-    private UserReportSummaryDTO toReportSummary(Booking booking) {
-        Report report = reportRepository.findByBookingId(booking.getId()).orElse(null);
+    private UserReportSummaryDTO toReportSummary(Booking booking, Report report) {
         String reportStatus;
         if (report != null) {
             reportStatus = "READY";
@@ -163,4 +179,3 @@ public class UserReportsController {
         return null;
     }
 }
-

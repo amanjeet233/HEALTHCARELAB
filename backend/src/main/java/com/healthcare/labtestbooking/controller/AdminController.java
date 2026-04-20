@@ -1,6 +1,7 @@
 package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.dto.BookingResponse;
 import com.healthcare.labtestbooking.entity.AuditLog;
 import com.healthcare.labtestbooking.entity.User;
 import com.healthcare.labtestbooking.entity.enums.BookingStatus;
@@ -10,6 +11,7 @@ import com.healthcare.labtestbooking.repository.AuditLogRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import com.healthcare.labtestbooking.service.AuditLogService;
 import com.healthcare.labtestbooking.service.AuditService;
+import com.healthcare.labtestbooking.service.BookingService;
 import com.healthcare.labtestbooking.service.DashboardService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,7 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final AuditService auditService;
+    private final BookingService bookingService;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
@@ -262,6 +265,13 @@ public class AdminController {
             data.add(point);
         }
         return ResponseEntity.ok(ApiResponse.success("Booking trends", data));
+    }
+
+    @PutMapping("/bookings/{id}/complete")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BookingResponse>> completeBooking(@PathVariable Long id) {
+        BookingResponse response = bookingService.adminUpdateBookingStatus(id, BookingStatus.COMPLETED, null);
+        return ResponseEntity.ok(ApiResponse.success("Booking completed", response));
     }
 
     @GetMapping("/bookings/critical")

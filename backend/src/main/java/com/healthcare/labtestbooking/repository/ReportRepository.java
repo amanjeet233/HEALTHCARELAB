@@ -31,6 +31,9 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     @EntityGraph(attributePaths = {"booking", "booking.test", "booking.testPackage", "booking.patient"})
     List<Report> findByBookingPatientId(Long patientId);
 
+    @EntityGraph(attributePaths = {"booking"})
+    List<Report> findByBookingIdIn(List<Long> bookingIds);
+
     @EntityGraph(attributePaths = {"results", "results.parameter", "booking", "booking.patient", "booking.test"})
     Optional<Report> findByShareToken(String shareToken);
 

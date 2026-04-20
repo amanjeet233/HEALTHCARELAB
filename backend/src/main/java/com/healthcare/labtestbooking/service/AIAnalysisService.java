@@ -20,18 +20,23 @@ import com.healthcare.labtestbooking.repository.ReportResultRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -45,8 +50,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class AIAnalysisService {
+    private static final String AI_TEMPORARILY_BUSY_MESSAGE = "AI service is currently busy. Please try again in a minute.";
+    private static final String AI_GENERIC_FAILURE_MESSAGE = "AI analysis failed unexpectedly. Please retry.";
+    private static final String AI_PARSE_FAILURE_MESSAGE = "AI response format was invalid. Please retry in a moment.";
 
-    private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String GEMINI_GENERATE_CONTENT_URL_TEMPLATE =
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+
+    private static final String GROQ_CHAT_COMPLETIONS_URL =
+            "https://api.groq.com/openai/v1/chat/completions";
 
     private final BookingRepository bookingRepository;
     private final ReportResultRepository reportResultRepository;
@@ -55,24 +67,47 @@ public class AIAnalysisService {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
+    @Value("${app.ai.provider:gemini}")
+    private String aiProvider;
+
     @Value("${app.ai.enabled:true}")
     private boolean aiEnabled;
 
-    @Value("${app.ai.openai.api-key:}")
-    private String openAiApiKey;
+    @Value("${app.ai.gemini.api-key:}")
+    private String geminiApiKey;
 
-    @Value("${app.ai.openai.model:gpt-4o-mini}")
-    private String openAiModel;
+    @Value("${app.ai.gemini.model:gemini-1.5-flash}")
+    private String geminiModel;
+
+    @Value("${app.ai.groq.enabled:false}")
+    private boolean groqEnabled;
+
+    @Value("${app.ai.groq.api-key:}")
+    private String groqApiKey;
+
+    @Value("${app.ai.groq.model:llama-3.3-70b-versatile}")
+    private String groqModel;
+
+    @Value("${app.ai.gemini.max-retries:3}")
+    private int geminiMaxRetries;
+
+    @Value("${app.ai.gemini.retry-delay-ms:700}")
+    private long geminiRetryDelayMs;
+
+    @Autowired
+    @Lazy
+    private AIAnalysisAsyncService aiAnalysisAsyncService;
 
     @Transactional
     public void requestAnalysisForBooking(Long bookingId) {
+        User currentUser = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        enforceAccess(currentUser, booking);
         upsertPendingRecord(booking);
-        analyzeReport(bookingId);
+        aiAnalysisAsyncService.analyzeReportAsync(bookingId);
     }
 
-    @Async
     @Transactional
     public void analyzeReport(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
@@ -91,18 +126,37 @@ public class AIAnalysisService {
         analysis.setPromptSnapshot(promptSnapshot);
         reportAiAnalysisRepository.save(analysis);
 
-        if (!aiEnabled || openAiApiKey == null || openAiApiKey.isBlank()) {
+        if (!aiEnabled) {
             analysis.setStatus(AiAnalysisStatus.FAILED);
-            analysis.setErrorMessage("AI analysis is disabled or API key is missing");
+            analysis.setErrorMessage("AI analysis is disabled");
+            reportAiAnalysisRepository.save(analysis);
+            return;
+        }
+
+        boolean hasValidKey = false;
+        if ("groq".equalsIgnoreCase(aiProvider) && groqEnabled && groqApiKey != null && !groqApiKey.isBlank()) {
+            hasValidKey = true;
+        } else if ("gemini".equalsIgnoreCase(aiProvider) && geminiApiKey != null && !geminiApiKey.isBlank()) {
+            hasValidKey = true;
+        }
+
+        if (!hasValidKey) {
+            analysis.setStatus(AiAnalysisStatus.FAILED);
+            analysis.setErrorMessage("AI API key is missing for provider: " + aiProvider);
             reportAiAnalysisRepository.save(analysis);
             return;
         }
 
         try {
-            String rawResponse = callOpenAi(promptSnapshot);
+            String rawResponse;
+            if ("groq".equalsIgnoreCase(aiProvider) && groqEnabled) {
+                rawResponse = callGroq(promptSnapshot);
+            } else {
+                rawResponse = callGeminiWithRetry(promptSnapshot);
+            }
             analysis.setRawResponse(rawResponse);
 
-            JsonNode parsedContent = extractAndParseContent(rawResponse);
+            JsonNode parsedContent = extractAndParseContent(rawResponse, aiProvider);
             applyParsedAnalysis(analysis, parsedContent);
 
             analysis.setStatus(AiAnalysisStatus.COMPLETED);
@@ -112,7 +166,7 @@ public class AIAnalysisService {
         } catch (Exception ex) {
             log.error("Failed to generate AI analysis for booking {}", bookingId, ex);
             analysis.setStatus(AiAnalysisStatus.FAILED);
-            analysis.setErrorMessage(ex.getMessage());
+            analysis.setErrorMessage(buildClientSafeErrorMessage(ex));
             reportAiAnalysisRepository.save(analysis);
         }
     }
@@ -126,19 +180,17 @@ public class AIAnalysisService {
 
         enforceAccess(currentUser, analysis.getBooking());
 
-        if (analysis.getStatus() != AiAnalysisStatus.COMPLETED) {
-            throw new ResourceNotFoundException("AI analysis not yet generated");
-        }
-
         return toDto(analysis);
     }
 
     @Transactional
     public void regenerateAnalysis(Long bookingId) {
+        User currentUser = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        enforceAccess(currentUser, booking);
         upsertPendingRecord(booking);
-        analyzeReport(bookingId);
+        aiAnalysisAsyncService.analyzeReportAsync(bookingId);
     }
 
     private ReportAiAnalysis upsertPendingRecord(Booking booking) {
@@ -168,49 +220,193 @@ public class AIAnalysisService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-    private String callOpenAi(String prompt) throws JsonProcessingException {
+    private String callGeminiWithRetry(String prompt) throws JsonProcessingException {
+        int maxAttempts = Math.max(1, geminiMaxRetries);
+        HttpStatusCodeException lastTransientException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return callGemini(prompt);
+            } catch (HttpStatusCodeException ex) {
+                if (!isTransientProviderError(ex.getStatusCode())) {
+                    throw ex;
+                }
+                lastTransientException = ex;
+                log.warn("Gemini transient failure (attempt {}/{}): status={}", attempt, maxAttempts, ex.getStatusCode());
+                if (attempt < maxAttempts) {
+                    sleepBeforeRetry(attempt);
+                }
+            }
+        }
+
+        throw new IllegalStateException(
+                "AI provider is temporarily unavailable. Please try again in a few moments.",
+                lastTransientException);
+    }
+
+    private String callGemini(String prompt) throws JsonProcessingException {
+        String systemInstruction = """
+                You are a clinical pathologist assistant.
+                Return strictly valid JSON with keys:
+                summary (string),
+                flags (array of objects with testName, value, severity, clinicalNote),
+                patterns (array of strings),
+                recommendations (array of objects with category and text),
+                disclaimer (string).
+                Severity must be one of: NORMAL, MILD, MODERATE, CRITICAL.
+                Keep language patient-friendly and concise.
+                """;
+
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", openAiModel);
-        requestBody.put("temperature", 0.2);
-        requestBody.put("response_format", Map.of("type", "json_object"));
-        requestBody.put("messages", List.of(
+        requestBody.put("system_instruction", Map.of("parts", List.of(Map.of("text", systemInstruction))));
+        requestBody.put("contents", List.of(
                 Map.of(
-                        "role", "system",
-                        "content", """
-                                You are a clinical pathologist assistant.
-                                Return strictly valid JSON with keys:
-                                summary (string),
-                                flags (array of objects with testName, value, severity, clinicalNote),
-                                patterns (array of strings),
-                                recommendations (array of objects with category and text),
-                                disclaimer (string).
-                                Severity must be one of: NORMAL, MILD, MODERATE, CRITICAL.
-                                Keep language patient-friendly and concise.
-                                """
-                ),
-                Map.of("role", "user", "content", prompt)
+                        "role", "user",
+                        "parts", List.of(Map.of("text", prompt))
+                )
+        ));
+        requestBody.put("generationConfig", Map.of(
+                "temperature", 0.2,
+                "responseMimeType", "application/json"
         ));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(openAiApiKey);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(OPENAI_CHAT_COMPLETIONS_URL, entity, String.class);
+        String model = URLEncoder.encode(geminiModel, StandardCharsets.UTF_8);
+        String key = URLEncoder.encode(geminiApiKey, StandardCharsets.UTF_8);
+        String url = String.format(GEMINI_GENERATE_CONTENT_URL_TEMPLATE, model, key);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            throw new IllegalStateException("OpenAI call failed with status: " + response.getStatusCode());
+            throw new IllegalStateException("Gemini call failed with status: " + response.getStatusCode());
         }
         return response.getBody();
     }
 
-    private JsonNode extractAndParseContent(String rawResponse) throws JsonProcessingException {
-        JsonNode root = objectMapper.readTree(rawResponse);
-        JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
-        if (contentNode.isMissingNode() || contentNode.isNull()) {
-            throw new IllegalStateException("OpenAI response missing content");
+    private String callGroq(String prompt) throws JsonProcessingException {
+        String systemInstruction = """
+                You are a clinical pathologist assistant.
+                Return strictly valid JSON with keys:
+                summary (string),
+                flags (array of objects with testName, value, severity, clinicalNote),
+                patterns (array of strings),
+                recommendations (array of objects with category and text),
+                disclaimer (string).
+                Severity must be one of: NORMAL, MILD, MODERATE, CRITICAL.
+                Keep language patient-friendly and concise.
+                """;
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", groqModel);
+        requestBody.put("messages", List.of(
+                Map.of("role", "system", "content", systemInstruction),
+                Map.of("role", "user", "content", prompt)
+        ));
+        requestBody.put("temperature", 0.2);
+        requestBody.put("response_format", Map.of("type", "json_object"));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(groqApiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(GROQ_CHAT_COMPLETIONS_URL, entity, String.class);
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new IllegalStateException("Groq call failed with status: " + response.getStatusCode());
+        }
+        return response.getBody();
+    }
+
+    private boolean isTransientProviderError(HttpStatusCode statusCode) {
+        int status = statusCode.value();
+        return status == 429 || status == 500 || status == 502 || status == 503 || status == 504;
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long delay = Math.max(0L, geminiRetryDelayMs) * attempt;
+        if (delay <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private String buildClientSafeErrorMessage(Exception ex) {
+        if (ex instanceof HttpStatusCodeException statusException) {
+            if (isTransientProviderError(statusException.getStatusCode())) {
+                return AI_TEMPORARILY_BUSY_MESSAGE;
+            }
+            return "AI service request failed with status " + statusException.getStatusCode().value() + ". Please retry.";
         }
 
-        String jsonText = contentNode.isTextual() ? contentNode.asText() : contentNode.toString();
+        String message = ex.getMessage();
+        if (message != null) {
+            String normalized = message.toLowerCase();
+            if (normalized.contains("temporarily unavailable")
+                    || normalized.contains("service unavailable")
+                    || normalized.contains("status: 503")
+                    || normalized.contains("too many requests")
+                    || normalized.contains("status: 429")) {
+                return AI_TEMPORARILY_BUSY_MESSAGE;
+            }
+            if (normalized.contains("missing content")
+                    || normalized.contains("json")
+                    || normalized.contains("parse")) {
+                return AI_PARSE_FAILURE_MESSAGE;
+            }
+        }
+        return AI_GENERIC_FAILURE_MESSAGE;
+    }
+
+    private String sanitizeErrorMessageForClient(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+        String normalized = message.toLowerCase();
+        if (normalized.contains("<eol>")
+                || normalized.contains("\"error\"")
+                || normalized.contains("service unavailable")
+                || normalized.contains("status: 503")
+                || normalized.contains("status 503")
+                || normalized.contains("too many requests")
+                || normalized.contains("status: 429")
+                || normalized.contains("status 429")) {
+            return AI_TEMPORARILY_BUSY_MESSAGE;
+        }
+        return message.length() > 240 ? message.substring(0, 240) : message;
+    }
+
+    private JsonNode extractAndParseContent(String rawResponse, String provider) throws JsonProcessingException {
+        JsonNode root = objectMapper.readTree(rawResponse);
+        String jsonText;
+
+        if ("groq".equalsIgnoreCase(provider)) {
+            // Groq response format: { "choices": [ { "message": { "content": "..." } } ] }
+            JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
+            if (contentNode.isMissingNode() || contentNode.isNull()) {
+                throw new IllegalStateException("Groq response missing content");
+            }
+            jsonText = contentNode.isTextual() ? contentNode.asText() : contentNode.toString();
+        } else {
+            // Gemini response format: { "candidates": [ { "content": { "parts": [ { "text": "..." } ] } } ] }
+            JsonNode contentNode = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+            if (contentNode.isMissingNode() || contentNode.isNull()) {
+                throw new IllegalStateException("Gemini response missing content");
+            }
+            jsonText = contentNode.isTextual() ? contentNode.asText() : contentNode.toString();
+        }
+
+        if (jsonText.startsWith("```")) {
+            jsonText = jsonText.replaceFirst("^```json\\s*", "")
+                    .replaceFirst("^```\\s*", "")
+                    .replaceFirst("\\s*```$", "");
+        }
         return objectMapper.readTree(jsonText);
     }
 
@@ -331,7 +527,7 @@ public class AIAnalysisService {
                 .bookingId(analysis.getBooking().getId())
                 .status(analysis.getStatus())
                 .healthScore(analysis.getHealthScore())
-                .summary(analysis.getSummary())
+                .summary(resolveSummary(analysis))
                 .flags(flags)
                 .patterns(patterns)
                 .recommendations(recommendations)
@@ -339,7 +535,21 @@ public class AIAnalysisService {
                 .hasCriticalResults(hasCritical)
                 .disclaimer(analysis.getDisclaimer())
                 .generatedAt(analysis.getGeneratedAt())
+                .errorMessage(sanitizeErrorMessageForClient(analysis.getErrorMessage()))
                 .build();
+    }
+
+    private String resolveSummary(ReportAiAnalysis analysis) {
+        if (analysis.getSummary() != null && !analysis.getSummary().isBlank()) {
+            return analysis.getSummary();
+        }
+        if (analysis.getStatus() == AiAnalysisStatus.PENDING) {
+            return "AI analysis is being generated. Please check again shortly.";
+        }
+        if (analysis.getStatus() == AiAnalysisStatus.FAILED) {
+            return "AI analysis could not be generated for this report.";
+        }
+        return "";
     }
 
     private Map<String, Integer> calculateOrganScores(List<ReportResult> results) {

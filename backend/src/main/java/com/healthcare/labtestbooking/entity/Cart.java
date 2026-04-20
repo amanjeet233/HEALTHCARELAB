@@ -1,7 +1,6 @@
 package com.healthcare.labtestbooking.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.healthcare.labtestbooking.entity.converter.CartStatusConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -63,7 +62,7 @@ public class Cart {
     @Column(name = "coupon_discount", precision = 5, scale = 2)
     private BigDecimal couponDiscount;
 
-    @Convert(converter = CartStatusConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     @Builder.Default
     private CartStatus status = CartStatus.ACTIVE;

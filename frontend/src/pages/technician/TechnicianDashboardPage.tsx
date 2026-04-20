@@ -19,6 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }
   SAMPLE_COLLECTED: { label: 'Collected', bg: '#F0FDF4', color: '#16A34A' },
   PROCESSING: { label: 'Processing', bg: '#F5F3FF', color: '#7C3AED' },
   PENDING_VERIFICATION: { label: 'Pending Review', bg: '#FFFBEB', color: '#D97706' },
+  VERIFIED: { label: 'MO Verified', bg: '#F0FDF4', color: '#15803D' },
   COMPLETED: { label: 'Completed', bg: '#F0FDF4', color: '#15803D' },
   CANCELLED: { label: 'Cancelled', bg: '#FFF1F2', color: '#BE123C' },
 };
@@ -43,8 +44,9 @@ const TECH_NODES = [
 ];
 
 const getTechNodeIndex = (status: string, resultsEntered: boolean) => {
-  if (status === 'VERIFIED' || status === 'COMPLETED') return 5;
-  if (status === 'PENDING_VERIFICATION' || status === 'PENDING') return 5;
+  if (status === 'VERIFIED' || status === 'COMPLETED') return 6;
+  if (status === 'PENDING_VERIFICATION') return 6;
+  if (status === 'PENDING') return 5;
   if (status === 'PROCESSING' && resultsEntered) return 4;
   if (status === 'PROCESSING') return 3;
   if (status === 'SAMPLE_COLLECTED') return 2;
@@ -189,6 +191,7 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
   const [historyPage, setHistoryPage] = useState(1);
   const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
+  const [batchUpdating, setBatchUpdating] = useState(false);
   const [groupByMode, setGroupByMode] = useState<'DATE' | 'AREA'>('DATE');
   const [exceptionQueue, setExceptionQueue] = useState<any[]>([]);
 
@@ -463,6 +466,9 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
     try {
       await technicianService.updateBookingStatus(bookingId, 'PENDING_VERIFICATION');
       toast.success('✅ Sent to Medical Officer for verification.');
+      setBookings((prev) => prev.map((b) =>
+        b.id === bookingId ? { ...b, status: 'PENDING_VERIFICATION' } : b
+      ));
       await loadData();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Failed to send to Medical Officer');
@@ -523,12 +529,15 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
       return;
     }
 
+    setBatchUpdating(true);
     try {
       await Promise.all(eligible.map((booking: any) => technicianService.updateCollectionStatus(booking.id)));
       toast.success(`Marked ${eligible.length} sample(s) as collected`);
       await loadData();
     } catch {
       toast.error('Batch collection update failed');
+    } finally {
+      setBatchUpdating(false);
     }
   };
 
@@ -540,12 +549,15 @@ const TechnicianDashboardPage: React.FC<TechnicianDashboardPageProps> = ({
       return;
     }
 
+    setBatchUpdating(true);
     try {
       await Promise.all(eligible.map((booking: any) => technicianService.updateBookingStatus(booking.id, 'PROCESSING')));
       toast.success(`Moved ${eligible.length} sample(s) to processing`);
       await loadData();
     } catch {
       toast.error('Batch processing update failed');
+    } finally {
+      setBatchUpdating(false);
     }
   };
 

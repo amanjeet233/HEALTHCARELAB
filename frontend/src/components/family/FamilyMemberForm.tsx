@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -20,19 +20,37 @@ interface FamilyMemberFormProps {
   onSubmit: (data: FamilyMemberRequest) => void;
   isSubmitting?: boolean;
   onCancel?: () => void;
+  initialValues?: Partial<FamilyMemberRequest>;
+  submitLabel?: string;
 }
 
 const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
   onSubmit,
   isSubmitting = false,
-  onCancel
+  onCancel,
+  initialValues,
+  submitLabel = 'Add Family Member'
 }) => {
-  const { register, handleSubmit, formState: { errors } } = useForm<FamilyMemberRequest>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FamilyMemberRequest>({
     resolver: yupResolver(validationSchema) as any,
     defaultValues: {
-      gender: 'MALE'
+      gender: 'MALE',
+      ...initialValues
     }
   });
+
+  useEffect(() => {
+    reset({
+      name: initialValues?.name ?? '',
+      relation: initialValues?.relation ?? '',
+      dateOfBirth: initialValues?.dateOfBirth ?? '',
+      gender: initialValues?.gender ?? 'MALE',
+      bloodGroup: initialValues?.bloodGroup ?? '',
+      phoneNumber: initialValues?.phoneNumber ?? '',
+      email: initialValues?.email ?? '',
+      medicalHistory: initialValues?.medicalHistory ?? ''
+    });
+  }, [initialValues, reset]);
 
   const relations = ['Spouse', 'Parent', 'Child', 'Sibling', 'Grandparent', 'Grandchild', 'Other'];
 
@@ -166,10 +184,10 @@ const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
           {isSubmitting ? (
             <>
               <LoadingSpinner size="sm" />
-              Adding...
+              Saving...
             </>
           ) : (
-            'Add Family Member'
+            submitLabel
           )}
         </button>
         {onCancel && (

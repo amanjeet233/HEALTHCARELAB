@@ -1,16 +1,18 @@
 import React from 'react';
-import { User, Trash2, Calendar, Mail, Phone, HeartPulse, ShieldCheck } from 'lucide-react';
+import { User, Trash2, Calendar, Mail, Phone, HeartPulse, ShieldCheck, Pencil } from 'lucide-react';
 import type { FamilyMemberResponse } from '../../services/familyMemberService';
 
 interface FamilyMemberCardProps {
   member: FamilyMemberResponse;
   onDelete: (id: number) => void;
+  onEdit: (member: FamilyMemberResponse) => void;
   isDeleting?: boolean;
 }
 
 const FamilyMemberCard: React.FC<FamilyMemberCardProps> = ({
   member,
   onDelete,
+  onEdit,
   isDeleting = false
 }) => {
   const age = new Date().getFullYear() - new Date(member.dateOfBirth).getFullYear();
@@ -52,14 +54,23 @@ const FamilyMemberCard: React.FC<FamilyMemberCardProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => onDelete(member.id)}
-          disabled={isDeleting}
-          className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100"
-          title="Decommission Node"
-        >
-          <Trash2 size={16} className={isDeleting ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onEdit(member)}
+            className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-all border border-transparent hover:border-cyan-100"
+            title="Edit Member"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            onClick={() => onDelete(member.id)}
+            disabled={isDeleting}
+            className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100"
+            title="Decommission Node"
+          >
+            <Trash2 size={16} className={isDeleting ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 space-y-2.5">

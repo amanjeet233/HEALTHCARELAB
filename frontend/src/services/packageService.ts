@@ -72,11 +72,25 @@ export const packageService = {
     },
 
     getBestDeals: async (): Promise<TestPackageResponse[]> => {
-        const response = await cachedGet('/api/test-packages', {
-            params: { size: 6, sort: 'discountPercentage,desc' }
-        });
-        const data = response.data?.data || response.data || [];
-        return data.map(normalizePackage);
+        try {
+            const response = await cachedGet('/api/lab-tests/packages/best-deals');
+            const primaryData = response.data?.data || response.data || [];
+            const primaryList = Array.isArray(primaryData) ? primaryData : [];
+            return primaryList.map(normalizePackage);
+        } catch {
+            try {
+                const response = await cachedGet('/api/test-packages', { params: { size: 4 } });
+                const data = response.data?.content || response.data?.data?.content || response.data?.data || response.data || [];
+                const list = Array.isArray(data) ? data : [];
+                return list
+                    .map(normalizePackage)
+                    .filter((p) => p.discountPercentage > 0)
+                    .sort((a, b) => b.discountPercentage - a.discountPercentage)
+                    .slice(0, 4);
+            } catch {
+                return [];
+            }
+        }
     },
 
     /**

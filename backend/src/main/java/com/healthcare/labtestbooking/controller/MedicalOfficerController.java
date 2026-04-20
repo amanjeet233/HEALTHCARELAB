@@ -119,14 +119,6 @@ public class MedicalOfficerController {
         return ResponseEntity.ok(ApiResponse.success("Report rejected", response));
     }
 
-    @PostMapping("/icd-codes/{bookingId}")
-    public ResponseEntity<ApiResponse<ReportVerificationResponse>> addICDCodes(
-            @PathVariable Long bookingId,
-            @Valid @RequestBody List<String> icdCodes) {
-        ReportVerificationResponse response = medicalOfficerService.addICDCodes(bookingId, icdCodes);
-        return ResponseEntity.ok(ApiResponse.success("ICD codes added", response));
-    }
-
     @PostMapping("/referral/{bookingId}")
     public ResponseEntity<ApiResponse<Void>> createReferral(
             @PathVariable Long bookingId,
@@ -188,16 +180,5 @@ public class MedicalOfficerController {
         
         ReportVerificationResponse response = medicalOfficerService.amendReport(reportId, reason, newValues);
         return ResponseEntity.ok(ApiResponse.success("Report amended successfully", response));
-    }
-
-    @PostMapping("/panic-alert")
-    public ResponseEntity<ApiResponse<Void>> logPanicAlert(@RequestBody Map<String, Object> body) {
-        Long bookingId = Long.valueOf(body.get("bookingId").toString());
-        String physicianName = (String) body.get("physicianName");
-        String channel = (String) body.getOrDefault("channel", "Phone");
-        String instructions = (String) body.get("physicianInstructions");
-        
-        medicalOfficerService.logPanicAlert(bookingId, physicianName, channel, instructions);
-        return ResponseEntity.ok(ApiResponse.success("Panic alert logged", null));
     }
 }

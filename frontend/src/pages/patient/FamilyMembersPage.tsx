@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FaPlus } from 'react-icons/fa';
-import { Users, Search, XCircle, HeartPulse, ChevronRight, X } from 'lucide-react';
+import { Users, Search, XCircle, HeartPulse, ChevronRight, X, ChevronLeft } from 'lucide-react';
 import { familyMemberService, type FamilyMemberRequest, type FamilyMemberResponse } from '../../services/familyMemberService';
 import FamilyMemberCard from '../../components/family/FamilyMemberCard';
 import FamilyMemberForm from '../../components/family/FamilyMemberForm';
@@ -11,11 +11,13 @@ import SkeletonBlock from '../../components/common/SkeletonBlock';
 import { notify } from '../../utils/toast';
 
 const FamilyMembersPage: React.FC = () => {
+  const navigate = useNavigate();
   const [members, setMembers] = useState<FamilyMemberResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShowingForm, setIsShowingForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingMember, setEditingMember] = useState<FamilyMemberResponse | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -48,6 +50,34 @@ const FamilyMembersPage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditMember = async (data: FamilyMemberRequest) => {
+    if (!editingMember) return;
+
+    try {
+      setIsSubmitting(true);
+      const updatedMember = await familyMemberService.updateFamilyMember(editingMember.id, data);
+      setMembers((prev) => prev.map((member) => (member.id === editingMember.id ? updatedMember : member)));
+      setIsShowingForm(false);
+      setEditingMember(null);
+      notify.success('Family member updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating family member:', error);
+      notify.error(error.message || 'Failed to update family member');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openAddMemberForm = () => {
+    setEditingMember(null);
+    setIsShowingForm(true);
+  };
+
+  const openEditMemberForm = (member: FamilyMemberResponse) => {
+    setEditingMember(member);
+    setIsShowingForm(true);
   };
 
   const handleDeleteMember = async (id: number) => {
@@ -98,10 +128,20 @@ const FamilyMembersPage: React.FC = () => {
     <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
-            <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
-            <ChevronRight size={12} className="text-cyan-700/40" />
-            <span className="text-cyan-700">Family Members</span>
+          <div className="inline-flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+            <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+              <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+              <span className="text-[#005d79]">Family Members</span>
+            </nav>
           </div>
           <div className="flex items-center gap-2.5 mb-3">
             <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
@@ -119,7 +159,7 @@ const FamilyMembersPage: React.FC = () => {
           </p>
         </div>
         {!isShowingForm && (
-          <GlassButton onClick={() => setIsShowingForm(true)} className="h-full px-6 py-3.5" icon={<FaPlus />}>
+          <GlassButton onClick={openAddMemberForm} className="h-full px-6 py-3.5" icon={<FaPlus />}>
             ADD MEMBER
           </GlassButton>
         )}
@@ -181,17 +221,28 @@ const FamilyMembersPage: React.FC = () => {
       {/* Form Section */}
       {isShowingForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-4">
-          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-md" onClick={() => setIsShowingForm(false)} />
+          <div
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-md"
+            onClick={() => {
+              setIsShowingForm(false);
+              setEditingMember(null);
+            }}
+          />
           <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-[2rem] bg-white/96 border border-white/70 shadow-[0_28px_90px_rgba(15,23,42,0.20)] p-4 md:p-5">
             <div className="flex items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700/60 mb-1">Popup Form</p>
-                <h2 className="text-[clamp(1.35rem,1rem+1vw,1.8rem)] font-black text-slate-900 tracking-tight">Add Family Member</h2>
+                <h2 className="text-[clamp(1.35rem,1rem+1vw,1.8rem)] font-black text-slate-900 tracking-tight">
+                  {editingMember ? 'Edit Family Member' : 'Add Family Member'}
+                </h2>
                 <p className="text-sm text-slate-500">Configure family member details</p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsShowingForm(false)}
+                onClick={() => {
+                  setIsShowingForm(false);
+                  setEditingMember(null);
+                }}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
                 aria-label="Close family member form"
               >
@@ -200,9 +251,14 @@ const FamilyMembersPage: React.FC = () => {
             </div>
 
             <FamilyMemberForm
-              onSubmit={handleAddMember}
+              onSubmit={editingMember ? handleEditMember : handleAddMember}
               isSubmitting={isSubmitting}
-              onCancel={() => setIsShowingForm(false)}
+              initialValues={editingMember ?? undefined}
+              submitLabel={editingMember ? 'Update Member' : 'Add Family Member'}
+              onCancel={() => {
+                setIsShowingForm(false);
+                setEditingMember(null);
+              }}
             />
           </div>
         </div>
@@ -214,7 +270,7 @@ const FamilyMembersPage: React.FC = () => {
           <h3 className="text-base font-600 text-gray-900 mb-2">No family members yet</h3>
           <p className="text-sm text-gray-600 mb-5">Add family members to manage their health records</p>
           <GlassButton
-            onClick={() => setIsShowingForm(true)}
+            onClick={openAddMemberForm}
             icon={<FaPlus />}
             className="inline-flex items-center gap-2 px-5 py-2.5"
           >
@@ -231,6 +287,7 @@ const FamilyMembersPage: React.FC = () => {
             <FamilyMemberCard
               key={member.id}
               member={member}
+              onEdit={openEditMemberForm}
               onDelete={handleDeleteMember}
               isDeleting={deletingId === member.id}
             />

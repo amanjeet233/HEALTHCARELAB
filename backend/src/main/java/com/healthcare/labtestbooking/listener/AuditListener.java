@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.healthcare.labtestbooking.entity.AuditLog;
 import com.healthcare.labtestbooking.repository.UserRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Persistence;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapKey;
 import jakarta.persistence.OneToMany;
@@ -173,6 +174,11 @@ public class AuditListener {
 
     private Object readFieldValue(Field field, Object entity) {
         try {
+            if (isAssociationField(field) && !Persistence.getPersistenceUtil().isLoaded(entity, field.getName())) {
+                // Skip unloaded lazy relationships to avoid audit-triggered N+1 queries.
+                return null;
+            }
+
             Object value = field.get(entity);
             if (value == null) {
                 return null;
@@ -196,5 +202,12 @@ public class AuditListener {
         } catch (IllegalAccessException ex) {
             return null;
         }
+    }
+
+    private boolean isAssociationField(Field field) {
+        return field.isAnnotationPresent(ManyToOne.class)
+                || field.isAnnotationPresent(OneToOne.class)
+                || field.isAnnotationPresent(OneToMany.class)
+                || field.isAnnotationPresent(MapKey.class);
     }
 }

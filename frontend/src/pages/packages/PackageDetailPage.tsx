@@ -8,6 +8,7 @@ import {
     Check,
     Plus,
     Minus,
+    ChevronLeft,
     Info,
     Activity,
     Copy,
@@ -22,7 +23,7 @@ import './PackageDetailPage.css';
 const PackageDetailPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
-    const { addPackage, isInCart } = useCart();
+    const { addPackage, isInCart, setIsCartOpen } = useCart();
 
     const [pkg, setPkg] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -35,13 +36,42 @@ const PackageDetailPage: React.FC = () => {
     const [bookingNow, setBookingNow] = useState(false);
     const [addingToCart, setAddingToCart] = useState(false);
 
+    const normalizePackageDetail = (raw: any) => {
+        const fastingRaw = raw?.fastingRequired;
+        const fastingRequired =
+            typeof fastingRaw === 'string'
+                ? fastingRaw.toLowerCase() !== 'none'
+                : Boolean(fastingRaw);
+        const fastingHours =
+            raw?.fastingHours ??
+            (typeof fastingRaw === 'string' && fastingRaw.toLowerCase().includes('hr')
+                ? Number.parseInt(fastingRaw, 10) || null
+                : null);
+
+        const includedTestNames = Array.isArray(raw?.includedTestNames)
+            ? raw.includedTestNames
+            : Array.isArray(raw?.includedTests)
+                ? raw.includedTests
+                : Array.isArray(raw?.tests)
+                    ? raw.tests.map((t: any) => t?.name || t?.testName).filter(Boolean)
+                    : [];
+
+        return {
+            ...raw,
+            totalTests: Number(raw?.totalTests ?? raw?.testCount ?? includedTestNames.length ?? 0),
+            fastingRequired,
+            fastingHours,
+            includedTestNames,
+        };
+    };
+
     useEffect(() => {
         const fetchPkg = async () => {
             try {
                 const res = await api.get(`/api/packages/${slug}`);
                 const packageData = res.data?.data?.package || res.data?.data;
                 if (packageData) {
-                    setPkg(packageData);
+                    setPkg(normalizePackageDetail(packageData));
                     return;
                 }
             } catch (err) {
@@ -60,7 +90,7 @@ const PackageDetailPage: React.FC = () => {
                 });
 
                 if (matched) {
-                    setPkg({
+                    setPkg(normalizePackageDetail({
                         id: matched.id,
                         packageCode: matched.code || matched.packageCode || slug,
                         packageName: matched.name || matched.packageName || 'Health Package',
@@ -81,7 +111,7 @@ const PackageDetailPage: React.FC = () => {
                         benefits: Array.isArray(matched.benefits) ? matched.benefits : [],
                         isPopular: Boolean(matched.isPopular),
                         isRecommended: Boolean(matched.isRecommended),
-                    });
+                    }));
                 } else {
                     setPkg(null);
                 }
@@ -138,6 +168,7 @@ const PackageDetailPage: React.FC = () => {
     const heroPrimary = words[0] || 'Health';
     const heroAccent = words.slice(1).join(' ') || 'Packages';
     const discountPercentage = pkg?.totalPrice > 0 ? Math.max(0, Math.round(100 - (pkg.discountedPrice / pkg.totalPrice) * 100)) : 0;
+    const resolvedFastingHours = Number(pkg?.fastingHours ?? 8);
     const formatPrice = (value: any) => {
         const n = Number(value || 0);
         return n.toLocaleString('en-IN', {
@@ -161,7 +192,7 @@ const PackageDetailPage: React.FC = () => {
     const faqItems = [
         {
             q: 'Is fasting required?',
-            a: pkg?.fastingRequired ? `Yes. Please fast for ${pkg.fastingHours} hours before sample collection.` : 'No strict fasting is required for this package.',
+            a: pkg?.fastingRequired ? `Yes. Please fast for ${resolvedFastingHours} hours before sample collection.` : 'No strict fasting is required for this package.',
         },
         {
             q: 'Is this suitable for this age group?',
@@ -212,6 +243,7 @@ const PackageDetailPage: React.FC = () => {
         if (!payload || bookingNow) return;
         setBookingNow(true);
         try {
+            setIsCartOpen(false);
             navigate('/booking', {
                 state: {
                     cartItems: [{
@@ -274,7 +306,26 @@ const PackageDetailPage: React.FC = () => {
     }
 
     return (
-        <div className="packages-page flex flex-col font-sans">
+        <div className="packages-page compact-ui flex flex-col font-sans">
+            <div className="w-full px-4 md:px-6 lg:px-10 mb-2">
+                <div className="flex items-center gap-3 text-[11px]">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#c5d7df] text-[#0a6077] text-[10px] font-black uppercase tracking-[0.14em] hover:bg-white"
+                    >
+                        <ChevronLeft size={14} />
+                        Back
+                    </button>
+                    <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                        <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                        <span className="mx-2.5 text-[#a8c0cb]">{'>'}</span>
+                        <span className="text-[#0a6077] cursor-pointer hover:text-[#084e61]" onClick={() => navigate('/packages')}>Package</span>
+                        <span className="mx-2.5 text-[#a8c0cb]">{'>'}</span>
+                        <span className="text-[#005d79]">{pkg.packageName || 'Package Details'}</span>
+                    </nav>
+                </div>
+            </div>
             {/* Dynamic Hero Section */}
             <div className="package-details-hero pt-4 pb-4 px-3 md:px-4 relative">
                 <div className="max-w-[1080px] mx-auto relative z-10 hero-grid">
@@ -308,7 +359,7 @@ const PackageDetailPage: React.FC = () => {
                                 <Droplet className="w-5 h-5 text-rose-500" />
                                 <div className="flex flex-col">
                                     <span className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Fasting</span>
-                                    <span className="text-xs font-black text-slate-800">{pkg.fastingRequired ? `${pkg.fastingHours} Hours` : 'Not Required'}</span>
+                                    <span className="text-xs font-black text-slate-800">{pkg.fastingRequired ? `${resolvedFastingHours} Hours` : 'Not Required'}</span>
                                 </div>
                             </div>
                             <div className="details-chip">
@@ -510,7 +561,7 @@ const PackageDetailPage: React.FC = () => {
                                         <h3 className="text-[11px] font-black tracking-widest uppercase text-slate-400 mb-2 flex items-center gap-2"><Droplet size={12} /> Sample Requirements</h3>
                                         <div className="p-2.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-800 text-xs font-medium">
                                             {pkg.fastingRequired
-                                                ? `Please ensure you fast for ${pkg.fastingHours} hours before providing the sample. Drinking strictly water is allowed.`
+                                                ? `Please ensure you fast for ${resolvedFastingHours} hours before providing the sample. Drinking strictly water is allowed.`
                                                 : 'No strict fasting required, but we recommend avoiding heavy meals 2 hours prior.'}
                                         </div>
                                     </div>

@@ -3,10 +3,10 @@ import { History, RefreshCw, CheckCircle2, FileText, Search } from 'lucide-react
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import MOBreadcrumbs from './shared/MOBreadcrumbs';
-import MOEmptyState from './shared/MOEmptyState';
-import MOLoadingSkeleton from './shared/MOLoadingSkeleton';
-import MOFiltersBar from './shared/MOFiltersBar';
+import MOBreadcrumbs from '../../components/medical/MOBreadcrumbs';
+import MOEmptyState from '../../components/medical/MOEmptyState';
+import MOLoadingSkeleton from '../../components/medical/MOLoadingSkeleton';
+import MOFiltersBar from '../../components/medical/MOFiltersBar';
 import GlassCard from '../../components/common/GlassCard';
 
 type HistoryItem = {
@@ -117,8 +117,9 @@ const MedicalOfficerHistoryPage: React.FC = () => {
     flagged: bookings.filter((booking) => (booking.status || '').toUpperCase() === 'FLAGGED').length,
   }), [bookings]);
 
-  const openBooking = (bookingId: number) => {
-    navigate(`/medical-officer/bookings/${bookingId}`);
+  const openBooking = (item: HistoryItem) => {
+    const actualBookingId = item.bookingId || item.id;
+    navigate(`/medical-officer/bookings/${actualBookingId}`);
   };
 
   return (
@@ -183,11 +184,10 @@ const MedicalOfficerHistoryPage: React.FC = () => {
               key={status}
               type="button"
               onClick={() => setHistoryStatus(status)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-[0.08em] transition-all border ${
-                historyStatus === status
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-[0.08em] transition-all border ${historyStatus === status
                   ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                   : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-200 hover:text-emerald-700'
-              }`}
+                }`}
             >
               {status === 'ALL' ? 'All History' : status.replaceAll('_', ' ')}
             </button>
@@ -222,7 +222,7 @@ const MedicalOfficerHistoryPage: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {filteredBookings.map((booking) => {
-              const bookingId = booking.id;
+              const displayId = booking.bookingId || booking.id;
               const status = (booking.status || '').toUpperCase();
               const statusClass = status === 'APPROVED'
                 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
@@ -232,16 +232,16 @@ const MedicalOfficerHistoryPage: React.FC = () => {
 
               return (
                 <button
-                  key={bookingId}
+                  key={`${booking.id}-${displayId}`}
                   type="button"
-                  onClick={() => openBooking(bookingId)}
+                  onClick={() => openBooking(booking)}
                   className="text-left w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-2xl"
                 >
                   <GlassCard className="!p-0 overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-xl cursor-pointer" animate={false}>
                     <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="text-xs font-black text-slate-400">#{bookingId}</span>
+                          <span className="text-xs font-black text-slate-400">#{displayId}</span>
                           {booking.bookingReference && (
                             <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                               {booking.bookingReference}

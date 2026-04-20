@@ -24,13 +24,21 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
 
 const normalizeCurrency = (value: unknown): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value >= 100000 ? Math.round(value / 100) : value;
+    return value >= 10000 ? Number((value / 100).toFixed(2)) : value;
   }
   if (typeof value === 'string') {
     const parsed = Number(value.trim());
-    if (Number.isFinite(parsed)) return parsed >= 100000 ? Math.round(parsed / 100) : parsed;
+    if (Number.isFinite(parsed)) return parsed >= 10000 ? Number((parsed / 100).toFixed(2)) : parsed;
   }
   return 0;
+};
+
+const formatPrice = (value: number): string => {
+  const safe = Number(value || 0);
+  return safe.toLocaleString('en-IN', {
+    minimumFractionDigits: safe % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const normalizePackage = (row: any): TestPackageResponse => {
@@ -105,13 +113,13 @@ const PackageCard: React.FC<{ pkg: TestPackageResponse }> = ({ pkg }) => {
           ))}
         </div>
         <div className="flex items-end gap-2">
-          <span className="text-lg font-black" style={{ color: '#0D7C7C' }}>₹{pkg.discountedPrice || pkg.price}</span>
-          {pkg.price > (pkg.discountedPrice || 0) && <span className="text-[11px] text-slate-400 line-through font-medium mb-0.5">₹{pkg.price}</span>}
+          <span className="text-lg font-black" style={{ color: '#0D7C7C' }}>₹{formatPrice(pkg.discountedPrice || pkg.price)}</span>
+          {pkg.price > (pkg.discountedPrice || 0) && <span className="text-[11px] text-slate-400 line-through font-medium mb-0.5">₹{formatPrice(pkg.price)}</span>}
           {discount > 0 && <span className="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">{discount}% OFF</span>}
         </div>
         <div className="flex gap-2">
           <button onClick={() => navigate(`/packages/${pkg.packageCode || pkg.id}`)} className="flex-1 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-wide transition-all active:scale-95" style={{ borderColor: '#0D7C7C', color: '#0D7C7C' }}>View Details</button>
-          <button onClick={() => { if (!inCart) addPackage(pkg.id, pkg.name || pkg.packageName, pkg.discountedPrice || pkg.price); }} className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95 shadow-sm" style={{ background: inCart ? '#0D7C7C' : '#EA580C' }}>{inCart ? 'Added ✓' : 'Add to Cart'}</button>
+          <button onClick={() => { if (!inCart) addPackage(pkg.id, pkg.name || pkg.packageName, pkg.discountedPrice || pkg.price); }} className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95 shadow-sm" style={{ background: '#0D7C7C' }}>{inCart ? 'Added ✓' : 'Add to Cart'}</button>
         </div>
       </div>
     </div>

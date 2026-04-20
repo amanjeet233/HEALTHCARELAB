@@ -158,4 +158,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            "WHERE b.bookingDate = :date AND b.technician IS NOT NULL " +
            "GROUP BY b.technician.id")
     List<Object[]> countBookingsByTechnicianForDate(@Param("date") LocalDate date);
+
+    @EntityGraph(attributePaths = {"test"})
+    @Query("SELECT b FROM Booking b WHERE b.patient.id = :patientId")
+    List<Booking> findForTrendsByPatientId(@Param("patientId") Long patientId);
 }

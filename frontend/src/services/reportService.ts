@@ -85,7 +85,8 @@ export const reportService = {
         } catch (error: any) {
             const status = error?.response?.status;
             if (status === 404) {
-                return null;
+                await api.post(`/api/reports/${bookingId}/regenerate-analysis`);
+                throw new Error('AI_PENDING');
             }
             throw error;
         }

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Calendar,
@@ -24,7 +23,7 @@ import { useAuth } from '../../hooks/useAuth';
 import SmartReportViewer from '../../components/reports/SmartReportViewer';
 import GlassButton from '../../components/common/GlassButton';
 import GlassCard from '../../components/common/GlassCard';
-import MOBreadcrumbs from './shared/MOBreadcrumbs';
+import MOBreadcrumbs from '../../components/medical/MOBreadcrumbs';
 import { WorkboardItemSkeleton } from '../../components/common/SkeletonLoader';
 import type { SmartAnalysis } from '../../services/smartReportService';
 
@@ -88,6 +87,19 @@ type TechnicianOption = {
   userId: number;
   name: string;
   bookingCountForDate: number;
+};
+
+const normalizeTechnicianOptions = (rows: any[]): TechnicianOption[] => {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const resolvedId = Number(row?.userId ?? row?.technicianId ?? row?.id);
+      return {
+        userId: resolvedId,
+        name: String(row?.name || row?.fullName || '').trim(),
+        bookingCountForDate: Number(row?.bookingCountForDate ?? 0),
+      };
+    })
+    .filter((item) => Number.isFinite(item.userId) && item.userId > 0 && item.name.length > 0);
 };
 
 const getMONodeIndex = (status: string) => {
@@ -266,8 +278,8 @@ const MedicalOfficerDashboardPage: React.FC = () => {
     if (!date || techniciansByDate[date] || loadingTechsByDate[date]) return;
     setLoadingTechsByDate((prev) => ({ ...prev, [date]: true }));
     try {
-      const resp = await api.get('/api/technicians/available-for-date', { params: { date } });
-      setTechniciansByDate((prev) => ({ ...prev, [date]: resp.data?.data || [] }));
+      const resp = await api.get('/api/mo/technicians/available', { params: { date } });
+      setTechniciansByDate((prev) => ({ ...prev, [date]: normalizeTechnicianOptions(resp.data?.data || []) }));
     } catch {
       toast.error('Failed to load technicians');
     } finally {

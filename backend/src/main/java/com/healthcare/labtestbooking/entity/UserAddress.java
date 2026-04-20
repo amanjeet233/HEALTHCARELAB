@@ -28,7 +28,7 @@ public class UserAddress {
     @Column(nullable = false, length = 50)
     private String label; // "Home", "Work", "Other"
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "address_line", nullable = false, columnDefinition = "TEXT")
     private String street;
 
     @Column(length = 100)

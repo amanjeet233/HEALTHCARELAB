@@ -512,12 +512,7 @@ public class MedicalOfficerService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
 
-        User techUser = userRepository.findById(technicianUserId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + technicianUserId));
-
-        if (techUser.getRole() != UserRole.TECHNICIAN) {
-            throw new RuntimeException("User " + technicianUserId + " is not a TECHNICIAN");
-        }
+        User techUser = resolveTechnicianUser(technicianUserId);
 
         User mo = getCurrentUser();
 
@@ -547,6 +542,33 @@ public class MedicalOfficerService {
                 "MO " + mo.getName() + " suggested technician userId=" + technicianUserId + " for booking " + bookingId);
 
         return bookingService.mapToResponsePublic(booking);
+    }
+
+    private User resolveTechnicianUser(Long technicianIdentifier) {
+        if (technicianIdentifier == null) {
+            throw new RuntimeException("technicianId is required");
+        }
+
+        // Primary path: frontend sends technician user id
+        User directUser = userRepository.findById(technicianIdentifier).orElse(null);
+        if (directUser != null) {
+            if (directUser.getRole() != UserRole.TECHNICIAN) {
+                throw new RuntimeException("User " + technicianIdentifier + " is not a TECHNICIAN");
+            }
+            return directUser;
+        }
+
+        // Compatibility path: frontend sends technicians table id
+        Technician technician = technicianRepository.findById(technicianIdentifier)
+                .orElseThrow(() -> new RuntimeException("Technician not found: " + technicianIdentifier));
+        User user = technician.getUser();
+        if (user == null) {
+            throw new RuntimeException("Technician " + technicianIdentifier + " has no linked user");
+        }
+        if (user.getRole() != UserRole.TECHNICIAN) {
+            throw new RuntimeException("Linked user is not a TECHNICIAN");
+        }
+        return user;
     }
 
     /**
@@ -581,18 +603,36 @@ public class MedicalOfficerService {
                 ));
 
         List<Technician> technicians = technicianRepository.findByIsActiveTrue();
-        return technicians.stream().map(tech -> {
-            Long userId = tech.getUser() != null ? tech.getUser().getId() : null;
-            long count = userId != null ? countByTechUserId.getOrDefault(userId, 0L) : 0L;
-            Map<String, Object> info = new LinkedHashMap<>();
-            info.put("technicianId", tech.getId());
-            info.put("userId", userId);
-            info.put("name", tech.getFullName());
-            info.put("phone", tech.getPhone());
-            info.put("email", tech.getEmail());
-            info.put("bookingCountForDate", count);
-            return info;
-        }).collect(Collectors.toList());
+        if (!technicians.isEmpty()) {
+            return technicians.stream().map(tech -> {
+                Long userId = tech.getUser() != null ? tech.getUser().getId() : null;
+                long count = userId != null ? countByTechUserId.getOrDefault(userId, 0L) : 0L;
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("technicianId", tech.getId());
+                info.put("userId", userId);
+                info.put("name", tech.getFullName());
+                info.put("phone", tech.getPhone());
+                info.put("email", tech.getEmail());
+                info.put("bookingCountForDate", count);
+                return info;
+            }).collect(Collectors.toList());
+        }
+
+        // Backward-compatible fallback: some environments create TECHNICIAN users
+        // without corresponding technicians table rows.
+        return userRepository.findByRoleAndIsActiveTrue(UserRole.TECHNICIAN).stream()
+                .map(user -> {
+                    long count = countByTechUserId.getOrDefault(user.getId(), 0L);
+                    Map<String, Object> info = new LinkedHashMap<>();
+                    info.put("technicianId", null);
+                    info.put("userId", user.getId());
+                    info.put("name", user.getName());
+                    info.put("phone", user.getPhone());
+                    info.put("email", user.getEmail());
+                    info.put("bookingCountForDate", count);
+                    return info;
+                })
+                .collect(Collectors.toList());
     }
 
     private void validateMedicalOfficerAccess() {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, 
@@ -11,6 +11,7 @@ import {
     Copy, 
     ExternalLink, 
     ChevronRight,
+    ChevronLeft,
     ChevronDown, 
     Check, 
     Gift,
@@ -37,6 +38,7 @@ interface FilterOptions {
 
 const PromoCodesPage: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdminRoute = location.pathname.startsWith('/admin/');
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [filteredCodes, setFilteredCodes] = useState<PromoCode[]>([]);
@@ -238,10 +240,20 @@ const PromoCodesPage: React.FC = () => {
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-12 min-h-screen">
-      <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/60 mb-6">
-        <span>Home</span>
-        <ChevronRight className="w-3 h-3" />
-        <span>Promo Codes</span>
+      <div className="inline-flex items-center gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+        <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+          <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+          <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+          <span className="text-[#005d79]">Promo Codes</span>
+        </nav>
       </div>
 
       <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-12 mb-16">

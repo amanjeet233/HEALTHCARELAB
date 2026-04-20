@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { User, HeartPulse, Activity, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, HeartPulse, Activity, ChevronRight, ChevronLeft } from 'lucide-react';
 import { userService } from '../../services/userService';
 import type { User as UserType } from '../../types/auth';
 import { notify } from '../../utils/toast';
@@ -12,6 +12,7 @@ import '../../styles/SecondaryPages.css';
 type ProfileTab = 'personal' | 'medical';
 
 const ProfilePage: React.FC = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<UserType | null>(null);
     const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
@@ -51,10 +52,20 @@ const ProfilePage: React.FC = () => {
     return (
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="mb-8">
-                <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
-                    <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
-                    <ChevronRight size={12} className="text-cyan-700/40" />
-                    <span className="text-cyan-700">My Profile</span>
+                <div className="inline-flex items-center gap-3 mb-4">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+                    >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        Back
+                    </button>
+                    <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                        <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                        <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+                        <span className="text-[#005d79]">My Profile</span>
+                    </nav>
                 </div>
                 <div className="flex items-center gap-2.5 mb-3">
                     <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">

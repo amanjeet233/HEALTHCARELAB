@@ -82,7 +82,7 @@ export const AuditLogViewer: React.FC = () => {
     if (action.includes('DELETE') || action.includes('REMOVE')) return 'bg-red-100 text-red-800';
     if (action.includes('CREATE') || action.includes('ADD')) return 'bg-green-100 text-green-800';
     if (action.includes('UPDATE') || action.includes('EDIT')) return 'bg-blue-100 text-blue-800';
-    if (action.includes('LOGIN')) return 'bg-purple-100 text-purple-800';
+    if (action.includes('LOGIN')) return 'bg-emerald-100 text-emerald-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -281,9 +281,9 @@ export const AuditLogViewer: React.FC = () => {
           <p className="text-xs text-gray-600">Filtered Results</p>
           <p className="text-lg font-bold text-green-900">{filteredLogs.length}</p>
         </div>
-        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
           <p className="text-xs text-gray-600">Success Rate</p>
-          <p className="text-lg font-bold text-purple-900">
+          <p className="text-lg font-bold text-emerald-900">
             {logs.length > 0
               ? Math.round(
                   ((logs.filter(l => l.status === 'SUCCESS' || !l.status).length / logs.length) * 100)

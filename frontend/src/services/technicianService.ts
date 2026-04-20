@@ -4,13 +4,8 @@ export const getTechnicianBookings = async () => {
     return api.get("/api/bookings/technician");
 };
 
-export const getUnassignedBookings = async () => {
-    return api.get('/api/bookings/unassigned');
-};
-
 export const technicianService = {
     getTechnicianBookings,
-    getUnassignedBookings,
 
     claimBooking: async (bookingId: number, technicianId: number) => {
         const response = await api.put(`/api/bookings/${bookingId}/technician`, { technicianId });

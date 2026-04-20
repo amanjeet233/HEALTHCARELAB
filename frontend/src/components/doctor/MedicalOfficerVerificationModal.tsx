@@ -24,6 +24,7 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
   const [results, setResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sealApplied, setSealApplied] = useState(false);
   const [showPanicLog, setShowPanicLog] = useState(false);
   const [showAmendLog, setShowAmendLog] = useState(false);
   
@@ -33,6 +34,7 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
   
   // Amendment Form
   const [amendmentReason, setAmendmentReason] = useState('');
+  const [clinicalNotes, setClinicalNotes] = useState('');
 
   useEffect(() => {
     loadResults();
@@ -51,15 +53,29 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
   };
 
   const handleVerify = async () => {
+    const note = clinicalNotes.trim();
+    if (note.length < 10) {
+      toast.error('Clinical notes are required (minimum 10 characters)');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await doctorService.verifyReport(bookingId);
+      await doctorService.verifyReport(bookingId, {
+        clinicalNotes: note,
+        digitalSignature: 'Digitally signed',
+        approved: true,
+        specialistType: 'GENERAL',
+      });
+      setSealApplied(true);
       toast.success('Clinical Sign-off Completed');
-      onSuccess();
-      onClose();
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
     } catch (error) {
       toast.error('Verification failed');
-    } finally {
+      setSealApplied(false);
       setIsSubmitting(false);
     }
   };
@@ -114,6 +130,11 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
           <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">{testName} • ID: {bookingId}</p>
         </div>
         <div className="flex gap-3">
+          {sealApplied && (
+            <span className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-[10px] font-black uppercase ring-1 ring-green-100">
+              <CheckCircle2 size={14} /> Clinical Seal Applied
+            </span>
+          )}
           {results?.results?.some((r: any) => r.isCritical) && (
             <span className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase ring-1 ring-red-100">
               <AlertTriangle size={14} /> Panic Values Detected
@@ -228,6 +249,18 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-widest">Amend Results</span>
                 </button>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Clinical Notes (Required)
+                </label>
+                <textarea
+                  value={clinicalNotes}
+                  onChange={(e) => setClinicalNotes(e.target.value)}
+                  placeholder="Enter clinical verification notes (min 10 characters)"
+                  className="w-full bg-white px-4 py-3 rounded-xl border border-slate-200 text-sm h-24 focus:ring-2 ring-[#0D7C7C]/30 outline-none"
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -244,7 +277,7 @@ const MedicalOfficerVerificationModal: React.FC<VerificationModalProps> = ({
           </button>
           <button 
             onClick={handleVerify}
-            disabled={isSubmitting}
+            disabled={isSubmitting || sealApplied}
             className="flex-1 py-4 bg-[#0D7C7C] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0a6666] shadow-lg shadow-[#0D7C7C]/20 flex items-center justify-center gap-2 group transition-all"
           >
             {isSubmitting ? (

@@ -3,12 +3,12 @@ import { RefreshCw, UserCheck, CalendarClock, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import MOBreadcrumbs from './shared/MOBreadcrumbs';
-import MOEmptyState from './shared/MOEmptyState';
-import MOLoadingSkeleton from './shared/MOLoadingSkeleton';
-import MOTechnicianSearchSelect, { type TechnicianOption } from './shared/MOTechnicianSearchSelect';
-import MOFiltersBar from './shared/MOFiltersBar';
-import MOStatusTimeline from './shared/MOStatusTimeline';
+import MOBreadcrumbs from '../../components/medical/MOBreadcrumbs';
+import MOEmptyState from '../../components/medical/MOEmptyState';
+import MOLoadingSkeleton from '../../components/medical/MOLoadingSkeleton';
+import MOTechnicianSearchSelect, { type TechnicianOption } from '../../components/medical/MOTechnicianSearchSelect';
+import MOFiltersBar from '../../components/medical/MOFiltersBar';
+import MOStatusTimeline from '../../components/medical/MOStatusTimeline';
 
 type UnassignedBooking = {
   id: number;
@@ -31,6 +31,19 @@ type ApiError = {
       message?: string;
     };
   };
+};
+
+const normalizeTechnicianOptions = (rows: any[]): TechnicianOption[] => {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const resolvedId = Number(row?.userId ?? row?.technicianId ?? row?.id);
+      return {
+        userId: resolvedId,
+        name: String(row?.name || row?.fullName || '').trim(),
+        bookingCountForDate: Number(row?.bookingCountForDate ?? 0),
+      };
+    })
+    .filter((item) => Number.isFinite(item.userId) && item.userId > 0 && item.name.length > 0);
 };
 
 const normalizeDateForFilter = (value: unknown): string => {
@@ -78,7 +91,7 @@ const MedicalOfficerAssignmentsPage: React.FC = () => {
     setLoadingTechByDate((prev) => ({ ...prev, [date]: true }));
     try {
       const resp = await api.get('/api/mo/technicians/available', { params: { date } });
-      setTechniciansByDate((prev) => ({ ...prev, [date]: (resp.data?.data || []) as TechnicianOption[] }));
+      setTechniciansByDate((prev) => ({ ...prev, [date]: normalizeTechnicianOptions(resp.data?.data || []) }));
     } catch {
       setTechniciansByDate((prev) => ({ ...prev, [date]: [] }));
     } finally {

@@ -18,6 +18,7 @@ import {
     CreditCard,
     User,
     LogOut,
+    ChevronLeft,
     ChevronRight,
     Zap,
     Key,
@@ -27,7 +28,6 @@ import {
     MessageSquare,
     FileText,
     ShieldIcon,
-    ChevronLeft,
     Monitor,
     Languages,
     Database,
@@ -35,7 +35,7 @@ import {
     UserCheck,
     LockIcon
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { notify } from '../../utils/toast';
 import GlassCard from '../../components/common/GlassCard';
@@ -120,17 +120,20 @@ const SettingsPage: React.FC = () => {
         <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9 min-h-screen">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
                 <div className="max-w-2xl">
-                    <button 
-                        onClick={() => navigate('/')}
-                        className="group flex items-center gap-2 text-cyan-800/60 font-black text-[10px] uppercase tracking-[0.16em] mb-4 hover:text-cyan-600 transition-colors"
-                    >
-                        <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-                        HUB CENTRAL
-                    </button>
-                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-800/50 mb-4">
-                        <Link to="/" className="hover:text-cyan-700 transition-colors">Home</Link>
-                        <ChevronRight size={12} className="text-cyan-700/40" />
-                        <span className="text-cyan-700">Settings</span>
+                    <div className="inline-flex items-center gap-3 mb-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            Back
+                        </button>
+                        <nav className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                            <span className="text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>Home</span>
+                            <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb]" />
+                            <span className="text-[#005d79]">Settings</span>
+                        </nav>
                     </div>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className="p-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/20 shadow-sm">

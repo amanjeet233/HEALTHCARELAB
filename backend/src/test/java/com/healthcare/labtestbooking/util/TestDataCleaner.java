@@ -2,14 +2,16 @@ package com.healthcare.labtestbooking.util;
 
 import com.healthcare.labtestbooking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.logging.Logger;
+
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class TestDataCleaner implements CommandLineRunner {
+
+    private static final Logger log = Logger.getLogger(TestDataCleaner.class.getName());
 
     private final UserRepository userRepository;
 

@@ -4,11 +4,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
-import MOBreadcrumbs from './shared/MOBreadcrumbs';
-import MOEmptyState from './shared/MOEmptyState';
-import MOLoadingSkeleton from './shared/MOLoadingSkeleton';
-import MOFiltersBar from './shared/MOFiltersBar';
-import MOStatusTimeline from './shared/MOStatusTimeline';
+import MOBreadcrumbs from '../../components/medical/MOBreadcrumbs';
+import MOEmptyState from '../../components/medical/MOEmptyState';
+import MOLoadingSkeleton from '../../components/medical/MOLoadingSkeleton';
+import MOFiltersBar from '../../components/medical/MOFiltersBar';
+import MOStatusTimeline from '../../components/medical/MOStatusTimeline';
 
 type VerificationItem = {
   id?: number;

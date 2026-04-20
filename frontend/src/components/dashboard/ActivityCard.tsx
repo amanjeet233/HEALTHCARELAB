@@ -41,13 +41,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                         <h3 className="text-sm font-black uppercase tracking-widest text-ever-green leading-none">{booking.testName}</h3>
                         <StatusBadge status={booking.status} className="scale-[0.85] origin-left" />
                     </div>
-                    {role === 'PATIENT' ? (
-                        <span className="text-[10px] font-bold text-muted-gray mt-1.5 uppercase tracking-widest opacity-60">Node: {booking.reference || 'Main Lab Central'}</span>
-                    ) : (
-                        <span className="text-[10px] font-bold text-muted-gray mt-1.5 uppercase tracking-widest opacity-60">Identity: {booking.patientName || 'ANONYMOUS-UID'}</span>
-                    )}
+                    </div>
                 </div>
-            </div>
 
             <div className="flex items-center space-x-8 mt-4 md:mt-0">
                 <div className="flex flex-col items-end">

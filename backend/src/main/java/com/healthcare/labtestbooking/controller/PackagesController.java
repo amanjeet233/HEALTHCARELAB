@@ -1,6 +1,7 @@
 package com.healthcare.labtestbooking.controller;
 
 import com.healthcare.labtestbooking.dto.ApiResponse;
+import com.healthcare.labtestbooking.entity.LabTest;
 import com.healthcare.labtestbooking.entity.TestPackage;
 import com.healthcare.labtestbooking.entity.enums.PackageTier;
 import com.healthcare.labtestbooking.entity.enums.PackageType;
@@ -167,16 +168,45 @@ public class PackagesController {
 
     private Map<String, Object> toPackageDetail(TestPackage p) {
         Map<String, Object> base = new LinkedHashMap<>(toPackageListItem(p));
+        List<String> resolvedIncludedTests = resolveIncludedTests(p);
         base.put("description", p.getDescription());
         base.put("sampleType", p.getSampleTypes());
         base.put("benefits", Optional.ofNullable(p.getBenefits()).orElse(List.of()));
         base.put("features", Optional.ofNullable(p.getFeatures()).orElse(List.of()));
-        base.put("includedTests", Optional.ofNullable(p.getIncludedTestNames()).orElse(List.of()));
+        base.put("includedTests", resolvedIncludedTests);
+        base.put("includedTestNames", resolvedIncludedTests);
+        if ((p.getTotalTests() == null || p.getTotalTests() == 0) && !resolvedIncludedTests.isEmpty()) {
+            base.put("totalTests", resolvedIncludedTests.size());
+            base.put("testCount", resolvedIncludedTests.size());
+        }
         base.put("doctorConsultations", p.getDoctorConsultations());
         base.put("imagingIncluded", p.getImagingIncluded());
         base.put("geneticTesting", p.getGeneticTesting());
         base.put("bestFor", p.getBestFor());
         return base;
+    }
+
+    private List<String> resolveIncludedTests(TestPackage p) {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        List<String> stored = Optional.ofNullable(p.getIncludedTestNames()).orElse(List.of());
+        stored.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .forEach(names::add);
+
+        try {
+            List<LabTest> tests = Optional.ofNullable(p.getTests()).orElse(List.of());
+            tests.stream()
+                    .map(t -> Optional.ofNullable(t.getTestName()).orElse(""))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .forEach(names::add);
+        } catch (Exception ignored) {
+            // If lazy-loading fails, keep stored names only.
+        }
+
+        return new ArrayList<>(names);
     }
 
     private Map<String, Object> toCompareRow(TestPackage p) {

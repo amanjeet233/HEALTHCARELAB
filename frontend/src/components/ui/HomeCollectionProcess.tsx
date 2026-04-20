@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { UserCheck, Building2, Zap, ShieldCheck, Plus } from 'lucide-react';
 import { FaMapLocationDot, FaTruck, FaFlask } from 'react-icons/fa6';
 import { FaHeartbeat, FaMousePointer, FaCheckCircle } from 'react-icons/fa';
 
@@ -9,6 +11,8 @@ import { FaHeartbeat, FaMousePointer, FaCheckCircle } from 'react-icons/fa';
  * Builds trust by showing how home collection works
  */
 const HomeCollectionProcess: React.FC = () => {
+  const navigate = useNavigate();
+
   // Step data
   const steps = [
     {
@@ -190,13 +194,18 @@ const HomeCollectionProcess: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="mt-8 md:mt-10 text-center"
+          className="mt-6 md:mt-7 text-center"
         >
           <p className="text-xs md:text-sm text-gray-500 mb-4 font-medium">
             Ready to get started with home sample collection?
           </p>
-          <button className="px-8 py-3 bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-wider rounded-full shadow-lg transition-all duration-300 transform hover:scale-105">
-            + BOOK
+          <button
+            type="button"
+            onClick={() => navigate('/tests')}
+            className="inline-flex items-center gap-2 px-7 py-3 bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-wider rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+          >
+            <Plus size={14} strokeWidth={2.75} />
+            Book Lab Test
           </button>
         </motion.div>
 
@@ -206,20 +215,22 @@ const HomeCollectionProcess: React.FC = () => {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-8 md:mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 pt-6 border-t border-gray-100"
+          className="mt-5 md:mt-6 grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-4 border-t border-gray-100"
         >
           {[
-            { icon: '✅', label: 'Trained Phlebotomists', value: '500+' },
-            { icon: '🏥', label: 'Accredited Labs', value: '25+' },
-            { icon: '⚡', label: 'Fast Reports', value: '24hrs' },
-            { icon: '🔒', label: 'Secure & Safe', value: '100%' }
+            { icon: UserCheck, label: 'Trained Phlebotomists', value: '500+', iconClass: 'text-emerald-600' },
+            { icon: Building2, label: 'Accredited Labs', value: '25+', iconClass: 'text-cyan-600' },
+            { icon: Zap, label: 'Fast Reports', value: '24hrs', iconClass: 'text-amber-500' },
+            { icon: ShieldCheck, label: 'Secure & Safe', value: '100%', iconClass: 'text-indigo-600' }
           ].map((badge, idx) => (
             <motion.div
               key={idx}
               whileHover={{ scale: 1.05 }}
               className="text-center p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:bg-blue-50/50 transition-colors"
             >
-              <div className="text-2xl mb-1.5">{badge.icon}</div>
+              <div className="w-9 h-9 mx-auto mb-2 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                <badge.icon className={`w-4.5 h-4.5 ${badge.iconClass}`} strokeWidth={2.5} />
+              </div>
               <div className="text-xs font-black text-ever-green">{badge.value}</div>
               <div className="text-[10px] text-gray-500 font-medium mt-0.5">{badge.label}</div>
             </motion.div>

@@ -1,9 +1,9 @@
 import React, {
   useState, useEffect, useCallback, useRef
 } from 'react';
-import { useSearchParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ChevronDown, ChevronRight, X, SlidersHorizontal, Home
+  ChevronDown, ChevronRight, ChevronLeft, X, SlidersHorizontal, Home, FlaskConical
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MedSyncTestCard, { MedSyncTestCardData } from './MedSyncTestCard';
@@ -53,6 +53,7 @@ const CATEGORY_DB_MAP: Record<string, string[]> = {
   'Allergy': ['Autoimmune'],
   'Stress': ['Neurology'],
   'Hormones': ['Hormones'],
+  'Hormone Screening': ['Hormones', 'Neurology'],
   'Joints': ['Disease Specific', 'Autoimmune'],
   'Joint Pain': ['Disease Specific', 'Autoimmune'],
   'Anemia': ['Hematology'],
@@ -66,6 +67,12 @@ const CATEGORY_DB_MAP: Record<string, string[]> = {
   'CBC': ['Hematology'],
   'Lipid Profile': ['Cardiac & Lipid'],
   'Vitamin': ['Vitamins & Nutrition'],
+  'Imaging': ['Imaging Tests', 'Imaging', 'Radiology', 'X-Ray', 'Ultrasound', 'CT', 'MRI'],
+  'Imaging Tests': ['Imaging Tests', 'Imaging', 'Radiology'],
+  'Imaging & X-Ray': ['Imaging Tests', 'Imaging', 'Radiology', 'X-Ray'],
+  'X-Ray': ['Imaging Tests', 'Imaging', 'Radiology', 'X-Ray'],
+  'X Ray': ['Imaging Tests', 'Imaging', 'Radiology', 'X-Ray'],
+  'Scan': ['Imaging Tests', 'Imaging', 'Radiology', 'CT', 'MRI', 'Ultrasound'],
   'Urine': ['Urology'],
   'Iron Deficiency': ['Hematology'],
   'Pre-marital': ['Serology'],
@@ -354,7 +361,7 @@ const FilterSidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-72 shrink-0 sticky top-[72px] self-start h-[calc(100dvh-72px)] max-h-[calc(100dvh-72px)] overflow-hidden bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-5" style={filterFontStyle}>
+      <aside className="hidden md:flex flex-col w-64 shrink-0 sticky top-[72px] self-start h-[calc(100dvh-72px)] max-h-[calc(100dvh-72px)] overflow-hidden bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-5" style={filterFontStyle}>
         {inner}
       </aside>
 
@@ -622,47 +629,64 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
   };
 
   const hasBreadcrumb = !!breadcrumb;
+  const cleanTitle = title.replace(/^[^\p{L}\p{N}]+/u, '').trim();
 
   return (
-    <div className="min-h-screen bg-[#F0F9F9] text-smooth">
-      <div
-        className="w-full px-4 md:px-8 pt-6 pb-6"
-        style={{
-          background: `linear-gradient(135deg, ${accent}12 0%, white 70%)`,
-          borderBottom: `2px solid ${accent}20`,
-        }}
-      >
-        <nav aria-label="Breadcrumb">
-          <ol className="flex items-center gap-1.5 text-xs text-slate-400 font-medium flex-wrap">
-            <li>
-              <Link to="/" className="hover:text-slate-700 transition-colors flex items-center gap-1">
-                <Home className="w-3 h-3" />Home
-              </Link>
-            </li>
-            <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-            <li>
-              <Link to="/lab-tests" className="hover:text-slate-700 transition-colors">Lab Tests</Link>
-            </li>
-            {hasBreadcrumb && (
-              <>
-                <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-                <li className="text-slate-700 font-semibold">{breadcrumb}</li>
-              </>
-            )}
-          </ol>
-        </nav>
-
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-black text-slate-800 leading-tight">
-            {title}
-            {!loading && (
-              <span className="ml-2 text-base font-semibold text-slate-400">
-                ({totalCount.toLocaleString('en-IN')})
+    <div className="min-h-screen bg-background text-smooth">
+      <div className="max-w-[1200px] w-full mx-auto px-4 md:px-5 py-8 md:py-9">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-1 px-4 py-1 rounded-full border border-[#b8cfdb] text-[#005f7b] text-[10px] font-black uppercase tracking-[0.16em] hover:bg-white/70"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+              <nav aria-label="Breadcrumb" className="inline-flex items-center text-[11px] font-black uppercase tracking-[0.14em]">
+                <span className="inline-flex items-center gap-1 text-[#6f9fb3] cursor-pointer hover:text-[#5c8ea3]" onClick={() => navigate('/')}>
+                  <Home className="w-3.5 h-3.5" />
+                  Home
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb] shrink-0" />
+                <span className="text-[#8aa0bb] cursor-pointer hover:text-[#6f8fad]" onClick={() => navigate('/lab-tests')}>Lab Tests</span>
+                {hasBreadcrumb && (
+                  <>
+                    <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#a8c0cb] shrink-0" />
+                    <span className="text-[#005d79]">{breadcrumb}</span>
+                  </>
+                )}
+              </nav>
+            </div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="p-2 bg-cyan-500/10 backdrop-blur-md rounded-xl border border-cyan-500/20 shadow-sm">
+                <FlaskConical className="w-5 h-5 text-cyan-600" />
+              </div>
+              <span className="text-[clamp(0.62rem,0.58rem+0.16vw,0.72rem)] font-black uppercase tracking-[0.22em] text-cyan-800/60">
+                LAB TESTS / RESULTS
               </span>
-            )}
-          </h1>
+            </div>
+            <h1 className="text-[clamp(1.7rem,1.2rem+1.7vw,2.7rem)] font-black text-[#164E63] tracking-tight mb-2.5 uppercase">
+              {cleanTitle}
+              {!loading && (
+                <span className="ml-2 text-[clamp(1rem,0.9rem+0.5vw,1.4rem)] font-black text-cyan-700/50">({totalCount.toLocaleString('en-IN')})</span>
+              )}
+            </h1>
+            <p className="text-[clamp(0.84rem,0.8rem+0.3vw,1rem)] text-cyan-900/60 font-medium leading-relaxed">
+              Filter and compare lab tests across category, pricing and reporting speed.
+            </p>
+          </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden md:flex gap-3 p-2 bg-white/40 backdrop-blur-md rounded-xl border border-white/60">
+              <div className="px-4 py-2 bg-white/60 rounded-lg border border-white/80 shadow-sm text-center min-w-[84px]">
+                <span className="block text-[clamp(1.1rem,0.95rem+0.5vw,1.4rem)] font-black text-cyan-700 tracking-tight">{totalCount}</span>
+                <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+              </div>
+            </div>
+
             <button
               onClick={() => setMobileOpen(true)}
               className="md:hidden flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 shadow-sm hover:shadow-md transition-all"
@@ -685,10 +709,9 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
               <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="flex gap-6 px-4 md:px-8 py-6">
+        <div className="flex gap-6">
         <FilterSidebar
           typeFilter={typeFilter}
           mustHaveFilter={mustHaveFilter}
@@ -840,6 +863,7 @@ const TestListingLayout: React.FC<TestListingLayoutProps> = ({
               </nav>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import com.healthcare.labtestbooking.dto.ReportResultDTO;
 import com.healthcare.labtestbooking.dto.ReportResultRequest;
 import com.healthcare.labtestbooking.dto.PatientReportItemDto;
 import com.healthcare.labtestbooking.entity.Booking;
+import com.healthcare.labtestbooking.entity.LabTest;
 import com.healthcare.labtestbooking.entity.ReportResult;
 import com.healthcare.labtestbooking.entity.TestParameter;
 import com.healthcare.labtestbooking.entity.User;
@@ -16,6 +17,7 @@ import com.healthcare.labtestbooking.repository.BookingRepository;
 import com.healthcare.labtestbooking.repository.ReportResultRepository;
 import com.healthcare.labtestbooking.repository.TestParameterRepository;
 import com.healthcare.labtestbooking.repository.UserRepository;
+import com.healthcare.labtestbooking.repository.LabTestRepository;
 import com.healthcare.labtestbooking.repository.ReportRepository;
 import com.healthcare.labtestbooking.entity.Report;
 import com.healthcare.labtestbooking.entity.ReportShare;
@@ -54,6 +56,7 @@ public class ReportService {
     private final BookingService bookingService;
     private final ReportVerificationRepository reportVerificationRepository;
     private final ReportGeneratorService reportGeneratorService;
+    private final LabTestRepository labTestRepository;
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -295,9 +298,80 @@ public class ReportService {
         }
 
         List<ReportResult> results = reportResultRepository.findByBookingId(bookingId);
-        if (results.isEmpty()) throw new ResourceNotFoundException("No report results found for booking id: " + bookingId);
-        User technician = results.get(0).getBooking().getTechnician();
+        if (results.isEmpty()) {
+            log.info("No report results found for booking id: {}. Returning empty DTO.", bookingId);
+            ReportResultDTO emptyDto = new ReportResultDTO();
+            emptyDto.setBookingId(bookingId);
+            emptyDto.setResults(new ArrayList<>());
+            emptyDto.setSubmittedAt(null);
+            return emptyDto;
+        }
+
+        User technician = booking.getTechnician();
         return convertToDTO(results, booking, technician);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TestParameter> getParametersForBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getTest() != null) {
+            log.info("Fetching parameters for single test: {} (ID: {})", booking.getTest().getTestName(), booking.getTest().getId());
+            return testParameterRepository.findByTest_IdOrderByDisplayOrder(booking.getTest().getId());
+        }
+
+        if (booking.getTestPackage() != null) {
+            List<LabTest> tests = booking.getTestPackage().getTests();
+            log.info("Fetching parameters for package: {} (ID: {}). Tests found: {}", 
+                booking.getTestPackage().getPackageName(), booking.getTestPackage().getId(), 
+                tests != null ? tests.size() : 0);
+            
+            if ((tests == null || tests.isEmpty()) && 
+                booking.getTestPackage().getIncludedTestNames() != null && 
+                !booking.getTestPackage().getIncludedTestNames().isEmpty()) {
+                
+                log.warn("Package tests list is empty. Attempting name-based lookup fallback for: {}", 
+                    booking.getTestPackage().getIncludedTestNames());
+                
+                tests = new ArrayList<>();
+                for (String testName : booking.getTestPackage().getIncludedTestNames()) {
+                    // Try exact match first
+                    List<LabTest> found = labTestRepository.findByTestNameContainingIgnoreCaseAndIsActiveTrue(testName);
+                    if (!found.isEmpty()) {
+                        // Find the closest match
+                        LabTest bestMatch = found.stream()
+                            .filter(t -> t.getTestName().equalsIgnoreCase(testName))
+                            .findFirst()
+                            .orElse(found.get(0));
+                        tests.add(bestMatch);
+                        log.info("Resolved test '{}' to ID: {}", testName, bestMatch.getId());
+                    } else {
+                        log.warn("Could not resolve test by name: {}", testName);
+                    }
+                }
+            }
+            
+            if (tests == null || tests.isEmpty()) {
+                log.warn("No tests resolved for package ID: {}", booking.getTestPackage().getId());
+                return List.of();
+            }
+
+            Map<Long, TestParameter> deduped = new LinkedHashMap<>();
+            for (LabTest test : tests) {
+                if (test == null || test.getId() == null) continue;
+                List<TestParameter> params = testParameterRepository.findByTest_IdOrderByDisplayOrder(test.getId());
+                log.info("Test '{}' (ID: {}) has {} parameters", test.getTestName(), test.getId(), params.size());
+                for (TestParameter param : params) {
+                    if (param != null && param.getId() != null) {
+                        deduped.putIfAbsent(param.getId(), param);
+                    }
+                }
+            }
+            return new ArrayList<>(deduped.values());
+        }
+
+        return List.of();
     }
 
     private AbnormalStatus calculateAbnormalStatus(TestParameter parameter, String resultValueStr) {
@@ -349,24 +423,29 @@ public class ReportService {
             throw new ResourceNotFoundException("Patient not found");
         }
         
-        List<Booking> bookings = bookingRepository.findByPatientId(patientId);
         Map<String, List<Map<String, Object>>> paramTrends = new HashMap<>();
-        
-        for (Booking booking : bookings) {
-            if (booking.getStatus() != BookingStatus.COMPLETED && booking.getStatus() != BookingStatus.VERIFIED) continue;
-            List<ReportResult> results = reportResultRepository.findByBookingId(booking.getId());
-            for (ReportResult res : results) {
-                if (res.getResultValue() == null || res.getResultValue().isEmpty()) continue;
-                try {
-                    new BigDecimal(res.getResultValue());
-                    String paramName = res.getParameter().getParameterName();
-                    paramTrends.computeIfAbsent(paramName, k -> new ArrayList<>())
-                            .add(Map.of(
-                                    "date", booking.getBookingDate() != null ? booking.getBookingDate().toString() : booking.getCreatedAt().toLocalDate().toString(),
-                                    "value", new BigDecimal(res.getResultValue()),
-                                    "unit", res.getUnit() != null ? res.getUnit() : ""
-                            ));
-                } catch (NumberFormatException ignored) {}
+
+        List<ReportResultRepository.TrendResultRow> trendRows =
+                reportResultRepository.findTrendRowsByPatientIdAndStatusIn(
+                        patientId,
+                        EnumSet.of(BookingStatus.COMPLETED, BookingStatus.VERIFIED));
+
+        for (ReportResultRepository.TrendResultRow row : trendRows) {
+            try {
+                BigDecimal value = new BigDecimal(row.getResultValue());
+                String parameterName = row.getParameterName();
+                String date = row.getBookingDate() != null
+                        ? row.getBookingDate().toString()
+                        : row.getBookingCreatedAt().toLocalDate().toString();
+
+                paramTrends.computeIfAbsent(parameterName, key -> new ArrayList<>())
+                        .add(Map.of(
+                                "date", date,
+                                "value", value,
+                                "unit", row.getUnit()
+                        ));
+            } catch (NumberFormatException ignored) {
+                // Ignore non-numeric values for trend graphs.
             }
         }
         

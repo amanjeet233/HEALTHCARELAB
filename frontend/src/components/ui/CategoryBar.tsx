@@ -19,7 +19,7 @@ const CategoryBar: React.FC = () => {
         const categoryMap: { [key: string]: string } = {
             'cardiac': 'heart',
             'metabolic': 'diabetes',
-            'neurology': 'hormone-screening',
+            'neurology': 'hormones',
             'checkup': 'full-body-checkup',
             'vitality': 'vitamin'
         };
