@@ -58,29 +58,23 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ---
 
 ## 📸 Preview & Screenshots
-
+ 
 <div align="center">
   <h3>✨ The Modern Patient Experience</h3>
   <img src="https://github.com/user-attachments/assets/55625d16-b2b0-4e8d-a2b7-0c77fc2000db" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
-
-  <h3>🛡️ Enterprise Governance (Admin Dashboard)</h3>
-  <img src="docs/screenshots/admin_dashboard.png" alt="Admin Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
-  <br/>
-  <i>System-wide Analytics, Revenue Monitoring, and Critical Operational Oversight.</i>
-  <br/><br/>
-
   <h3>📋 Clinical Oversight (MO Dashboard)</h3>
-  <img src="docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
-  <br/>
-  <i>Real-time Verification Queue, Critical Trend Analysis, and Clinical Notes management.</i>
+  <img src="https://github.com/user-attachments/assets/0a92588d-8376-4a13-8372-c62e49b08325" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
-
+  <h3>🛡️ Enterprise Governance (Admin Dashboard)</h3>
+  <img src="https://github.com/user-attachments/assets/492d3e75-fc9e-4264-9289-33470ca81eb8" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <br/><br/>
   <h3>🔬 Operations Management (Technician Dashboard)</h3>
-  <img src="docs/screenshots/technician_dashboard.png" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="https://github.com/user-attachments/assets/42494be1-a17d-468e-98be-f3c0d807f616" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/>
   <i>Efficient Task Management, Priority Queues, and real-time status updates for Sample Collection.</i>
 </div>
+
 
 
 ---
