@@ -1,8 +1,17 @@
-# API Documentation
+# 🔌 API Reference & Documentation
 
-> Complete REST API reference for the Healthcare Lab Test Booking System
+> **Explore and integrate with the Healthcare Lab core engine. Complete REST API reference for booking, diagnostics, and identity management.**
+
+<div align="center">
+  <img src="https://img.shields.io/badge/REST_API-v1.0-blue.svg?style=for-the-badge" alt="REST API" />
+  <img src="https://img.shields.io/badge/Security-JWT_Auth-red.svg?style=for-the-badge" alt="JWT Auth" />
+  <img src="https://img.shields.io/badge/Status-Healthy-success.svg?style=for-the-badge" alt="Status" />
+</div>
+
+---
 
 ## 📋 Table of Contents
+
 
 - [API Overview](#api-overview)
 - [Authentication](#authentication)
@@ -2157,8 +2166,9 @@ curl -X GET http://localhost:8080/api/tests \
 
 ---
 
-**Last Updated:** February 18, 2026
+<div align="center">
+  <b>Maintained by AMANJEET KUMAR</b> <br/>
+  <i>Integrate with confidence. Built for scale.</i> <br/>
+  <b>© 2026 Healthcare Lab Team</b>
+</div>
 
-**API Version:** 1.0
-
-**Support:** support@labtestbooking.com

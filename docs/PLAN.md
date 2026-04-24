@@ -1,48 +1,58 @@
-# Seed 1000+ Lab Tests & Backend Repair (Orchestration Plan)
+# 🗺️ Project Roadmap & Strategy
 
-We will orchestrate 3 agents to resolve current backend compilation errors and fulfill the request to seed 1000+ real, non-mock lab tests.
+> **Orchestrating the future of Healthcare Lab: Scaling infrastructure, data integrity, and premium user experiences.**
 
-## 🔴 CRITICAL: User Review Required
+---
 
-> [!WARNING]
-> Generating 1000+ completely distinct real lab tests via AI in a single Java seed file will result in a massive file size (~20,000+ lines of Java code) which exceeds LLM generation limits and timeout constraints. Attempting to write this inline will cause truncation and failures.
->   
-> **Alternative Proposal (Highly Recommended):** 
-> Allow me to generate a script (`python`/`node`) that synthetically scales the base real dataset permutations (100 real seed tests * 15 variations) up to 1000+ robust tests directly into the database, rather than hardcoding 1000 distinct tests in a `.java` file.
-> 
-> Please let me know whether you approve using a JSON seeding approach or script to populate the Database vs. forcing the Java file to contain 1000 hardcoded records!
+## 🎯 Current Objectives
 
-## Proposed Agents
+### 1. 🗄️ Massive Data Operations (In Progress)
+- **Scale:** Populating the system with **1000+ realistic Lab Tests** to simulate enterprise-scale search and filtering performance.
+- **Strategy:** Transitioning from hardcoded `.java` seeders to an intelligent JSON-based seeding engine to avoid Java compilation overhead.
+- **Validation:** Ensuring 60% standard discounts across all items with correct medical slugging.
 
-### 1. Backend Specialist (`backend-specialist`)
-- **Fix Compilation:** Will resolve `[ERROR]... method searchTests in interface LabTestRepository cannot be applied ... reason: actual and formal argument lists differ in length.` found in `LabTestService.java` and `TestService.java`.
-- Will also recreate `TestsSeedData.java`, which was wiped out, so the backend can compile.
-- Ensure application compiles correctly via `mvn clean compile`.
+### 2. 🛡️ Backend Resilience (Standardizing)
+- **Compilation Integrity:** Maintaining zero-error builds following the resolution of repository argument mismatch errors.
+- **Audit System:** Fine-tuning the `AuditListener` to handle complex JPA relationships without performance degradation.
 
-### 2. Database Architect (`database-architect`)
-- Will construct the seeding logic for the **1000+ Lab Tests**.
-- Each test will enforce:
-  - `item_type`: "TEST" or "PACKAGE"
-  - `discount_percent`: 60 for all
-  - Accurate `slug`, `parameters_count`, `original_price`, `discounted_price`
-  - Real categorical values (CBC, LFT, RFT, TSH, Dengue, Thyroid, etc.)
-  - Real fields for `is_top_booked`, `is_top_deal`, `fasting_required`, `image_url`
-- *Note:* Dependent on your feedback regarding how this script/seed is inserted.
+---
 
-### 3. Test Engineer (`test-engineer`)
-- Will run backend checks executing the Spring Boot test endpoints.
-- Will verify UI integration tests via `checklist.py`.
+## 🏗️ Technical Implementation Plan
 
-## Verification Scripts Executed
-- (Pending) `.agent/skills/vulnerability-scanner/scripts/security_scan.py`
-- (Pending) `.agent/skills/lint-and-validate/scripts/lint_runner.py`
+### Phase A: Architecture Refinement
+- [x] Correct many-to-one mapping for booking packages.
+- [x] Optimize data initialization for rapid startup (~10s).
+- [/] standardizing all API response envelopes (Success/Failure wrappers).
 
-## Open Questions
+### Phase B: Frontend Synchronization
+- [x] Implement Premium Dark/Light mode tokens.
+- [/] Integrate real-time notification hooks for booking status updates.
+- [ ] Add 3D visualization for health report trends using Three.js/Drei components.
 
-> [!IMPORTANT]
-> How would you like me to tackle the 1000-test generation? 
-> 1. Write a `.json` file that `TestsSeeder` parses at boot time (Highly recommended).
-> 2. Write a Python script to push them directly.
-> 3. Stick to the `.java` hardcoding (Will likely encounter truncation).
-> 
-> *Writing them directly as 1000 lines of `.java` code is extremely prone to timeout truncation.*
+---
+
+## 🚦 Phase C: QA & Security Compliance
+- **E2E Testing:** Target 90% coverage for the booking flow using Playwright.
+- **API Security:** Complete JWT rotation and refresh token logic verification.
+- **Performance:** Load testing under 100+ concurrent simulated users.
+
+---
+
+## 📂 Data Seeding Strategy
+
+| Method | Status | Rationale |
+| :--- | :--- | :--- |
+| **Java Hardcoding** | ⏸️ Deprecated | Prone to truncation and memory issues at high scales. |
+| **JSON Boot Loader** | 🚀 Recommended | High reliability, easy to edit, and keeps source code clean. |
+| **Direct SQL Injection** | 🛠️ Operational | Best for high-volume historical data imports. |
+
+---
+
+## 👨‍💻 Creator Oversight
+- **Project Lead:** AMANJEET KUMAR
+- **Vision:** To build India's most responsive and aesthetically pleasing lab-test ecosystem.
+
+---
+<div align="center">
+  <i>Building the future of healthcare, one commit at a time.</i>
+</div>

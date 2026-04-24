@@ -7,8 +7,8 @@ if not exist "%ENV_FILE%" (
   exit /b 0
 )
 
-for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
-  if not "%%A"=="" if not "%%A:~0,1"=="#" set "%%A=%%B"
+for /f "usebackq delims=" %%L in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$path = '%ENV_FILE%'; Get-Content -LiteralPath $path | ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') { '{0}={1}' -f $matches[1], $matches[2] } }"`) do (
+  for /f "tokens=1,* delims==" %%A in ("%%L") do set "%%A=%%B"
 )
 
 exit /b 0

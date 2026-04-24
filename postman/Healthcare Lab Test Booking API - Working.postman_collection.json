@@ -1,875 +1,298 @@
 {
-  "info": {
-    "name": "Healthcare Lab Test Booking API - Working",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Register Patient",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Patient User\",\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543210\",\n  \"gender\": \"MALE\",\n  \"age\": 28,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1997-01-01\",\n  \"bloodGroup\": \"O+\",\n  \"role\": \"PATIENT\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Register Patient (Duplicate - Should Fail with 409)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
-              "});",
-              "",
-              "pm.test(\"Response has success false\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.false;",
-              "    pm.expect(jsonData.message).to.include(\"Email already registered\");",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Patient User\",\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543210\",\n  \"gender\": \"MALE\",\n  \"age\": 28,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1997-01-01\",\n  \"bloodGroup\": \"O+\",\n  \"role\": \"PATIENT\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Login Patient",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "// Auto-register patient if not already registered (409 = already exists, OK).",
-              "const baseUrl = pm.environment.get('base_url') || 'http://localhost:8080';",
-              "const registerPayload = JSON.stringify({",
-              "    name: 'Patient User',",
-              "    email: 'patient@test.com',",
-              "    password: 'password123',",
-              "    phone: '9876543210',",
-              "    gender: 'MALE',",
-              "    age: 28,",
-              "    address: 'Delhi',",
-              "    dateOfBirth: '1997-01-01',",
-              "    bloodGroup: 'O+',",
-              "    role: 'PATIENT'",
-              "});",
-              "",
-              "pm.sendRequest({",
-              "    url: baseUrl + '/api/auth/register',",
-              "    method: 'POST',",
-              "    header: { 'Content-Type': 'application/json' },",
-              "    body: { mode: 'raw', raw: registerPayload }",
-              "}, function (err, res) {",
-              "    if (err) { console.log('Pre-register request error:', err); }",
-              "    else { console.log('Pre-register patient status:', res.code); }",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "const jsonData = pm.response.json();",
-              "if (jsonData.success && jsonData.data.accessToken) {",
-              "    pm.environment.set(\"patient_token\", jsonData.data.accessToken);",
-              "    if (jsonData.data.userId) { pm.environment.set(\"patient_id\", jsonData.data.userId); }",
-              "    console.log(\"Patient token saved: \" + jsonData.data.accessToken.substring(0, 20) + \"...\");",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"password123\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Profile (Patient)",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "// Check if token exists",
-              "const token = pm.environment.get(\"patient_token\");",
-              "if (!token) {",
-              "    console.log(\"No token found! Please run Login Patient first.\");",
-              "    postman.setNextRequest(\"Login Patient\");",
-              "} else {",
-              "    // Optional: Decode token to check expiry",
-              "    try {",
-              "        const base64Url = token.split('.')[1];",
-              "        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');",
-              "        const payload = JSON.parse(atob(base64));",
-              "",
-              "        const expiryDate = new Date(payload.exp * 1000);",
-              "        const now = new Date();",
-              "",
-              "        if (expiryDate < now) {",
-              "            console.log(\"Token expired! Please login again.\");",
-              "            pm.environment.unset(\"patient_token\");",
-              "            postman.setNextRequest(\"Login Patient\");",
-              "        } else {",
-              "            console.log(\"Token valid until: \" + expiryDate);",
-              "        }",
-              "    } catch (e) {",
-              "        console.log(\"Could not decode token\");",
-              "    }",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{patient_token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/api/users/profile",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "profile"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Register Technician",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Technician User\",\n  \"email\": \"technician@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543211\",\n  \"gender\": \"MALE\",\n  \"age\": 30,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1995-01-01\",\n  \"bloodGroup\": \"A+\",\n  \"role\": \"TECHNICIAN\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Register Technician (Duplicate - Should Fail with 409)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
-              "});",
-              "",
-              "pm.test(\"Response has success false\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.false;",
-              "});",
-              "",
-              "pm.test(\"Response indicates duplicate (email or phone)\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    const message = jsonData.message || '';",
-              "    pm.expect(message).to.match(/already registered/i);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Technician User\",\n  \"email\": \"technician@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543211\",\n  \"gender\": \"MALE\",\n  \"age\": 30,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1995-01-01\",\n  \"bloodGroup\": \"A+\",\n  \"role\": \"TECHNICIAN\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Login Technician",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "// Auto-register technician if not already registered (idempotent: 409 is accepted).",
-              "const baseUrl = pm.environment.get('base_url') || 'http://localhost:8080';",
-              "const registerPayload = JSON.stringify({",
-              "    name: 'Technician User',",
-              "    email: 'technician@test.com',",
-              "    password: 'password123',",
-              "    phone: '9876543211',",
-              "    gender: 'MALE',",
-              "    age: 30,",
-              "    address: 'Delhi',",
-              "    dateOfBirth: '1995-01-01',",
-              "    bloodGroup: 'A+',",
-              "    role: 'TECHNICIAN'",
-              "});",
-              "",
-              "pm.sendRequest({",
-              "    url: baseUrl + '/api/auth/register',",
-              "    method: 'POST',",
-              "    header: { 'Content-Type': 'application/json' },",
-              "    body: { mode: 'raw', raw: registerPayload }",
-              "}, function (err, res) {",
-              "    if (err) { console.log('Pre-register request error:', err); }",
-              "    else { console.log('Pre-register status:', res.code, '(409 = already exists, both OK)'); }",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "const jsonData = pm.response.json();",
-              "if (jsonData.success && jsonData.data.accessToken) {",
-              "    pm.environment.set(\"technician_token\", jsonData.data.accessToken);",
-              "    if (jsonData.data.userId) { pm.environment.set(\"technician_id\", jsonData.data.userId); }",
-              "    console.log(\"Technician token saved: \" + jsonData.data.accessToken.substring(0, 20) + \"...\");",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"technician@test.com\",\n  \"password\": \"password123\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Profile (Technician)",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const token = pm.environment.get(\"technician_token\");",
-              "if (!token) {",
-              "    console.warn(\"⚠️ No technician token found. Run Login Technician first.\");",
-              "}"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 200 OK\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "pm.test(\"Response has technician data\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.true;",
-              "    pm.expect(jsonData.data.email).to.include(\"technician@test.com\");",
-              "    pm.expect(jsonData.data.role).to.eql(\"TECHNICIAN\");",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{technician_token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/api/users/profile",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "profile"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Register Doctor",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Doctor User\",\n  \"email\": \"doctor@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543212\",\n  \"gender\": \"FEMALE\",\n  \"age\": 35,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"bloodGroup\": \"B+\",\n  \"role\": \"MEDICAL_OFFICER\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Register Doctor (Duplicate - Should Fail with 409)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
-              "});",
-              "",
-              "pm.test(\"Response has success false\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.false;",
-              "});",
-              "",
-              "pm.test(\"Response indicates duplicate (email or phone)\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    const message = jsonData.message || '';",
-              "    pm.expect(message).to.match(/already registered/i);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Doctor User\",\n  \"email\": \"doctor@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543212\",\n  \"gender\": \"FEMALE\",\n  \"age\": 35,\n  \"address\": \"Delhi\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"bloodGroup\": \"B+\",\n  \"role\": \"MEDICAL_OFFICER\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/register",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Login Doctor",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "const jsonData = pm.response.json();",
-              "if (jsonData.success && jsonData.data.accessToken) {",
-              "    pm.environment.set(\"doctor_token\", jsonData.data.accessToken);",
-              "    console.log(\"Doctor token saved: \" + jsonData.data.accessToken.substring(0, 20) + \"...\");",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"doctor@test.com\",\n  \"password\": \"password123\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Profile (Doctor)",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const token = pm.environment.get(\"doctor_token\");",
-              "if (!token) {",
-              "    console.warn(\"⚠️ No doctor token found. Run Login Doctor first.\");",
-              "}"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 200 OK\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "pm.test(\"Response has doctor data\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.true;",
-              "    pm.expect(jsonData.data.email).to.include(\"doctor@test.com\");",
-              "    pm.expect(jsonData.data.role).to.eql(\"MEDICAL_OFFICER\");",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{doctor_token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/api/users/profile",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "profile"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Booking",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const token = pm.environment.get(\"patient_token\");",
-              "if (!token) {",
-              "    console.error(\"❌ No patient token found! Please run Login Patient first.\");",
-              "    postman.setNextRequest(\"Login Patient\");",
-              "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
-              "}",
-              "",
-              "// Get valid test ID (use 1 as default, or fetch from /api/tests endpoint)",
-              "const testId = 1;",
-              "",
-              "// Get tomorrow's date",
-              "const today = new Date();",
-              "const tomorrow = new Date(today);",
-              "tomorrow.setDate(tomorrow.getDate() + 1);",
-              "",
-              "const year = tomorrow.getFullYear();",
-              "const month = String(tomorrow.getMonth() + 1).padStart(2, '0');",
-              "const day = String(tomorrow.getDate()).padStart(2, '0');",
-              "",
-              "pm.variables.set(\"booking_date\", `${year}-${month}-${day}`);",
-              "pm.variables.set(\"lab_test_id\", testId);",
-              "",
-              "// Log for debugging",
-              "console.log(\"Booking date:\", pm.variables.get(\"booking_date\"));",
-              "console.log(\"Lab Test ID:\", testId);"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 201 Created\", function () {",
-              "    pm.response.to.have.status(201);",
-              "});",
-              "",
-              "const jsonData = pm.response.json();",
-              "if (jsonData.success && jsonData.data.id) {",
-              "    pm.environment.set(\"created_booking_id\", jsonData.data.id);",
-              "    pm.environment.set(\"created_booking_ref\", jsonData.data.bookingReference);",
-              "    console.log(\"✅ Booking created with ID:\", jsonData.data.id);",
-              "    console.log(\"✅ Booking Reference:\", jsonData.data.bookingReference);",
-              "}",
-              "",
-              "pm.test(\"Response has booking data\", function () {",
-              "    pm.expect(jsonData.success).to.be.true;",
-              "    pm.expect(jsonData.data).to.have.property('bookingReference');",
-              "    pm.expect(jsonData.data).to.have.property('patientId');",
-              "    pm.expect(jsonData.data).to.have.property('labTestId');",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{patient_token}}",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"labTestId\": {{lab_test_id}},\n  \"bookingDate\": \"{{booking_date}}\",\n  \"timeSlot\": \"09:00 AM\",\n  \"collectionType\": \"LAB\",\n  \"discount\": 0\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/bookings",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "bookings"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Submit Report Results",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const token = pm.environment.get(\"technician_token\");",
-              "if (!token) {",
-              "    console.error(\"❌ No technician token found! Please run Login Technician first.\");",
-              "    postman.setNextRequest(\"Login Technician\");",
-              "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
-              "} else {",
-              "    console.log(\"✅ Using technician token\");",
-              "}",
-              "",
-              "const bookingId = pm.environment.get(\"created_booking_id\");",
-              "if (!bookingId) {",
-              "    console.error(\"❌ No booking ID found! Please create a booking first.\");",
-              "    postman.setNextRequest(\"Create Booking\");",
-              "    if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
-              "} else {",
-              "    pm.variables.set(\"booking_id_for_report\", bookingId);",
-              "    console.log(\"✅ Using booking ID:\", bookingId);",
-              "}"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 201 Created\", function () {",
-              "    pm.response.to.have.status(201);",
-              "});",
-              "",
-              "pm.test(\"Response has success true\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.true;",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{technician_token}}",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"bookingId\": {{booking_id_for_report}},\n  \"technicianId\": {{technician_id}},\n  \"results\": [\n    {\n      \"parameterId\": 1,\n      \"resultValue\": \"5.2\",\n      \"unit\": \"million cells/mcL\",\n      \"normalRange\": \"4.5-5.5\",\n      \"notes\": \"Normal\",\n      \"status\": \"NORMAL\"\n    },\n    {\n      \"parameterId\": 2,\n      \"resultValue\": \"13.5\",\n      \"unit\": \"g/dL\",\n      \"normalRange\": \"13.5-17.5\",\n      \"notes\": \"Normal\",\n      \"status\": \"NORMAL\"\n    }\n  ]\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "{{base_url}}/api/reports/results",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "reports",
-            "results"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Report by Booking",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "const bookingId = pm.environment.get(\"created_booking_id\");",
-              "if (!bookingId) {",
-              "    console.error(\"❌ No booking ID found! Please create a booking first.\");",
-              "    postman.setNextRequest(\"Create Booking\");",
-              "} else {",
-              "    console.log(\"✅ Using booking ID:\", bookingId);",
-              "}"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 200 OK\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "pm.test(\"Response has report data\", function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData.success).to.be.true;",
-              "    pm.expect(jsonData.data).to.have.property('bookingId');",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{patient_token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/api/reports/booking/{{created_booking_id}}",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "reports",
-            "booking",
-            "{{created_booking_id}}"
-          ]
-        }
-      }
-    }
-  ]
+	"info": {
+		"name": "🏥 Healthcare Lab - Enterprise API Suite",
+		"description": "Premium REST API collection for the Healthcare Lab Test Booking System. \n\n**Maintained by:** AMANJEET KUMAR (@amanjeet233)\n**Version:** 1.2.0\n**Target Environment:** Localhost / Production",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Auth & Identity",
+			"item": [
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"{{user_name}}\",\n  \"email\": \"{{patient_email}}\",\n  \"password\": \"{{patient_password}}\",\n  \"phone\": \"{{user_phone}}\",\n  \"gender\": \"MALE\",\n  \"age\": 25,\n  \"address\": \"New Delhi, India\",\n  \"dateOfBirth\": \"1999-01-01\",\n  \"role\": \"PATIENT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "Patient Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data.accessToken) {",
+									"    pm.environment.set(\"patient_token\", jsonData.data.accessToken);",
+									"    pm.environment.set(\"patient_id\", jsonData.data.userId);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{patient_email}}\",\n  \"password\": \"{{patient_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Profile Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{patient_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🧪 Catalog & Search",
+			"item": [
+				{
+					"name": "Get Popular Tests",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lab-tests/popular",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"lab-tests",
+								"popular"
+							]
+						}
+					}
+				},
+				{
+					"name": "Advanced Filter & Search",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lab-tests/advanced?search=Blood&category=Blood Studies&min_price=100&max_price=5000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"lab-tests",
+								"advanced"
+							],
+							"query": [
+								{ "key": "search", "value": "Blood" },
+								{ "key": "category", "value": "Blood Studies" },
+								{ "key": "min_price", "value": "100" },
+								{ "key": "max_price", "value": "5000" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Test by Slug (Test Code)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lab-tests/slug/complete-blood-count-1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"lab-tests",
+								"slug",
+								"complete-blood-count-1"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📅 Appointments & Bookings",
+			"item": [
+				{
+					"name": "Create Appointment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"if (jsonData.success) {",
+									"    pm.environment.set(\"created_booking_id\", jsonData.data.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{patient_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"labTestId\": 1,\n  \"bookingDate\": \"2026-05-01\",\n  \"timeSlot\": \"10:00 AM\",\n  \"collectionType\": \"HOME\",\n  \"discount\": 0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bookings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"bookings"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Bookings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{patient_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user-bookings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user-bookings"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📋 Diagnostic Reports",
+			"item": [
+				{
+					"name": "Submit Test Results",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{technician_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bookingId\": {{created_booking_id}},\n  \"results\": [\n    {\n      \"parameterId\": 1,\n      \"resultValue\": \"14.5\",\n      \"status\": \"NORMAL\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/reports/results",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"results"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Final Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{patient_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/reports/booking/{{created_booking_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"booking",
+								"{{created_booking_id}}"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"console.log(\"Executing Request: \" + pm.info.requestName);"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
 }

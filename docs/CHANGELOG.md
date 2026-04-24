@@ -1,13 +1,37 @@
-# Changelog
+# 📝 Changelog
 
-## [Unreleased]
+> **Tracking the evolution of Healthcare Lab: From mission-critical fixes to premium UI enhancements.**
 
-### Fixed
-- Added `package_id` column to `bookings` table in schema and database to match `Booking` entity mapping.
-- Recreated `bookings.package_id` column and foreign key to `test_packages(id)` to eliminate MySQL metadata issues causing `Unknown column 'pb1_0.package_id'` errors.
-- Updated `DataInitializer` to use `existsByEmail` / `findByEmailWithoutRelationships` to avoid unnecessary relationship loading during startup.
-- Adjusted `AuditListener` to skip loading `@OneToMany` / collection fields when capturing audit snapshots, preventing eager loading of `Booking` records during initialization.
+---
 
-### Notes
-- Application now starts successfully, `DataInitializer` completes, and all default users are initialized with correct roles.
-- Redis warnings about repository store assignment are informational only and do not block application startup.
+## 🛠️ [Latest Update] - 2026-04-24
+
+### 💎 Premium Experience & Design Excellence
+- **Revamped README:** Launched a high-end, premium `README.md` featuring dynamic badges, structured iconography, and a professional layout.
+- **Visual Branding:** Embedded a dedicated **Screenshots Gallery** and streamlined the tech stack visualization for an enterprise-grade first impression.
+- **Creator Credits:** Officially integrated "Made by **AMANJEET KUMAR**" with Instagram social credits (@amanjeet233) across primary documentation.
+
+### 🚀 Developer Experience
+- **Quick Startup Integration:** Synthesized the `startup.bat` workflow into the main documentation for friction-less local environment setup.
+- **Documentation Overhaul:** Synchronized all subsidiary documentation files in the `docs/` folder to match the premium aesthetic and latest system architecture.
+
+---
+
+## 🔧 [Previous Update] - 2026-04-21
+
+### 🐞 Critical Backend Repairs
+- **Database Schema Sync:** Resolved `Unknown column 'pb1_0.package_id'` errors by correcting the `bookings` table schema to properly map `package_id` to `test_packages(id)`.
+- **Relationship Optimization:** Refactored `DataInitializer` to use `existsByEmail` and optimized `AuditListener` to skip `@OneToMany` field loading during audit snapshots, significantly reducing startup overhead and preventing eager loading loops.
+- **Reliable Seeding:** Restored wiping `TestsSeedData.java` and ensured 500+ realistic lab tests are generated with accurate categorical data and Unsplash imagery.
+
+---
+
+## ✨ System Notes
+- **Startup:** Application initializes successfully with default roles (PATIENT, TECHNICIAN, MEDICAL_OFFICER, ADMIN).
+- **Architecture:** Transitioned to a more robust entity-relationship mapping for high-volume booking scenarios.
+
+---
+<div align="center">
+  <b>Maintained by AMANJEET KUMAR</b> <br/>
+  <i>Continuously pushing for code quality and design perfection.</i>
+</div>

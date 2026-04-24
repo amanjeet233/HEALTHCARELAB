@@ -3,7 +3,9 @@ setlocal
 
 set "ROOT_DIR=%~dp0"
 set "COMPOSE_FILE=%ROOT_DIR%docker-compose.yml"
-set "ENV_FILE=%ROOT_DIR%.env"
+set "DOCKER_ENV_FILE=%ROOT_DIR%.env.docker"
+set "LEGACY_ENV_FILE=%ROOT_DIR%.env"
+set "ENV_FILE=%DOCKER_ENV_FILE%"
 set "TEMP_ENV_FILE=%TEMP%\healthcarelab-docker.env"
 set "SERVICES=mysql redis backend"
 
@@ -26,6 +28,13 @@ if errorlevel 1 (
 
 cd /d "%ROOT_DIR%"
 echo Stopping Docker services: mysql, redis, backend...
+
+if not exist "%DOCKER_ENV_FILE%" (
+  if exist "%LEGACY_ENV_FILE%" (
+    set "ENV_FILE=%LEGACY_ENV_FILE%"
+    echo WARNING: .env.docker not found. Falling back to .env
+  )
+)
 
 if exist "%ENV_FILE%" (
   echo Preparing sanitized Docker env file...

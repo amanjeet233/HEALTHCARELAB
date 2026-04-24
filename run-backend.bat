@@ -5,13 +5,15 @@ set "ROOT_DIR=%~dp0"
 set "PROJECT_DIR=%ROOT_DIR%backend"
 set "KILL_PORT_SCRIPT=%ROOT_DIR%kill-port.bat"
 set "LOAD_ENV_SCRIPT=%ROOT_DIR%load-env.bat"
-set "ENV_FILE=%ROOT_DIR%.env"
-set "DB_URL=jdbc:mysql://localhost:3306/labtestbooking"
-set "DB_USER=root"
-set "DB_PASS=Amanjeet@4321."
+set "LOCAL_ENV_FILE=%ROOT_DIR%.env.local"
+set "ENV_FILE=%LOCAL_ENV_FILE%"
+set "DEFAULT_DB_NAME=labtestbooking"
+set "DEFAULT_DB_USER=root"
+set "DEFAULT_DB_PASS=Amanjeet@4321."
+set "DEFAULT_DB_HOST=localhost"
+set "DEFAULT_DB_PORT=3306"
 set "MIGRATION_PATH=filesystem:src/main/resources/db/migration"
 set "APP_PORT=8080"
-set "SPRING_BOOT_JVM_ARGS=-Dspring.datasource.url=%DB_URL% -Dspring.datasource.username=%DB_USER% -Dspring.datasource.password=%DB_PASS%"
 set "BACKEND_FORCE_CLEAN=%BACKEND_FORCE_CLEAN%"
 if "%BACKEND_FORCE_CLEAN%"=="" set "BACKEND_FORCE_CLEAN=false"
 
@@ -31,8 +33,65 @@ if not exist "%LOAD_ENV_SCRIPT%" (
 )
 
 cd /d "%ROOT_DIR%"
-echo Loading environment from .env...
+if not exist "%LOCAL_ENV_FILE%" (
+  echo ERROR: .env.local not found at "%LOCAL_ENV_FILE%"
+  echo Create .env.local for local-only backend run.
+  echo Do not use .env here because it may contain Docker credentials/ports.
+  exit /b 1
+)
+echo Loading environment from "%ENV_FILE%"...
 call "%LOAD_ENV_SCRIPT%" "%ENV_FILE%"
+
+if "%DB_NAME%"=="" set "DB_NAME=%DEFAULT_DB_NAME%"
+
+if "%LOCAL_DB_HOST%"=="" (
+  set "LOCAL_DB_HOST=%DEFAULT_DB_HOST%"
+)
+
+if "%LOCAL_DB_PORT%"=="" (
+  if not "%MYSQL_HOST_PORT%"=="" (
+    set "LOCAL_DB_PORT=%MYSQL_HOST_PORT%"
+  ) else (
+    set "LOCAL_DB_PORT=%DEFAULT_DB_PORT%"
+  )
+)
+
+if "%LOCAL_DB_NAME%"=="" (
+  if not "%DB_NAME%"=="" (
+    set "LOCAL_DB_NAME=%DB_NAME%"
+  ) else (
+    set "LOCAL_DB_NAME=%DEFAULT_DB_NAME%"
+  )
+)
+
+if "%SPRING_DATASOURCE_URL%"=="" (
+  set "SPRING_DATASOURCE_URL=jdbc:mysql://%LOCAL_DB_HOST%:%LOCAL_DB_PORT%/%LOCAL_DB_NAME%?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&enabledTLSProtocols=TLSv1.2,TLSv1.3"
+)
+
+if "%SPRING_DATASOURCE_USERNAME%"=="" (
+  if not "%LOCAL_DB_USER%"=="" (
+    set "SPRING_DATASOURCE_USERNAME=%LOCAL_DB_USER%"
+  ) else if not "%DB_USER%"=="" (
+    set "SPRING_DATASOURCE_USERNAME=%DB_USER%"
+  ) else (
+    set "SPRING_DATASOURCE_USERNAME=%DEFAULT_DB_USER%"
+  )
+)
+
+if "%SPRING_DATASOURCE_PASSWORD%"=="" (
+  if not "%LOCAL_DB_PASS%"=="" (
+    set "SPRING_DATASOURCE_PASSWORD=%LOCAL_DB_PASS%"
+  ) else if not "%DB_PASS%"=="" (
+    set "SPRING_DATASOURCE_PASSWORD=%DB_PASS%"
+  ) else (
+    set "SPRING_DATASOURCE_PASSWORD=%DEFAULT_DB_PASS%"
+  )
+)
+
+set "DB_URL=%SPRING_DATASOURCE_URL%"
+set "DB_USER=%SPRING_DATASOURCE_USERNAME%"
+set "DB_PASS=%SPRING_DATASOURCE_PASSWORD%"
+set "SPRING_BOOT_JVM_ARGS=-Dspring.datasource.url=%DB_URL% -Dspring.datasource.username=%DB_USER% -Dspring.datasource.password=%DB_PASS%"
 
 cd /d "%PROJECT_DIR%"
 echo Releasing port %APP_PORT%...
