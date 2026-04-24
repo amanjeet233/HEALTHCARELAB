@@ -61,7 +61,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 
 <div align="center">
   <h3>✨ The Modern Patient Experience</h3>
-  <img src="docs/screenshots/landing_page.png" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="https://github.com/user-attachments/assets/55625d16-b2b0-4e8d-a2b7-0c77fc2000db" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
   <h3>📋 Clinical Oversight (MO Dashboard)</h3>
   <img src="docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
