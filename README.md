@@ -68,8 +68,11 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
   <br/><br/>
   <h3>🛡️ Enterprise Governance (Admin Dashboard)</h3>
   <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/admin_dashboard.png" alt="Admin Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <br/><br/>
+  <h3>🔬 Operations Management (Technician Dashboard)</h3>
+  <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/technician_dashboard.png" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/>
-  <i>System-wide Analytics, Revenue Monitoring, and Critical Operational Oversight.</i>
+  <i>Efficient Task Management, Priority Queues, and real-time status updates for Sample Collection.</i>
 </div>
 
 
