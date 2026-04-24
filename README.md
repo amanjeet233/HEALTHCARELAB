@@ -75,11 +75,10 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
   <i>Efficient Task Management, Priority Queues, and real-time status updates for Sample Collection.</i>
 </div>
 
-
-
 ---
 
 ## 🎯 Core Features
+
 
 ### 👤 For Patients
 
