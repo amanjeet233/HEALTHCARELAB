@@ -63,12 +63,19 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
   <h3>✨ The Modern Patient Experience</h3>
   <img src="https://github.com/user-attachments/assets/55625d16-b2b0-4e8d-a2b7-0c77fc2000db" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
-  <h3>📋 Clinical Oversight (MO Dashboard)</h3>
-  <img src="docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
-  <br/><br/>
+
   <h3>🛡️ Enterprise Governance (Admin Dashboard)</h3>
   <img src="docs/screenshots/admin_dashboard.png" alt="Admin Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <br/>
+  <i>System-wide Analytics, Revenue Monitoring, and Critical Operational Oversight.</i>
   <br/><br/>
+
+  <h3>📋 Clinical Oversight (MO Dashboard)</h3>
+  <img src="docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <br/>
+  <i>Real-time Verification Queue, Critical Trend Analysis, and Clinical Notes management.</i>
+  <br/><br/>
+
   <h3>🔬 Operations Management (Technician Dashboard)</h3>
   <img src="docs/screenshots/technician_dashboard.png" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/>
