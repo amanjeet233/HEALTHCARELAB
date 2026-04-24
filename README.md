@@ -1,8 +1,7 @@
-# 🏥 Healthcare Lab Test Booking System
-
-> **A modern, full-stack healthcare platform for lab test bookings, diagnostics, and report management.**
-
 <div align="center">
+  <h1>🏥 Healthcare Lab Test Booking System</h1>
+  <p><b>A modern, full-stack healthcare platform for lab test bookings, diagnostics, and report management.</b></p>
+
 
 ![Java](https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.2-brightgreen.svg?style=for-the-badge&logo=springboot)
