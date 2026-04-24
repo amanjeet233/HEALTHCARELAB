@@ -379,58 +379,59 @@ jmeter -n -t jmeter/LoadTest.jmx -l results.jtl -e -o reports/
 
 ```
 HEALTHCARELAB/
-├── backend/                 # Spring Boot backend
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/
-│   │   │   │   └── com/
-│   │   │   │       └── healthcarelab/
-│   │   │   │           ├── config/      # Configuration classes
-│   │   │   │           ├── controller/  # REST controllers
-│   │   │   │           ├── service/     # Business logic
-│   │   │   │           ├── repository/  # Data access layer
-│   │   │   │           ├── entity/      # JPA entities
-│   │   │   │           ├── dto/         # Data transfer objects
-│   │   │   │           ├── exception/   # Exception handling
-│   │   │   │           └── util/        # Utility classes
-│   │   │   └── resources/
-│   │   │       ├── application.properties
-│   │   │       └── db/migration/        # Flyway migrations
-│   │   └── test/
-│   └── pom.xml
-├── frontend/                # React frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── context/        # React context
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── utils/          # Utility functions
-│   │   └── assets/         # Static assets
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/                    # Documentation
-│   ├── architecture/       # System architecture
-│   │   └── SYSTEM_ARCHITECTURE.md
-│   ├── api/                # API documentation
-│   │   └── API.md
-│   ├── guide/              # User guides
-│   │   ├── 01-START_HERE.md
-│   │   └── 02-QUICK_START.md
-│   ├── db/                 # Database docs
-│   │   └── DATABASE_MIGRATION_GUIDE.md
-│   ├── overview/           # Project overview
-│   │   ├── PROJECT_OVERVIEW.md
-│   │   └── FEATURES.md
-│   └── PLAN.md             # Project roadmap
-├── postman/                 # Postman collection
-│   ├── Healthcare Lab Test Booking API - Working.postman_collection.json
-│   └── Healthcare Local.postman_environment.json
-├── .gitignore
-├── startup.bat
-└── README.md
+├── 🍃 backend/                 # Spring Boot backend
+│   ├── 📂 src/
+│   │   ├── 📂 main/
+│   │   │   ├── 📂 java/
+│   │   │   │   └── 📂 com/
+│   │   │   │       └── 📂 healthcarelab/
+│   │   │   │           ├── ⚙️ config/      # Configuration classes
+│   │   │   │           ├── 🎮 controller/  # REST controllers
+│   │   │   │           ├── 🏗️ service/     # Business logic
+│   │   │   │           ├── 🗄️ repository/  # Data access layer
+│   │   │   │           ├── 📄 entity/      # JPA entities
+│   │   │   │           ├── 📦 dto/         # Data transfer objects
+│   │   │   │           ├── ⚠️ exception/   # Exception handling
+│   │   │   │           └── 🔧 util/        # Utility classes
+│   │   │   └── 📂 resources/
+│   │   │       ├── 📄 application.properties
+│   │   │       └── 📂 db/migration/        # Flyway migrations
+│   │   └── 📂 test/
+│   └── 📄 pom.xml
+├── ⚛️ frontend/                # React frontend
+│   ├── 📂 src/
+│   │   ├── 🧩 components/     # React components
+│   │   ├── 📑 pages/          # Page components
+│   │   ├── 📡 services/       # API services
+│   │   ├── 🏪 context/        # React context
+│   │   ├── 🎣 hooks/          # Custom hooks
+│   │   ├── 🛠️ utils/          # Utility functions
+│   │   └── 🎨 assets/         # Static assets
+│   ├── 📂 public/
+│   ├── 📄 package.json
+│   └── ⚙️ vite.config.ts
+├── 📖 docs/                    # Documentation
+│   ├── 🏗️ architecture/       # System architecture
+│   │   └── 📄 SYSTEM_ARCHITECTURE.md
+│   ├── 🔌 api/                # API documentation
+│   │   └── 📄 API.md
+│   ├── 📘 guide/              # User guides
+│   │   ├── 📄 01-START_HERE.md
+│   │   └── 📄 02-QUICK_START.md
+│   ├── 🗄️ db/                 # Database docs
+│   │   └── 📄 DATABASE_MIGRATION_GUIDE.md
+│   ├── 📝 overview/           # Project overview
+│   │   ├── 📄 PROJECT_OVERVIEW.md
+│   │   └── 📄 FEATURES.md
+│   └── 📄 PLAN.md             # Project roadmap
+├── 📮 postman/                 # Postman collection
+│   ├── 📄 Healthcare Lab Test Booking API - Working.collection.json
+│   └── 📄 Healthcare Local.environment.json
+├── 📄 .gitignore
+├── ⚡ startup.bat
+└── 📄 README.md
 ```
+
 
 ---
 
