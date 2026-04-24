@@ -25,16 +25,21 @@ This will concurrently launch:
 
 ---
 
-## 👥 Default Test Users
+## 👥 Default Test Credentials
 
-| Email | Password | Role | Purpose |
-|-------|----------|------|---------|
-| `patient@test.com` | password123 | PATIENT | Test booking creation |
-| `technician@test.com` | password123 | TECHNICIAN | Test report submission |
-| `doctor@test.com` | password123 | MEDICAL_OFFICER | Test approval workflows |
-| `admin@test.com` | password123 | ADMIN | Test admin features |
+> **Use these pre-configured accounts to explore different roles within the platform.**
+
+| Role | Username | Password | Workflow |
+| :--- | :--- | :--- | :--- |
+| **🛡️ Admin** | `admin@test.com` | `password123` | Control Panel & User Management |
+| **👨‍⚕️ Doctor/MO** | `doctor@test.com` | `password123` | Report Verification & Approvals |
+| **🔬 Technician** | `technician@test.com` | `password123` | Result Entry & Sample Collection |
+| **👤 Patient** | `patient@test.com` | `password123` | Test Booking & History |
+
 
 ---
+
+## 📁 Key Documentation Paths
 
 ## 🧪 Verification Steps
 

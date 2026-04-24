@@ -218,14 +218,17 @@ npm run dev
 
 The frontend will start on **http://localhost:5173**
 
-### 👥 Default Test Users
+### 👥 Default Test Credentials
 
-| Email | Password | Role | Purpose |
+> **Use these pre-configured accounts to explore different roles within the platform.**
+
+| Role | Email | Password | Primary Workflow |
 | :--- | :--- | :--- | :--- |
-| `patient@test.com` | password123 | PATIENT | Test booking features |
-| `technician@test.com` | password123 | TECHNICIAN | Test sample collection |
-| `doctor@test.com` | password123 | MEDICAL_OFFICER | Test report verification |
-| `admin@test.com` | password123 | ADMIN | Test admin features |
+| **🛡️ Administrator** | `admin@test.com` | `password123` | Control Panel, User & Test Management |
+| **👨‍⚕️ Medical Officer** | `doctor@test.com` | `password123` | Report Verification & Clinical Notes |
+| **🔬 Technician** | `technician@test.com` | `password123` | Sample Collection & Result Entry |
+| **👤 Patient** | `patient@test.com` | `password123` | Test Booking & Report Downloads |
+
 
 ---
 
