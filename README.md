@@ -63,7 +63,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 👤 For Patients
 
 | Feature | Description |
-|---------|-------------|
+| :--- | :--- |
 | 🏠 **Home Collection** | Book sample collection from home with real-time technician tracking |
 | 🔍 **Test Search** | Advanced search with filters by category, price, and name |
 | 📊 **Report Access** | Download reports in PDF format with historical trends |
@@ -75,7 +75,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 🔬 For Technicians
 
 | Feature | Description |
-|---------|-------------|
+| :--- | :--- |
 | 📍 **Location Tracking** | Real-time GPS synchronization for efficient home sample collection routing |
 | 📋 **Assignment Management** | Automated queue management for pending and completed sample collections |
 | ✅ **Result Submission** | Secure API-driven entry for lab results with multi-parameter validation |
@@ -85,7 +85,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 👨‍⚕️ For Medical Officers
 
 | Feature | Description |
-|---------|-------------|
+| :--- | :--- |
 | ✅ **Report Verification** | Digital counter-signing of diagnostic reports with timestamped approvals |
 | 🔍 **Quality Control** | Automated cross-referencing of results against standard reference ranges |
 | 📊 **Patient History** | Comparative view of historical test results for longitudinal monitoring |
@@ -95,7 +95,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 👨‍💼 For Administrators
 
 | Feature | Description |
-|---------|-------------|
+| :--- | :--- |
 | 📊 **Dashboard Analytics** | Executive overview of booking volumes, revenue, and operational KPIs |
 | 👥 **User Management** | Granular control over user roles, permissions, and account management |
 | 🧪 **Test Management** | Dynamic catalog controller for medical tests, pricing, and parameters |
@@ -110,7 +110,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 🍃 Backend
 
 | Technology | Version | Purpose | Link |
-|------------|---------|---------|------|
+| :--- | :--- | :--- | :--- |
 | **Java** | 21 LTS | Core programming language | [OpenJDK](https://openjdk.org/projects/jdk/21/) |
 | **Spring Boot** | 3.2.2 | Application framework | [Spring Boot](https://spring.io/projects/spring-boot) |
 | **Spring Security** | 6.2.x | Security & authentication | [Spring Security](https://spring.io/projects/spring-security) |
@@ -125,7 +125,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### ⚛️ Frontend
 
 | Technology | Version | Purpose | Link |
-|------------|---------|---------|------|
+| :--- | :--- | :--- | :--- |
 | **React** | 19 | UI framework | [React](https://react.dev/) |
 | **Vite** | 5.x | Build tool | [Vite](https://vitejs.dev/) |
 | **TypeScript** | 5.x | Type-safe JavaScript | [TypeScript](https://www.typescriptlang.org/) |
@@ -138,7 +138,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 ### 🚀 DevOps & Testing
 
 | Technology | Purpose | Link |
-|------------|---------|------|
+| :--- | :--- | :--- |
 | **Docker** | Containerization | [Docker](https://www.docker.com/) |
 | **GitHub Actions** | CI/CD | [GitHub Actions](https://github.com/features/actions) |
 | **Playwright** | E2E testing | [Playwright](https://playwright.dev/) |
@@ -154,7 +154,7 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 Before you begin, ensure you have the following installed:
 
 | Software | Minimum Version | Recommended | Download |
-|----------|----------------|-------------|----------|
+| :--- | :--- | :--- | :--- |
 | **Java JDK** | 17 | 21 LTS | [OpenJDK](https://openjdk.org/projects/jdk/21/) |
 | **Maven** | 3.8+ | 3.9+ | [Maven](https://maven.apache.org/download.cgi) |
 | **Node.js** | 18+ | 20 LTS | [Node.js](https://nodejs.org/) |
@@ -222,7 +222,7 @@ The frontend will start on **http://localhost:5173**
 ### 👥 Default Test Users
 
 | Email | Password | Role | Purpose |
-|-------|----------|------|---------|
+| :--- | :--- | :--- | :--- |
 | `patient@test.com` | password123 | PATIENT | Test booking features |
 | `technician@test.com` | password123 | TECHNICIAN | Test sample collection |
 | `doctor@test.com` | password123 | MEDICAL_OFFICER | Test report verification |
@@ -237,7 +237,7 @@ The frontend will start on **http://localhost:5173**
 Access the interactive API documentation at:
 
 | Resource | URL |
-|----------|-----|
+| :--- | :--- |
 | **Swagger UI** | http://localhost:8080/swagger-ui.html |
 | **OpenAPI JSON** | http://localhost:8080/api-docs |
 | **Health Check** | http://localhost:8080/api/health |

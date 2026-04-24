@@ -44,7 +44,7 @@ Healthcare Lab is a modern, full-stack healthcare platform designed to streamlin
 ## 👥 User Roles
 
 | Role | Description |
-|------|-------------|
+| :--- | :--- |
 | **PATIENT** | Book tests, view reports, manage appointments |
 | **TECHNICIAN** | Collect samples, submit results, update status |
 | **MEDICAL_OFFICER** | Verify reports, add clinical observations |
