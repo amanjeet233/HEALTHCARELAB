@@ -61,16 +61,16 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 
 <div align="center">
   <h3>✨ The Modern Patient Experience</h3>
-  <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/landing_page.png" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="docs/screenshots/landing_page.png" alt="Healthcare Lab Landing Page" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
   <h3>📋 Clinical Oversight (MO Dashboard)</h3>
-  <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="docs/screenshots/report_verification.png" alt="Medical Officer Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
   <h3>🛡️ Enterprise Governance (Admin Dashboard)</h3>
-  <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/admin_dashboard.png" alt="Admin Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="docs/screenshots/admin_dashboard.png" alt="Admin Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/><br/>
   <h3>🔬 Operations Management (Technician Dashboard)</h3>
-  <img src="https://raw.githubusercontent.com/amanjeet233/HEALTHCARELAB/master/docs/screenshots/technician_dashboard.png" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
+  <img src="docs/screenshots/technician_dashboard.png" alt="Technician Dashboard" width="900" style="border-radius: 10px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);" />
   <br/>
   <i>Efficient Task Management, Priority Queues, and real-time status updates for Sample Collection.</i>
 </div>
