@@ -1,12 +1,18 @@
 # 🏁 Getting Started with Healthcare Lab
 
-> **Welcome to the premium health-tech ecosystem. Follow this guide to initialize, verify, and scale your local environment.**
+> **Welcome to the premium health-tech ecosystem. Follow this comprehensive guide to initialize, verify, and scale your local environment.**
+
+<div align="center">
+  <img src="https://img.shields.io/badge/Status-Ready-success.svg?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/badge/Difficulty-Beginner-green.svg?style=for-the-badge" alt="Difficulty" />
+  <img src="https://img.shields.io/badge/Time-15_min-blue.svg?style=for-the-badge" alt="Time" />
+</div>
 
 ---
 
-## ⚡ Rapid Initialization
+## ⚡ Quick Start
 
-The fastest way to get the system running is using our standard automation:
+### Automated Setup (Windows)
 
 ```bash
 # From the root directory
@@ -19,57 +25,43 @@ This will concurrently launch:
 
 ---
 
-## 📋 Initialization Checklist
+## 👥 Default Test Users
 
-### 1️⃣ Database Strategy
-- **Auto-Schema:** Hibernate automatically manages your tables on startup.
-- **Smart Seeding:** 500+ realistic Lab Tests are injected on first boot.
-- **Roles & Users:** Core accounts (`patient@test.com`, `technician@test.com`, etc.) are auto-created with the correct permissions.
-
-### 2️⃣ Environment Configuration
-Ensure your `.env` and `application.properties` align with your local database credentials. Check the following:
-- `spring.datasource.url`
-- `spring.datasource.username`
-- `spring.datasource.password`
-
-### 3️⃣ Frontend Hydration
-Navigate to `/frontend` and ensure dependencies are local:
-```bash
-npm install
-npm run dev
-```
+| Email | Password | Role | Purpose |
+|-------|----------|------|---------|
+| `patient@test.com` | password123 | PATIENT | Test booking creation |
+| `technician@test.com` | password123 | TECHNICIAN | Test report submission |
+| `doctor@test.com` | password123 | MEDICAL_OFFICER | Test approval workflows |
+| `admin@test.com` | password123 | ADMIN | Test admin features |
 
 ---
 
 ## 🧪 Verification Steps
 
 ### API Health Check
-Invoke a simple GET request to verify the server is breathing:
-`GET http://localhost:8080/api/health`
 
-### Postman Validation
-1. Import the collection from `/postman`.
-2. Select the **Healthcare Local** environment.
-3. Run the **"Patient Login"** request.
+```bash
+curl http://localhost:8080/api/health
+```
 
----
+### Access URLs
 
-## 📁 Key Documentation Paths
-
-| Resource | Purpose |
-| :--- | :--- |
-| [API.md](../api/API.md) | Full REST resource documentation. |
-| [ARCHITECTURE.md](../architecture/SYSTEM_ARCHITECTURE.md) | System design and data flow diagrams. |
-| [CHANGELOG.md](../CHANGELOG.md) | Timeline of features and fixes. |
-| [PLAN.md](../PLAN.md) | Development roadmap and strategy. |
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:8080
+- **Swagger UI:** http://localhost:8080/swagger-ui.html
 
 ---
 
-## 🆘 Support & Oversight
+## 👨‍💻 Support & Oversight
 
-The Healthcare Lab platform is managed by **AMANJEET KUMAR**. If you encounter system anomalies or configuration blockers, please refer to the [LOG_REFERENCE.md](./06-LOG_REFERENCE.md) or reach out via Instagram [@amanjeet233](https://instagram.com/amanjeet233).
+The Healthcare Lab platform is managed by **AMANJEET KUMAR**.
+
+- **Instagram:** [@amanjeet233](https://instagram.com/amanjeet233)
+- **GitHub:** [amanjeet233/HEALTHCARELAB](https://github.com/amanjeet233/HEALTHCARELAB)
 
 ---
+
 <div align="center">
-  <b>Designed for excellence. Built for health.</b>
+  <img src="https://img.shields.io/badge/Status-Ready-success.svg?style=for-the-badge" alt="Ready" /><br/><br/>
+  <b>✅ You're all set! Healthcare Lab is now running locally.</b>
 </div>
