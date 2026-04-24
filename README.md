@@ -76,32 +76,32 @@ Healthcare Lab Test Booking System is a comprehensive healthcare platform design
 
 | Feature | Description |
 |---------|-------------|
-| 📍 **Location Tracking** | Real-time location updates for efficient routing |
-| 📋 **Assignment Management** | View and manage sample collection assignments |
-| ✅ **Result Submission** | Submit test results efficiently with validation |
-| 📊 **Status Updates** - Update collection status in real-time |
-| 🗺️ **Route Optimization** - Optimized routes for multiple collections |
+| 📍 **Location Tracking** | Real-time GPS synchronization for efficient home sample collection routing |
+| 📋 **Assignment Management** | Automated queue management for pending and completed sample collections |
+| ✅ **Result Submission** | Secure API-driven entry for lab results with multi-parameter validation |
+| 📊 **Status Updates** | Instant status transitions (Collected, In-Transit, Lab-Received) via mobile interface |
+| 🗺️ **Route Optimization** | Intelligent route planning to minimize travel time between collection points |
 
 ### 👨‍⚕️ For Medical Officers
 
 | Feature | Description |
 |---------|-------------|
-| ✅ **Report Verification** - Verify and approve reports with digital signatures |
-| 🔍 **Quality Control** - Ensure report accuracy with reference ranges |
-| 📊 **Patient History** - View patient's complete test history |
-| 💬 **Comments & Notes** - Add clinical observations and recommendations |
-| ⚠️ **Critical Alerts** - Automatic alerts for abnormal values |
+| ✅ **Report Verification** | Digital counter-signing of diagnostic reports with timestamped approvals |
+| 🔍 **Quality Control** | Automated cross-referencing of results against standard reference ranges |
+| 📊 **Patient History** | Comparative view of historical test results for longitudinal monitoring |
+| 💬 **Comments & Notes** | Clinical observation logging with support for professional annotations |
+| ⚠️ **Critical Alerts** | Real-time system notifications for life-threatening test value abnormalities |
 
 ### 👨‍💼 For Administrators
 
 | Feature | Description |
 |---------|-------------|
-| 📊 **Dashboard Analytics** - Comprehensive system analytics and KPIs |
-| 👥 **User Management** - Manage all system users with role assignment |
-| 🧪 **Test Management** - Add/update lab tests with pricing |
-| 💰 **Revenue Tracking** - Monitor financial performance with reports |
-| 📈 **Trend Analysis** - Analyze booking trends and popular tests |
-| 🔧 **System Configuration** - Configure system settings and parameters |
+| 📊 **Dashboard Analytics** | Executive overview of booking volumes, revenue, and operational KPIs |
+| 👥 **User Management** | Granular control over user roles, permissions, and account management |
+| 🧪 **Test Management** | Dynamic catalog controller for medical tests, pricing, and parameters |
+| 💰 **Revenue Tracking** | Detailed financial reporting with support for multi-channel audits |
+| 📈 **Trend Analysis** | Predictive modeling of peak booking times and high-demand packages |
+| 🔧 **System Configuration** | Global platform settings management for API keys and system gateways |
 
 ---
 
@@ -508,7 +508,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📖 [Documentation](docs/)
 - 🐛 [Report Issues](https://github.com/amanjeet233/HEALTHCARELAB/issues)
 - 💬 [Discussions](https://github.com/amanjeet233/HEALTHCARELAB/discussions)
-- 📧 Email: amanjeet233@gmial.com
+- 📧 Email: amanjeet233@gmail.com
 
 ---
 
